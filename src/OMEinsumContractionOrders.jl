@@ -2,6 +2,11 @@
 
 module OMEinsumContractionOrders
 
-# Write your package code here.
+using KaHyPar
+using SparseArrays, Suppressor
+using OMEinsum
+using OMEinsum: NestedEinsum
+
+include("kahypar.jl")
 
 end

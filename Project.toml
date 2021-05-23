@@ -3,11 +3,22 @@ uuid = "6f22d1fd-8eed-4bb7-9776-e7d684900715"
 authors = ["QuEra Computing Inc."]
 version = "0.1.0"
 
+[deps]
+KaHyPar = "2a6221f6-aa48-11e9-3542-2d9e0ef01880"
+OMEinsum = "ebe7aa44-baf0-506c-a96f-8464559b3922"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+Suppressor = "fd094767-a336-5f1f-9728-57cf17d0bbfb"
+
 [compat]
+KaHyPar = "0.1"
+OMEinsum = "0.4.1"
+Suppressor = "0.2"
 julia = "1"
 
 [extras]
+LightGraphs = "093fc24a-ae57-5d10-9952-331d41423f4d"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test"]
+test = ["Test", "LightGraphs", "Random"]
