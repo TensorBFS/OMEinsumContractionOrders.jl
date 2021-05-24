@@ -1,9 +1,9 @@
 export uniformsize, optimize_kahypar
 
-function uniformsize(::EinCode{ixs,iy}, size::Int) where {ixs, iy}
+function uniformsize(@nospecialize(code::EinCode{ixs,iy}), size::Int) where {ixs, iy}
     Dict([c=>size for c in [Iterators.flatten(ixs)..., iy...]])
 end
-uniformsize(ne::NestedEinsum, size::Int) = uniformsize(recursive_flatten(ne), size)
+uniformsize(ne::NestedEinsum, size::Int) = uniformsize(Iterators.flatten(ne), size)
 
 function induced_subhypergraph(s::SparseMatrixCSC, group)
     s0 = s[group,:]
@@ -49,7 +49,7 @@ function kahypar_partitions_sc_recursive(adj::SparseMatrixCSC, vertices=collect(
 end
 
 # KaHyPar
-function adjacency_matrix(::EinCode{ixs,iy}) where {ixs, iy}
+function adjacency_matrix(ixs::AbstractVector)
     rows = Int[]
     cols = Int[]
     edges = unique!([Iterators.flatten(ixs)...])
@@ -60,11 +60,12 @@ function adjacency_matrix(::EinCode{ixs,iy}) where {ixs, iy}
     return sparse(rows, cols, ones(Int, length(rows))), edges
 end
 
-function optimize_kahypar(code::EinCode{ixs,iy}, size_dict; sc_target, max_group_size, imbalances=0.0:0.01:0.2, verbose=false) where {ixs, iy}
-    adj, edges = adjacency_matrix(code)
+function optimize_kahypar(@nospecialize(code::EinCode{ixs,iy}), size_dict; sc_target, max_group_size, imbalances=0.0:0.01:0.2, verbose=false) where {ixs, iy}
+    ixv = collect(ixs)
+    adj, edges = adjacency_matrix(ixv)
     vertices=collect(1:length(1:length(ixs)))
     parts = kahypar_partitions_sc_recursive(adj, vertices; sc_target, max_size=max_group_size, log2_sizes=[log2(size_dict[e]) for e in edges], imbalances, verbose=verbose)
-    recursive_construct_nestedeinsum(collect(ixs), iy, parts, size_dict)
+    recursive_construct_nestedeinsum(ixv, collect(iy), parts, size_dict)
 end
 
 function recursive_construct_nestedeinsum(ixs::AbstractVector, iy, parts::AbstractVector, size_dict)
