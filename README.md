@@ -23,11 +23,13 @@ pkg> registry add https://github.com/Happy-Diode/Miskatonic.git
 For stable release
 
 ```julia
+pkg> add https://github.com/kahypar/KaHyPar.jl.git#master
 pkg> add OMEinsumContractionOrders
 ```
 
 For current master
 
 ```julia
+pkg> add https://github.com/kahypar/KaHyPar.jl.git#master
 pkg> add OMEinsumContractionOrders#master
 ```
