@@ -1,7 +1,7 @@
 # OMEinsumContractionOrders
+This package provides function `optimize_kahypar` for finding tensor network contraction orders. So far, it is only tested on Ubuntu. Mac OS and Windows users have to wait for the [Binary issue](https://github.com/kahypar/KaHyPar.jl/issues/12) of KaHyPar being solved.
 
 [![Build Status](https://github.com/TensorBFS/OMEinsumContractionOrders.jl/workflows/CI/badge.svg)](https://github.com/TensorBFS/OMEinsumContractionOrders.jl/actions)
-This package provides function `optimize_kahypar` for finding tensor network contraction orders.
 
 ## Installation
 <p>
