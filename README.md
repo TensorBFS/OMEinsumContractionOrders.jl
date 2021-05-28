@@ -1,15 +1,11 @@
 # OMEinsumContractionOrders
 
 [![Build Status](https://github.com/TensorBFS/OMEinsumContractionOrders.jl/workflows/CI/badge.svg)](https://github.com/TensorBFS/OMEinsumContractionOrders.jl/actions)
+This package provides function `optimize_kahypar` for finding tensor network contraction orders.
 
 ## Installation
 <p>
-OMEinsumContractionOrders is a &nbsp;
-    <a href="https://julialang.org">
-        <img src="https://julialang.org/favicon.ico" width="16em">
-        Julia Language
-    </a>
-    &nbsp; package. To install OMEinsumContractionOrders,
+OMEinsumContractionOrders is a Julia Language package. To install OMEinsumContractionOrders,
     please <a href="https://docs.julialang.org/en/v1/manual/getting-started/">open
     Julia's interactive session (known as REPL)</a> and press <kbd>]</kbd> key in the REPL to use the package mode, then type the following command
 </p>
@@ -21,11 +17,26 @@ pkg> add https://github.com/kahypar/KaHyPar.jl.git#master
 pkg> add OMEinsumContractionOrders
 ```
 
-For current master
-
+## Example
+Contract a tensor network
 ```julia
-pkg> add https://github.com/kahypar/KaHyPar.jl.git#master
-pkg> add OMEinsumContractionOrders#master
+julia> using OMEinsum, OMEinsumContractionOrders, LightGraphs
+
+julia> function random_regular_eincode(n, k; optimize=nothing)
+	    g = LightGraphs.random_regular_graph(n, k)
+	    ixs = [minmax(e.src,e.dst) for e in LightGraphs.edges(g)]
+	    return EinCode((ixs..., [(i,) for i in     LightGraphs.vertices(g)]...), ())
+    end
+    
+julia> code = random_regular_eincode(200, 3);
+
+julia> optcode = optimize_kahypar(code, uniformsize(code, 2); sc_target=30, max_group_size=50);
+
+julia> OMEinsum.timespace_complexity(code, uniformsize(code, 2))
+(200.0, 0.0)
+
+julia> OMEinsum.timespace_complexity(optcode, uniformsize(code, 2))
+(38.0290167456887, 26.0)
 ```
 
 ## References
