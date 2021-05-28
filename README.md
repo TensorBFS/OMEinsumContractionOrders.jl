@@ -58,3 +58,6 @@ If you find this package useful in your research, please cite the following pape
    pages={410}
 }
 ```
+
+## Authors
+Jin-Guo Liu and Pan Zhang

@@ -1,6 +1,6 @@
 name = "OMEinsumContractionOrders"
 uuid = "6f22d1fd-8eed-4bb7-9776-e7d684900715"
-authors = ["QuEra Computing Inc."]
+authors = ["Jin-Guo Liu", "Pan Zhang"]
 version = "0.1.0"
 
 [deps]
