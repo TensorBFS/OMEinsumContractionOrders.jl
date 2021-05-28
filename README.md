@@ -1,6 +1,6 @@
 # OMEinsumContractionOrders
 
-[![Build Status](https://github.com/Happy-Diode/OMEinsumContractionOrders.jl/workflows/CI/badge.svg)](https://github.com/Happy-Diode/OMEinsumContractionOrders.jl/actions)
+[![Build Status](https://github.com/TensorBFS/OMEinsumContractionOrders.jl/workflows/CI/badge.svg)](https://github.com/TensorBFS/OMEinsumContractionOrders.jl/actions)
 
 ## Installation
 <p>
