@@ -14,12 +14,6 @@ OMEinsumContractionOrders is a &nbsp;
     Julia's interactive session (known as REPL)</a> and press <kbd>]</kbd> key in the REPL to use the package mode, then type the following command
 </p>
 
-First add the QuEra Julia registry via
-
-```julia
-pkg> registry add https://github.com/Happy-Diode/Miskatonic.git
-```
-
 For stable release
 
 ```julia
@@ -30,4 +24,35 @@ For current master
 
 ```julia
 pkg> add OMEinsumContractionOrders#master
+```
+
+## References
+
+If you find this package useful in your research, please cite the following papers
+
+```
+@misc{Pan2021,
+      title={Simulating the Sycamore quantum supremacy circuits}, 
+      author={Feng Pan and Pan Zhang},
+      year={2021},
+      eprint={2103.03074},
+      archivePrefix={arXiv},
+      primaryClass={quant-ph}
+}
+```
+
+```
+@article{Gray2021,
+   title={Hyper-optimized tensor network contraction},
+   volume={5},
+   ISSN={2521-327X},
+   url={http://dx.doi.org/10.22331/q-2021-03-15-410},
+   DOI={10.22331/q-2021-03-15-410},
+   journal={Quantum},
+   publisher={Verein zur Forderung des Open Access Publizierens in den Quantenwissenschaften},
+   author={Gray, Johnnie and Kourtis, Stefanos},
+   year={2021},
+   month={Mar},
+   pages={410}
+}
 ```
