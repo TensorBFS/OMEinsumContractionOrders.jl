@@ -21,13 +21,6 @@ pkg> add https://github.com/kahypar/KaHyPar.jl.git#master
 pkg> add OMEinsumContractionOrders
 ```
 
-For current master
-
-```julia
-pkg> add https://github.com/kahypar/KaHyPar.jl.git#master
-pkg> add OMEinsumContractionOrders#master
-```
-
 ## References
 
 If you find this package useful in your research, please cite the following papers
