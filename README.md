@@ -1,5 +1,7 @@
 # OMEinsumContractionOrders
 
+This package provides function `optimize_kahypar` for finding tensor network contraction orders.
+
 [![Build Status](https://github.com/Happy-Diode/OMEinsumContractionOrders.jl/workflows/CI/badge.svg)](https://github.com/Happy-Diode/OMEinsumContractionOrders.jl/actions)
 
 ## Installation
@@ -19,6 +21,28 @@ For stable release
 ```julia
 pkg> add https://github.com/kahypar/KaHyPar.jl.git#master
 pkg> add OMEinsumContractionOrders
+```
+
+## Example
+Contract a tensor network
+```julia
+julia> using OMEinsum, OMEinsumContractionOrders, LightGraphs
+
+julia> function random_regular_eincode(n, k; optimize=nothing)
+	    g = LightGraphs.random_regular_graph(n, k)
+	    ixs = [minmax(e.src,e.dst) for e in LightGraphs.edges(g)]
+	    return EinCode((ixs..., [(i,) for i in     LightGraphs.vertices(g)]...), ())
+    end
+    
+julia> code = random_regular_eincode(200, 3);
+
+julia> optcode = optimize_kahypar(code, uniformsize(code, 2); sc_target=30, max_group_size=50);
+
+julia> OMEinsum.timespace_complexity(code, uniformsize(code, 2))
+(200.0, 0.0)
+
+julia> OMEinsum.timespace_complexity(optcode, uniformsize(code, 2))
+(38.0290167456887, 26.0)
 ```
 
 ## References
