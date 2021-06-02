@@ -45,3 +45,24 @@ using OMEinsumContractionOrders
     resk = codek(xs...)
     @test resg ≈ resk
 end
+
+@testset "regression test" begin
+    code = ein"i->"
+    optcode = optimize_kahypar(code, Dict('i'=>4), sc_target=10, max_group_size=10)
+    @test optcode isa NestedEinsum
+    x = randn(4)
+    @test optcode(x) ≈ code(x)
+
+    code = ein"i,j->"
+    optcode = optimize_kahypar(code, Dict('i'=>4, 'j'=>4), sc_target=10, max_group_size=10)
+    @test optcode isa NestedEinsum
+    x = randn(4)
+    y = randn(4)
+    @test optcode(x, y) ≈ code(x, y)
+
+    code = ein"ij,jk,kl->ijl"
+    optcode = optimize_kahypar(code, Dict('i'=>4, 'j'=>4, 'k'=>4, 'l'=>4), sc_target=2, max_group_size=2)
+    @test optcode isa NestedEinsum
+    a, b, c = [rand(4,4) for i=1:4]
+    @test optcode(a, b, c) ≈ code(a, b, c)
+end

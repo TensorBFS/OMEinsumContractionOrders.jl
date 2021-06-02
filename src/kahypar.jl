@@ -60,32 +60,48 @@ function adjacency_matrix(ixs::AbstractVector)
     return sparse(rows, cols, ones(Int, length(rows))), edges
 end
 
+"""
+    optimize_kahypar(code, size_dict; sc_target, max_group_size, imbalances=0.0:0.01:0.2, verbose=false)
+
+Optimize the einsum code contraction order using the KaHyPar + Greedy approach.
+This program first recursively cuts the tensors into several groups using KaHyPar,
+with maximum group size specifed by `max_group_size` and maximum space complexity specified by `sc_target`,
+Then finds the contraction order inside each group with the greedy search algorithm. Other arguments are
+
+* `size_dict`, a dictionary that specifies leg dimensions,
+* `imbalances`, KaHyPar parameter that controls the group sizes in hierarchical bipartition,
+* `verbose`, showing more detail if true.
+
+### References
+* [Hyper-optimized tensor network contraction](https://arxiv.org/abs/2002.01935)
+* [Simulating the Sycamore quantum supremacy circuits](https://arxiv.org/abs/2103.03074)
+"""
 function optimize_kahypar(@nospecialize(code::EinCode{ixs,iy}), size_dict; sc_target, max_group_size, imbalances=0.0:0.01:0.2, verbose=false) where {ixs, iy}
     ixv = collect(ixs)
     adj, edges = adjacency_matrix(ixv)
     vertices=collect(1:length(1:length(ixs)))
     parts = kahypar_partitions_sc_recursive(adj, vertices; sc_target, max_size=max_group_size, log2_sizes=[log2(size_dict[e]) for e in edges], imbalances, verbose=verbose)
-    recursive_construct_nestedeinsum(ixv, collect(iy), parts, size_dict)
+    recursive_construct_nestedeinsum(ixv, collect(iy), parts, size_dict, 0)
 end
 
-function recursive_construct_nestedeinsum(ixs::AbstractVector, iy, parts::AbstractVector, size_dict)
+function recursive_construct_nestedeinsum(ixs::AbstractVector, iy, parts::AbstractVector, size_dict, level=0)
     if length(parts) == 2
         # code is a nested einsum
-        code1 = recursive_construct_nestedeinsum(ixs, iy, parts[1], size_dict)
-        code2 = recursive_construct_nestedeinsum(ixs, iy, parts[2], size_dict)
+        code1 = recursive_construct_nestedeinsum(ixs, iy, parts[1], size_dict, level+1)
+        code2 = recursive_construct_nestedeinsum(ixs, iy, parts[2], size_dict, level+1)
         AB = recursive_flatten(parts[2]) ∪ recursive_flatten(parts[1])
         inset12, outset12 = ixs[AB], ixs[setdiff(1:length(ixs), AB)]
         iy12 = Iterators.flatten(inset12) ∩  (Iterators.flatten(outset12) ∪ iy)
         iy1, iy2 = OMEinsum.getiy(code1.eins), OMEinsum.getiy(code2.eins)
-        return NestedEinsum((code1, code2), EinCode((iy1, iy2), (iy12...,)))
+        return NestedEinsum((code1, code2), EinCode((iy1, iy2), ((level==0 ? iy : iy12)...,)))
     elseif length(parts) == 1
-        return recursive_construct_nestedeinsum(ixs, iy, parts[1], size_dict)
+        return recursive_construct_nestedeinsum(ixs, iy, parts[1], size_dict, level)
     else
         error("not a bipartition, got size $(length(parts))")
     end
 end
 
-function recursive_construct_nestedeinsum(ixs::AbstractVector, iy, parts::AbstractVector{<:Integer}, size_dict)
+function recursive_construct_nestedeinsum(ixs::AbstractVector, iy, parts::AbstractVector{<:Integer}, size_dict, level=0)
     if isempty(parts)
         error("got empty group!")
     end
@@ -93,11 +109,7 @@ function recursive_construct_nestedeinsum(ixs::AbstractVector, iy, parts::Abstra
     iy1 = Iterators.flatten(inset) ∩  (Iterators.flatten(outset) ∪ iy)
     code = EinCode{(inset...,), (iy1...,)}()
     res = optimize_greedy(code, size_dict)
-    if res isa EinCode
-        return NestedEinsum((parts...,), res)
-    else
-        return maplocs(res, parts)
-    end
+    return maplocs(res, parts)
 end
 
 maplocs(ne::NestedEinsum, parts) = NestedEinsum(maplocs.(ne.args, Ref(parts)), ne.eins)
