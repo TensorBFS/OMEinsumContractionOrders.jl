@@ -65,4 +65,10 @@ end
     @test optcode isa NestedEinsum
     a, b, c = [rand(4,4) for i=1:4]
     @test optcode(a, b, c) ≈ code(a, b, c)
+
+    code = ein"ij,jk,kl->ijl"
+    optcode = optimize_kahypar(code, Dict('i'=>3, 'j'=>3, 'k'=>3, 'l'=>3), sc_target=2, max_group_size=2)
+    @test optcode isa NestedEinsum
+    a, b, c = [rand(3,3) for i=1:4]
+    @test optcode(a, b, c) ≈ code(a, b, c)
 end
