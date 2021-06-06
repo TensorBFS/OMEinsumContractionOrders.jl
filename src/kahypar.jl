@@ -12,10 +12,14 @@ function induced_subhypergraph(s::SparseMatrixCSC, group)
     s0[:,remaining_edges], remaining_edges
 end
 
+function convert2int(sizes::AbstractVector)
+    round.(Int, sizes .* 100)
+end
+
 function kahypar_partitions_sc(adj::SparseMatrixCSC, vertices=collect(1:size(adj,1)); sc_target, log2_sizes, imbalances=0.02, verbose=false)
     n_v = length(vertices)
     subgraph, remaining_edges = induced_subhypergraph(adj, vertices)
-    hypergraph = KaHyPar.HyperGraph(subgraph, ones(n_v), log2_sizes[remaining_edges])
+    hypergraph = KaHyPar.HyperGraph(subgraph, ones(n_v), convert2int(log2_sizes[remaining_edges]))
     local parts
     for imbalance in imbalances
         parts = @suppress KaHyPar.partition(hypergraph, 2; imbalance=imbalance, configuration=:edge_cut)
