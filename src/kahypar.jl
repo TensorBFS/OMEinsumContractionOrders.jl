@@ -3,7 +3,7 @@ export uniformsize, optimize_kahypar
 function uniformsize(@nospecialize(code::EinCode{ixs,iy}), size::Int) where {ixs, iy}
     Dict([c=>size for c in [Iterators.flatten(ixs)..., iy...]])
 end
-uniformsize(ne::NestedEinsum, size::Int) = uniformsize(Iterators.flatten(ne), size)
+uniformsize(ne::NestedEinsum, size::Int) = uniformsize(OMEinsum.flatten(ne), size)
 
 function induced_subhypergraph(s::SparseMatrixCSC, group)
     s0 = s[group,:]
@@ -21,18 +21,20 @@ function kahypar_partitions_sc(adj::SparseMatrixCSC, vertices=collect(1:size(adj
     subgraph, remaining_edges = induced_subhypergraph(adj, vertices)
     hypergraph = KaHyPar.HyperGraph(subgraph, ones(n_v), convert2int(log2_sizes[remaining_edges]))
     local parts
+    min_sc = 999999
     for imbalance in imbalances
         parts = @suppress KaHyPar.partition(hypergraph, 2; imbalance=imbalance, configuration=:edge_cut)
         part0 = vertices[parts .== 0]
         part1 = vertices[parts .== 1]
         sc0, sc1 = group_sc(adj, part0), group_sc(adj, part1)
         sc = max(sc0, sc1)
+        min_sc = min(sc, min_sc)
         verbose && println("imbalance $imbalance: sc = $sc, group = ($(length(part0)), $(length(part1)))")
         if sc <= sc_target
             return part0, part1
         end
     end
-    error("fail to find a valid partition for `sc_target = $sc_target`")
+    error("fail to find a valid partition for `sc_target = $sc_target`, got minimum value `$min_sc` (imbalances = $imbalances)")
 end
 
 function group_sc(adj, group)
@@ -65,7 +67,7 @@ function adjacency_matrix(ixs::AbstractVector)
 end
 
 """
-    optimize_kahypar(code, size_dict; sc_target, max_group_size, imbalances=0.0:0.01:0.2, verbose=false)
+    optimize_kahypar(code, size_dict; sc_target, max_group_size=40, imbalances=0.0:0.01:0.2, verbose=false)
 
 Optimize the einsum code contraction order using the KaHyPar + Greedy approach.
 This program first recursively cuts the tensors into several groups using KaHyPar,
@@ -80,7 +82,7 @@ Then finds the contraction order inside each group with the greedy search algori
 * [Hyper-optimized tensor network contraction](https://arxiv.org/abs/2002.01935)
 * [Simulating the Sycamore quantum supremacy circuits](https://arxiv.org/abs/2103.03074)
 """
-function optimize_kahypar(@nospecialize(code::EinCode{ixs,iy}), size_dict; sc_target, max_group_size, imbalances=0.0:0.01:0.2, verbose=false) where {ixs, iy}
+function optimize_kahypar(@nospecialize(code::EinCode{ixs,iy}), size_dict; sc_target, max_group_size=40, imbalances=0.0:0.01:0.2, verbose=false) where {ixs, iy}
     ixv = collect(ixs)
     adj, edges = adjacency_matrix(ixv)
     vertices=collect(1:length(1:length(ixs)))
