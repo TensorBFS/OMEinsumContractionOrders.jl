@@ -44,6 +44,12 @@ using OMEinsumContractionOrders
     resg = codeg(xs...)
     resk = codek(xs...)
     @test resg ≈ resk
+
+    Random.seed!(2)
+    code = random_regular_eincode(220, 3)
+    codeg_auto = optimize_kahypar_auto(code, uniformsize(code, 2))
+    tc, sc = OMEinsum.timespace_complexity(codeg_auto, uniformsize(code, 2))
+    @test sc <= 28
 end
 
 @testset "regression test" begin

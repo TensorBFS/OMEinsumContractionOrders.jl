@@ -1,4 +1,4 @@
-export uniformsize, optimize_kahypar
+export uniformsize, optimize_kahypar, optimize_kahypar_auto
 
 function uniformsize(@nospecialize(code::EinCode{ixs,iy}), size::Int) where {ixs, iy}
     Dict([c=>size for c in [Iterators.flatten(ixs)..., iy...]])
@@ -131,3 +131,32 @@ end
 recursive_flatten(obj::Tuple) = vcat(recursive_flatten.(obj)...)
 recursive_flatten(obj::AbstractVector) = vcat(recursive_flatten.(obj)...)
 recursive_flatten(obj) = obj
+
+"""
+    optimize_kahypar_auto(code, size_dict; max_group_size=40, verbose=false)
+
+Find the optimal contraction order automatically by determining the `sc_target` with bisection.
+It can fail if the tree width of your graph is larger than `100`.
+"""
+function optimize_kahypar_auto(@nospecialize(code::EinCode{ixs,iy}), size_dict; max_group_size=40, verbose=false, effort=500) where {ixs, iy}
+    sc_high = 100
+    sc_low = 1
+    order_high = optimize_kahypar(code, size_dict; sc_target=sc_high, max_group_size=max_group_size, imbalances=0.0:0.6/effort*(sc_high-sc_low):0.6, verbose=verbose)
+    _optimize_kahypar_auto(code, size_dict, sc_high, order_high, sc_low, max_group_size, verbose, effort)
+end
+function _optimize_kahypar_auto(@nospecialize(code::EinCode{ixs,iy}), size_dict, sc_high, order_high, sc_low, max_group_size, verbose, effort) where {ixs, iy}
+    if sc_high <= sc_low + 1
+        order_high
+    else
+        sc_mid = (sc_high + sc_low) ÷ 2
+        try
+            order_mid = optimize_kahypar(code, size_dict; sc_target=sc_mid, max_group_size=max_group_size, imbalances=0.0:0.6/effort*(sc_high-sc_low):0.6, verbose=verbose)
+            order_high, sc_high = order_mid, sc_mid
+            # `sc_target` too high
+        catch
+            # `sc_target` too low
+            sc_low = sc_mid
+        end
+        _optimize_kahypar_auto(code, size_dict, sc_high, order_high, sc_low, max_group_size, verbose, effort)
+    end
+end
