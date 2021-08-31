@@ -16,19 +16,17 @@ function convert2int(sizes::AbstractVector)
     round.(Int, sizes .* 100)
 end
 
-function kahypar_partitions_sc(adj::SparseMatrixCSC, vertices=collect(1:size(adj,1)); sc_target, log2_sizes, imbalances=0.02, verbose=false)
+function kahypar_partitions_sc(adj::SparseMatrixCSC, vertices; sc_target, log2_sizes, imbalances=0.02, verbose=false)
     n_v = length(vertices)
     subgraph, remaining_edges = induced_subhypergraph(adj, vertices)
-    log2_sizes_ = log2_sizes[remaining_edges]
-    adj_sized = adj .* reshape(log2_sizes, 1, :)
-    hypergraph = KaHyPar.HyperGraph(subgraph, ones(n_v), convert2int(log2_sizes_))
+    hypergraph = KaHyPar.HyperGraph(subgraph, ones(n_v), convert2int(log2_sizes[remaining_edges]))
     local parts
     min_sc = 999999
     for imbalance in imbalances
         parts = @suppress KaHyPar.partition(hypergraph, 2; imbalance=imbalance, configuration=:edge_cut)
         part0 = vertices[parts .== 0]
         part1 = vertices[parts .== 1]
-        sc0, sc1 = group_sc(adj_sized, part0), group_sc(adj_sized, part1)
+        sc0, sc1 = group_sc(adj, part0, log2_sizes), group_sc(adj, part1, log2_sizes)
         sc = max(sc0, sc1)
         min_sc = min(sc, min_sc)
         verbose && println("imbalance $imbalance: sc = $sc, group = ($(length(part0)), $(length(part1)))")
@@ -39,13 +37,13 @@ function kahypar_partitions_sc(adj::SparseMatrixCSC, vertices=collect(1:size(adj
     error("fail to find a valid partition for `sc_target = $sc_target`, got minimum value `$min_sc` (imbalances = $imbalances)")
 end
 
-function group_sc(adj, group)
+function group_sc(adj, group, log2_sizes)
     degree_in = sum(adj[group,:], dims=1)
     degree_all = sum(adj, dims=1)
-    count(i->degree_in[i]!=0 && degree_in[i]!=degree_all[i], 1:size(adj,2))
+    sum(i->(degree_in[i]!=0 && degree_in[i]!=degree_all[i] ? Float64(log2_sizes[i]) : 0.0), 1:size(adj,2))
 end
 
-function kahypar_partitions_sc_recursive(adj::SparseMatrixCSC, vertices=collect(1:size(adj,1)); sc_target, max_size, log2_sizes, imbalances=0:0.03:0.99, verbose=false)
+function kahypar_partitions_sc_recursive(adj::SparseMatrixCSC, vertices; sc_target, max_size, log2_sizes, imbalances=0:0.03:0.99, verbose=false)
     if length(vertices) > max_size
         part1, part2 = kahypar_partitions_sc(adj, vertices; sc_target=sc_target, log2_sizes=log2_sizes, imbalances=imbalances, verbose=verbose)
         parts1 = kahypar_partitions_sc_recursive(adj, part1; sc_target=sc_target, max_size=max_size, log2_sizes=log2_sizes, imbalances=imbalances, verbose=verbose)
@@ -85,7 +83,7 @@ Then finds the contraction order inside each group with the greedy search algori
 * [Simulating the Sycamore quantum supremacy circuits](https://arxiv.org/abs/2103.03074)
 """
 function optimize_kahypar(@nospecialize(code::EinCode{ixs,iy}), size_dict; sc_target, max_group_size=40, imbalances=0.0:0.01:0.2, verbose=false) where {ixs, iy}
-    ixv = collect(ixs)
+    ixv = [ixs..., iy]
     adj, edges = adjacency_matrix(ixv)
     vertices=collect(1:length(1:length(ixs)))
     parts = kahypar_partitions_sc_recursive(adj, vertices; sc_target, max_size=max_group_size, log2_sizes=[log2(size_dict[e]) for e in edges], imbalances, verbose=verbose)
