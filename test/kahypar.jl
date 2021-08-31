@@ -21,13 +21,14 @@ using OMEinsumContractionOrders
     end
     graph = sparse(rows, cols, ones(Int, length(rows)))
     sc_target = 28.0
-    group1, group2 = OMEinsumContractionOrders.kahypar_partitions_sc(graph, collect(1:size(graph, 1)); log2_sizes=fill(1, size(graph, 2)), sc_target=sc_target, imbalances=[0.0:0.02:0.8...])
-    @test OMEinsumContractionOrders.group_sc(graph, group1) <= sc_target
-    @test OMEinsumContractionOrders.group_sc(graph, group2) <= sc_target
+    log2_sizes = fill(1, size(graph, 2))
+    group1, group2 = OMEinsumContractionOrders.kahypar_partitions_sc(graph, collect(1:size(graph, 1));log2_sizes=log2_sizes, sc_target=sc_target, imbalances=[0.0:0.02:0.8...])
+    @test OMEinsumContractionOrders.group_sc(graph, group1, log2_sizes) <= sc_target
+    @test OMEinsumContractionOrders.group_sc(graph, group2, log2_sizes) <= sc_target
     sc_target = 27.0
-    group11, group12 = OMEinsumContractionOrders.kahypar_partitions_sc(graph, group1; log2_sizes=fill(1, size(graph, 2)), sc_target=37.0, imbalances=[0.0:0.02:1.0...])
-    @test OMEinsumContractionOrders.group_sc(graph, group11) <= sc_target
-    @test OMEinsumContractionOrders.group_sc(graph, group12) <= sc_target
+    group11, group12 = OMEinsumContractionOrders.kahypar_partitions_sc(graph, group1; log2_sizes=log2_sizes, sc_target=sc_target, imbalances=[0.0:0.02:1.0...])
+    @test OMEinsumContractionOrders.group_sc(graph, group11, log2_sizes) <= sc_target
+    @test OMEinsumContractionOrders.group_sc(graph, group12, log2_sizes) <= sc_target
 
     code = random_regular_eincode(220, 3)
     res = optimize_kahypar(code,uniformsize(code, 2); max_group_size=50, sc_target=30)
@@ -67,13 +68,13 @@ end
     @test optcode(x, y) ≈ code(x, y)
 
     code = ein"ij,jk,kl->ijl"
-    optcode = optimize_kahypar(code, Dict('i'=>4, 'j'=>4, 'k'=>4, 'l'=>4), sc_target=2, max_group_size=2)
+    optcode = optimize_kahypar(code, Dict('i'=>4, 'j'=>4, 'k'=>4, 'l'=>4), sc_target=4, max_group_size=2)
     @test optcode isa NestedEinsum
     a, b, c = [rand(4,4) for i=1:4]
     @test optcode(a, b, c) ≈ code(a, b, c)
 
     code = ein"ij,jk,kl->ijl"
-    optcode = optimize_kahypar(code, Dict('i'=>3, 'j'=>3, 'k'=>3, 'l'=>3), sc_target=2, max_group_size=2)
+    optcode = optimize_kahypar(code, Dict('i'=>3, 'j'=>3, 'k'=>3, 'l'=>3), sc_target=4, max_group_size=2)
     @test optcode isa NestedEinsum
     a, b, c = [rand(3,3) for i=1:4]
     @test optcode(a, b, c) ≈ code(a, b, c)
