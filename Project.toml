@@ -1,7 +1,7 @@
 name = "OMEinsumContractionOrders"
 uuid = "6f22d1fd-8eed-4bb7-9776-e7d684900715"
 authors = ["Jin-Guo Liu", "Pan Zhang"]
-version = "0.2.0"
+version = "0.2.1"
 
 [deps]
 KaHyPar = "2a6221f6-aa48-11e9-3542-2d9e0ef01880"
