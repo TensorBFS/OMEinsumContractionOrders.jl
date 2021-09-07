@@ -16,7 +16,7 @@ function convert2int(sizes::AbstractVector)
     round.(Int, sizes .* 100)
 end
 
-function kahypar_partitions_sc(adj::SparseMatrixCSC, vertices; sc_target, log2_sizes, imbalances=0.02, verbose=false)
+function kahypar_partitions_sc(adj::SparseMatrixCSC, vertices; sc_target, log2_sizes, imbalances=0.02)
     n_v = length(vertices)
     subgraph, remaining_edges = induced_subhypergraph(adj, vertices)
     hypergraph = KaHyPar.HyperGraph(subgraph, ones(n_v), convert2int(log2_sizes[remaining_edges]))
@@ -29,7 +29,7 @@ function kahypar_partitions_sc(adj::SparseMatrixCSC, vertices; sc_target, log2_s
         sc0, sc1 = group_sc(adj, part0, log2_sizes), group_sc(adj, part1, log2_sizes)
         sc = max(sc0, sc1)
         min_sc = min(sc, min_sc)
-        verbose && println("imbalance $imbalance: sc = $sc, group = ($(length(part0)), $(length(part1)))")
+        @debug "imbalance $imbalance: sc = $sc, group = ($(length(part0)), $(length(part1)))"
         if sc <= sc_target
             return part0, part1
         end
@@ -37,20 +37,82 @@ function kahypar_partitions_sc(adj::SparseMatrixCSC, vertices; sc_target, log2_s
     error("fail to find a valid partition for `sc_target = $sc_target`, got minimum value `$min_sc` (imbalances = $imbalances)")
 end
 
+# the space complexity (external degree of freedoms) if we contract this group
 function group_sc(adj, group, log2_sizes)
     degree_in = sum(adj[group,:], dims=1)
     degree_all = sum(adj, dims=1)
     sum(i->(degree_in[i]!=0 && degree_in[i]!=degree_all[i] ? Float64(log2_sizes[i]) : 0.0), 1:size(adj,2))
 end
 
-function kahypar_partitions_sc_recursive(adj::SparseMatrixCSC, vertices; sc_target, max_size, log2_sizes, imbalances=0:0.03:0.99, verbose=false)
+function kahypar_partitions_sc_recursive(adj::SparseMatrixCSC, vertices::AbstractVector{T}; sc_target, max_size, log2_sizes, imbalances, greedy_nrepeat, greedy_method) where T
     if length(vertices) > max_size
-        part1, part2 = kahypar_partitions_sc(adj, vertices; sc_target=sc_target, log2_sizes=log2_sizes, imbalances=imbalances, verbose=verbose)
-        parts1 = kahypar_partitions_sc_recursive(adj, part1; sc_target=sc_target, max_size=max_size, log2_sizes=log2_sizes, imbalances=imbalances, verbose=verbose)
-        parts2 = kahypar_partitions_sc_recursive(adj, part2; sc_target=sc_target, max_size=max_size, log2_sizes=log2_sizes, imbalances=imbalances, verbose=verbose)
-        return [parts1, parts2]
+        parts = kahypar_partitions_sc(adj, vertices; sc_target=sc_target, log2_sizes=log2_sizes, imbalances=imbalances)
+        groups = Vector{T}[]
+        for part in parts
+            for component in _connected_components(adj, part)
+                push!(groups, component)
+            end
+        end
+        newparts = [kahypar_partitions_sc_recursive(adj, groups[i]; sc_target=sc_target, max_size=max_size, log2_sizes=log2_sizes, imbalances=imbalances, greedy_nrepeat=greedy_nrepeat, greedy_method=greedy_method) for i=1:length(groups)]
+        if length(newparts) >= 2
+            return coarse_grained_optimize(adj, parts, log2_sizes, greedy_method, greedy_nrepeat)
+        else
+            return newparts
+        end
     else
         return [vertices]
+    end
+end
+
+function _connected_components(adj, part::AbstractVector{T}) where T
+    A = adj[part,:]
+    A = A * A'   # connectivility matrix
+    n = length(part)
+    visit_mask = zeros(Bool, n)
+    groups = Vector{T}[]
+    while !all(visit_mask)
+        newset = Int[]
+        push_connected!(newset, visit_mask, A, findfirst(==(false), visit_mask))
+        push!(groups, getindex.(Ref(part), newset))
+    end
+    return groups
+end
+
+function push_connected!(set, visit_mask, adj, i)
+    visit_mask[i] = true
+    push!(set, i)
+    for v = 1:size(adj, 2)
+        if !visit_mask[v] && !iszero(adj[i,v])
+            push_connected!(set, visit_mask, adj, v)
+        end
+    end
+end
+
+function coarse_grained_optimize(adj, parts, log2_sizes, greedy_method, greedy_nrepeat)
+    incidence_list = get_coarse_grained_graph(adj, parts)
+    log2_edge_sizes = Dict([i=>log2_sizes[i] for i=1:length(log2_sizes)])
+    tree, _, _ = OMEinsum.tree_greedy(incidence_list, log2_edge_sizes; method=greedy_method, nrepeat=greedy_nrepeat)
+    return map_tree_to_parts(tree, parts)
+end
+
+function get_coarse_grained_graph(adj, parts)
+    ADJ = vcat([sum(adj[part,:], dims=1) for part in parts]...)
+    degree_in = sum(ADJ, dims=1)
+    degree_all = sum(adj, dims=1)
+    openedges = filter(i->degree_in[i]!=0 && degree_in[i]!=degree_all[i], 1:size(adj, 2))
+    v2e = Dict{Int,Vector{Int}}()
+    for v=1:size(ADJ, 1)
+        v2e[v] = findall(!iszero, view(ADJ,v,:))
+    end
+    incidence_list = OMEinsum.IncidenceList(v2e; openedges=openedges)
+    return incidence_list
+end
+
+function map_tree_to_parts(tree, parts)
+    if tree isa OMEinsum.ContractionTree
+        [map_tree_to_parts(tree.left, parts), map_tree_to_parts(tree.right, parts)]
+    else
+        parts[tree]
     end
 end
 
@@ -67,7 +129,7 @@ function adjacency_matrix(ixs::AbstractVector)
 end
 
 """
-    optimize_kahypar(code, size_dict; sc_target, max_group_size=40, imbalances=0.0:0.01:0.2, verbose=false)
+    optimize_kahypar(code, size_dict; sc_target, max_group_size=40, imbalances=0.0:0.01:0.2)
 
 Optimize the einsum code contraction order using the KaHyPar + Greedy approach.
 This program first recursively cuts the tensors into several groups using KaHyPar,
@@ -76,45 +138,43 @@ Then finds the contraction order inside each group with the greedy search algori
 
 * `size_dict`, a dictionary that specifies leg dimensions,
 * `imbalances`, KaHyPar parameter that controls the group sizes in hierarchical bipartition,
-* `verbose`, showing more detail if true.
 
 ### References
 * [Hyper-optimized tensor network contraction](https://arxiv.org/abs/2002.01935)
 * [Simulating the Sycamore quantum supremacy circuits](https://arxiv.org/abs/2103.03074)
 """
-function optimize_kahypar(@nospecialize(code::EinCode{ixs,iy}), size_dict; sc_target, max_group_size=40, imbalances=0.0:0.01:0.2, verbose=false) where {ixs, iy}
+function optimize_kahypar(@nospecialize(code::EinCode{ixs,iy}), size_dict; sc_target, max_group_size=40, imbalances=0.0:0.01:0.2, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=10) where {ixs, iy}
     ixv = [ixs..., iy]
     adj, edges = adjacency_matrix(ixv)
     vertices=collect(1:length(1:length(ixs)))
-    parts = kahypar_partitions_sc_recursive(adj, vertices; sc_target, max_size=max_group_size, log2_sizes=[log2(size_dict[e]) for e in edges], imbalances, verbose=verbose)
-    recursive_construct_nestedeinsum(ixv, collect(iy), parts, size_dict, 0)
+    parts = kahypar_partitions_sc_recursive(adj, vertices; sc_target, max_size=max_group_size, log2_sizes=[log2(size_dict[e]) for e in edges], imbalances=imbalances, greedy_method=greedy_method, greedy_nrepeat=greedy_nrepeat)
+    recursive_construct_nestedeinsum(ixv, collect(iy), parts, size_dict, 0, greedy_method, greedy_nrepeat)
 end
 
-function recursive_construct_nestedeinsum(ixs::AbstractVector, iy, parts::AbstractVector, size_dict, level=0)
+function recursive_construct_nestedeinsum(ixs::AbstractVector, iy, parts::AbstractVector, size_dict, level, greedy_method, greedy_nrepeat)
     if length(parts) == 2
         # code is a nested einsum
-        code1 = recursive_construct_nestedeinsum(ixs, iy, parts[1], size_dict, level+1)
-        code2 = recursive_construct_nestedeinsum(ixs, iy, parts[2], size_dict, level+1)
+        code1 = recursive_construct_nestedeinsum(ixs, iy, parts[1], size_dict, level+1, greedy_method, greedy_nrepeat)
+        code2 = recursive_construct_nestedeinsum(ixs, iy, parts[2], size_dict, level+1, greedy_method, greedy_nrepeat)
         AB = recursive_flatten(parts[2]) ∪ recursive_flatten(parts[1])
         inset12, outset12 = ixs[AB], ixs[setdiff(1:length(ixs), AB)]
         iy12 = Iterators.flatten(inset12) ∩  (Iterators.flatten(outset12) ∪ iy)
         iy1, iy2 = OMEinsum.getiy(code1.eins), OMEinsum.getiy(code2.eins)
         return NestedEinsum((code1, code2), EinCode((iy1, iy2), ((level==0 ? iy : iy12)...,)))
     elseif length(parts) == 1
-        return recursive_construct_nestedeinsum(ixs, iy, parts[1], size_dict, level)
+        return recursive_construct_nestedeinsum(ixs, iy, parts[1], size_dict, level, greedy_method, greedy_nrepeat)
     else
         error("not a bipartition, got size $(length(parts))")
     end
 end
 
-function recursive_construct_nestedeinsum(ixs::AbstractVector, iy, parts::AbstractVector{<:Integer}, size_dict, level=0)
+function recursive_construct_nestedeinsum(ixs::AbstractVector, iy, parts::AbstractVector{<:Integer}, size_dict, level, greedy_method, greedy_nrepeat)
     if isempty(parts)
         error("got empty group!")
     end
     inset, outset = ixs[parts], ixs[setdiff(1:length(ixs), parts)]
     iy1 = Iterators.flatten(inset) ∩  (Iterators.flatten(outset) ∪ iy)
-    code = EinCode{(inset...,), (iy1...,)}()
-    res = optimize_greedy(code, size_dict)
+    res = optimize_greedy(inset, iy1, size_dict; method=greedy_method, nrepeat=greedy_nrepeat)
     return maplocs(res, parts)
 end
 
@@ -133,30 +193,30 @@ recursive_flatten(obj::AbstractVector) = vcat(recursive_flatten.(obj)...)
 recursive_flatten(obj) = obj
 
 """
-    optimize_kahypar_auto(code, size_dict; max_group_size=40, verbose=false)
+    optimize_kahypar_auto(code, size_dict; max_group_size=40, greedy_method=MinSpaceOut(), greedy_nrepeat=10)
 
 Find the optimal contraction order automatically by determining the `sc_target` with bisection.
 It can fail if the tree width of your graph is larger than `100`.
 """
-function optimize_kahypar_auto(@nospecialize(code::EinCode{ixs,iy}), size_dict; max_group_size=40, verbose=false, effort=500) where {ixs, iy}
+function optimize_kahypar_auto(@nospecialize(code::EinCode{ixs,iy}), size_dict; max_group_size=40, effort=500, greedy_method=MinSpaceOut(), greedy_nrepeat=10) where {ixs, iy}
     sc_high = 100
     sc_low = 1
-    order_high = optimize_kahypar(code, size_dict; sc_target=sc_high, max_group_size=max_group_size, imbalances=0.0:0.6/effort*(sc_high-sc_low):0.6, verbose=verbose)
-    _optimize_kahypar_auto(code, size_dict, sc_high, order_high, sc_low, max_group_size, verbose, effort)
+    order_high = optimize_kahypar(code, size_dict; sc_target=sc_high, max_group_size=max_group_size, imbalances=0.0:0.6/effort*(sc_high-sc_low):0.6)
+    _optimize_kahypar_auto(code, size_dict, sc_high, order_high, sc_low, max_group_size, effort, greedy_method, greedy_nrepeat)
 end
-function _optimize_kahypar_auto(@nospecialize(code::EinCode{ixs,iy}), size_dict, sc_high, order_high, sc_low, max_group_size, verbose, effort) where {ixs, iy}
+function _optimize_kahypar_auto(@nospecialize(code::EinCode{ixs,iy}), size_dict, sc_high, order_high, sc_low, max_group_size, effort, greedy_method, greedy_nrepeat) where {ixs, iy}
     if sc_high <= sc_low + 1
         order_high
     else
         sc_mid = (sc_high + sc_low) ÷ 2
         try
-            order_mid = optimize_kahypar(code, size_dict; sc_target=sc_mid, max_group_size=max_group_size, imbalances=0.0:0.6/effort*(sc_high-sc_low):0.6, verbose=verbose)
+            order_mid = optimize_kahypar(code, size_dict; sc_target=sc_mid, max_group_size=max_group_size, imbalances=0.0:0.6/effort*(sc_high-sc_low):0.6)
             order_high, sc_high = order_mid, sc_mid
             # `sc_target` too high
         catch
             # `sc_target` too low
             sc_low = sc_mid
         end
-        _optimize_kahypar_auto(code, size_dict, sc_high, order_high, sc_low, max_group_size, verbose, effort)
+        _optimize_kahypar_auto(code, size_dict, sc_high, order_high, sc_low, max_group_size, effort, greedy_method, greedy_nrepeat)
     end
 end
