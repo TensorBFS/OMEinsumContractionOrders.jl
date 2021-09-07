@@ -139,15 +139,18 @@ function adjacency_matrix(ixs::AbstractVector)
 end
 
 """
-    optimize_kahypar(code, size_dict; sc_target, max_group_size=40, imbalances=0.0:0.01:0.2)
+    optimize_kahypar(code, size_dict; sc_target, max_group_size=40, imbalances=0.0:0.01:0.2, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=10)
 
 Optimize the einsum code contraction order using the KaHyPar + Greedy approach.
 This program first recursively cuts the tensors into several groups using KaHyPar,
 with maximum group size specifed by `max_group_size` and maximum space complexity specified by `sc_target`,
 Then finds the contraction order inside each group with the greedy search algorithm. Other arguments are
 
-* `size_dict`, a dictionary that specifies leg dimensions,
-* `imbalances`, KaHyPar parameter that controls the group sizes in hierarchical bipartition,
+* `size_dict` is a dictionary that specifies leg dimensions,
+* `sc_target` is the target space complexity, defined as `log2(number of elements in the largest tensor)`,
+* `max_group_size` is the maximum size that allowed to used greedy search,
+* `imbalances` is a KaHyPar parameter that controls the group sizes in hierarchical bipartition,
+* `greedy_method` and `greedy_nrepeat` are for configuring the greedy method.
 
 ### References
 * [Hyper-optimized tensor network contraction](https://arxiv.org/abs/2002.01935)

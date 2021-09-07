@@ -2,7 +2,18 @@ using SparseArrays
 using Base: RefValue
 using BetterExp
 
-export SimulatedAnnealing
+export SABipartite, optimize_sa
+
+Base.@kwdef struct SABipartite{RT,BT}
+    sc_target::RT = 25
+    ntrials::Int = 50  # number of trials
+    βs::BT = 0.1:0.2:15.0  # temperatures
+    niters::Int = 1000  # number of iterations in each temperature
+    max_group_size::Int = 40
+    # configure greedy algorithm
+    greedy_method = OMEinsum.MinSpaceOut()
+    greedy_nrepeat::Int = 10
+end
 
 struct PartitionState
     config::Vector{Int}
@@ -26,18 +37,18 @@ function partition_state(adj, group, config, log2_sizes)
     return PartitionState(config, Ref(loss), group_sizes, group_scs, group_degrees)
 end
 
-function divide_group_sa(adj::SparseMatrixCSC, vertices; ntrials, log2_sizes, βs, niters, sc_target)
+function bipartite_sc(bipartiter::SABipartite, adj::SparseMatrixCSC, vertices, log2_sizes)
     best = null_state() # it stores the configurations that satisfies the sc constraint, while minimizes cutsize, which is tc in bi-section
     degrees_all = sum(adj, dims=1)
 
-    for _ = 1:ntrials
+    for _ = 1:bipartiter.ntrials
         config = [rand() < 0.5 ? 1 : 2 for i = 1:length(vertices)]
         state = partition_state(adj, vertices, config, log2_sizes)  # this is the `state` of current partition.
         if state.group_sizes[1]==0 || state.group_sizes[2] == 0
             continue
         end
 
-        @inbounds for β in βs, iter = 1:niters
+        @inbounds for β in bipartiter.βs, iter = 1:bipartiter.niters
             idxi = rand(1:length(vertices))
             ti = state.config[idxi]
             state.group_sizes[ti] <= 1 && continue
@@ -45,17 +56,17 @@ function divide_group_sa(adj::SparseMatrixCSC, vertices; ntrials, log2_sizes, β
             sc_ti, sc_tinew = space_complexity_singlestep_update(state, adj, degrees_all, log2_sizes, vertices, idxi)
             newloss = compute_loss(sc_ti, sc_tinew, state.group_sizes[ti]-1, state.group_sizes[3-ti]+1)
             sc_ti0, sc_tinew0 = state.group_scs[ti], state.group_scs[3-ti]
-            accept = if max(sc_ti0, sc_tinew0) <= sc_target
-                max(sc_ti, sc_tinew) <= sc_target && (rand() < BetterExp.exp2(β*(state.loss[] - newloss)))
+            accept = if max(sc_ti0, sc_tinew0) <= bipartiter.sc_target
+                max(sc_ti, sc_tinew) <= bipartiter.sc_target && (rand() < BetterExp.exp2(β*(state.loss[] - newloss)))
             else
                 rand() < BetterExp.exp2(-β*(max(sc_ti, sc_tinew) - max(sc_ti0, sc_tinew0)))
             #elseif sc_ti > sc_ti0 && sc_tinew > sc_tinew0
             #    false
             #elseif sc_ti <= sc_ti0 && sc_tinew <= sc_tinew0
             #    true
-            #elseif sc_tinew >= sc_tinew0 && sc_tinew <  sc_target
+            #elseif sc_tinew >= sc_tinew0 && sc_tinew <  bipartiter.sc_target
             #    true
-            #elseif sc_ti >= sc_ti0 && sc_ti < sc_target
+            #elseif sc_ti >= sc_ti0 && sc_ti < bipartiter.sc_target
             #    true
             #elseif max(sc_ti, sc_tinew) < max(sc_ti0, sc_tinew0)
             #    true
@@ -66,16 +77,16 @@ function divide_group_sa(adj::SparseMatrixCSC, vertices; ntrials, log2_sizes, β
         end
         tc, sc1, sc2 = timespace_complexity_singlestep(state, adj, vertices, log2_sizes)
         @assert state.group_scs ≈ [sc1, sc2]  # sanity check
-        if isnull(best) || (maximum(state.group_scs) <= max(sc_target, maximum(best.group_scs)) && (maximum(best.group_scs) >= sc_target || state.loss[] < best.loss[]))
+        if isnull(best) || (maximum(state.group_scs) <= max(bipartiter.sc_target, maximum(best.group_scs)) && (maximum(best.group_scs) >= bipartiter.sc_target || state.loss[] < best.loss[]))
             best = state
         end
     end
     best_tc, = timespace_complexity_singlestep(best, adj, vertices, log2_sizes)
-    @info "best loss = $(round(best.loss[]; digits=3)) space complexities = $(best.group_scs) tc = $(best_tc) groups_sizes = $(best.group_sizes)"
-    if maximum(best.group_scs) > sc_target
+    @debug "best loss = $(round(best.loss[]; digits=3)) space complexities = $(best.group_scs) tc = $(best_tc) groups_sizes = $(best.group_sizes)"
+    if maximum(best.group_scs) > bipartiter.sc_target
         @warn "target group size not found, got: $(maximum(best.group_scs)), with time complexity $best_tc."
     end
-    return best, best_tc
+    return vertices[findall(==(1), best.config)], vertices[findall(==(2), best.config)]
 end
 
 function timespace_complexity_singlestep(state, adj, group, log2_sizes)
@@ -149,10 +160,28 @@ function update_state!(state, adj, group, idxi, sc_ti, sc_tinew, newloss)
     return state
 end
 
-####### Interface #######
-Base.@kwdef struct SimulatedAnnealing{IT}
-    ntrials::Int = 50  # number of trials
-    βs::Vector{Float64} = collect(0.1:0.2:15.0)  # temperatures
-    niters::Int = 1000  # number of iterations in each temperature
-    initializer::IT = random_initialize
+
+## interfaces
+"""
+    optimize_sa(code, size_dict; sc_target, βs=0.1:0.2:15.0, niters=1000, ntrails=50, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=10)
+
+Optimize the einsum code contraction order using the Simulated Annealing + Greedy approach.
+This program first recursively cuts the tensors into several groups using simulated annealing,
+with maximum group size specifed by `max_group_size` and maximum space complexity specified by `sc_target`,
+Then finds the contraction order inside each group with the greedy search algorithm. Other arguments are
+
+* `size_dict`, a dictionary that specifies leg dimensions,
+* `sc_target` is the target space complexity, defined as `log2(number of elements in the largest tensor)`,
+* `max_group_size` is the maximum size that allowed to used greedy search,
+* `βs` is a list of inverse temperature `1/T`,
+* `niters` is the number of iteration in each temperature,
+* `ntrails` is the number of repetition (with different random seeds),
+* `greedy_method` and `greedy_nrepeat` are for configuring the greedy method.
+
+### References
+* [Hyper-optimized tensor network contraction](https://arxiv.org/abs/2002.01935)
+"""
+function optimize_sa(@nospecialize(code::EinCode{ixs,iy}), size_dict; sc_target, βs=0.1:0.2:15.0, niters=1000, ntrails=50, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=10) where {ixs, iy}
+    bipartiter = SABipartite(; sc_target=sc_target, βs=βs, niters=niters, ntrials=ntrails, greedy_method=greedy_method, greedy_nrepeat=greedy_nrepeat)
+    recursive_bipartite_optimize(bipartiter, code, size_dict)
 end
