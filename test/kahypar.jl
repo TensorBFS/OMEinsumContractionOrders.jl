@@ -52,14 +52,14 @@ end
 
     code = random_regular_eincode(220, 3)
     res = optimize_kahypar(code,uniformsize(code, 2); max_group_size=50, sc_target=30)
-    tc, sc = OMEinsum.timespace_complexity(res, uniformsize(code, 1))
+    tc, sc = OMEinsum.timespace_complexity(res, uniformsize(code, 2))
     @test sc <= 30
 
     # contraction test
     code = random_regular_eincode(50, 3)
     codeg = optimize_kahypar(code, uniformsize(code, 2); max_group_size=10, sc_target=12)
     codek = optimize_greedy(code, uniformsize(code, 2))
-    tc, sc = OMEinsum.timespace_complexity(codek, uniformsize(code, 1))
+    tc, sc = OMEinsum.timespace_complexity(codek, uniformsize(code, 2))
     @test sc <= 12
     xs = [[2*randn(2, 2) for i=1:75]..., [randn(2) for i=1:50]...]
     resg = codeg(xs...)
