@@ -1,4 +1,14 @@
 export uniformsize, optimize_kahypar, optimize_kahypar_auto
+export KaHyParBipartite
+
+Base.@kwdef struct KaHyParBipartite{RT,IT}
+    sc_target::RT
+    imbalances::IT = collect(0.0:0.005:0.8)
+    max_group_size::Int = 40
+    # configure greedy algorithm
+    greedy_method = OMEinsum.MinSpaceOut()
+    greedy_nrepeat::Int = 10
+end
 
 function uniformsize(@nospecialize(code::EinCode{ixs,iy}), size::Int) where {ixs, iy}
     Dict([c=>size for c in [Iterators.flatten(ixs)..., iy...]])
@@ -16,13 +26,13 @@ function convert2int(sizes::AbstractVector)
     round.(Int, sizes .* 100)
 end
 
-function kahypar_partitions_sc(adj::SparseMatrixCSC, vertices; sc_target, log2_sizes, imbalances=0.02)
+function bipartite_sc(bipartiter::KaHyParBipartite, adj::SparseMatrixCSC, vertices, log2_sizes)
     n_v = length(vertices)
     subgraph, remaining_edges = induced_subhypergraph(adj, vertices)
     hypergraph = KaHyPar.HyperGraph(subgraph, ones(n_v), convert2int(log2_sizes[remaining_edges]))
     local parts
     min_sc = 999999
-    for imbalance in imbalances
+    for imbalance in bipartiter.imbalances
         parts = @suppress KaHyPar.partition(hypergraph, 2; imbalance=imbalance, configuration=:edge_cut)
         part0 = vertices[parts .== 0]
         part1 = vertices[parts .== 1]
@@ -30,11 +40,11 @@ function kahypar_partitions_sc(adj::SparseMatrixCSC, vertices; sc_target, log2_s
         sc = max(sc0, sc1)
         min_sc = min(sc, min_sc)
         @debug "imbalance $imbalance: sc = $sc, group = ($(length(part0)), $(length(part1)))"
-        if sc <= sc_target
+        if sc <= bipartiter.sc_target
             return part0, part1
         end
     end
-    error("fail to find a valid partition for `sc_target = $sc_target`, got minimum value `$min_sc` (imbalances = $imbalances)")
+    error("fail to find a valid partition for `sc_target = $(bipartiter.sc_target)`, got minimum value `$min_sc` (imbalances = $(bipartiter.imbalances))")
 end
 
 # the space complexity (external degree of freedoms) if we contract this group
@@ -44,18 +54,18 @@ function group_sc(adj, group, log2_sizes)
     sum(i->(degree_in[i]!=0 && degree_in[i]!=degree_all[i] ? Float64(log2_sizes[i]) : 0.0), 1:size(adj,2))
 end
 
-function kahypar_partitions_sc_recursive(adj::SparseMatrixCSC, vertices::AbstractVector{T}; sc_target, max_size, log2_sizes, imbalances, greedy_nrepeat, greedy_method) where T
-    if length(vertices) > max_size
-        parts = kahypar_partitions_sc(adj, vertices; sc_target=sc_target, log2_sizes=log2_sizes, imbalances=imbalances)
+function bipartition_recursive(bipartiter, adj::SparseMatrixCSC, vertices::AbstractVector{T}, log2_sizes) where T
+    if length(vertices) > bipartiter.max_group_size
+        parts = bipartite_sc(bipartiter, adj, vertices, log2_sizes)
         groups = Vector{T}[]
         for part in parts
             for component in _connected_components(adj, part)
                 push!(groups, component)
             end
         end
-        newparts = [kahypar_partitions_sc_recursive(adj, groups[i]; sc_target=sc_target, max_size=max_size, log2_sizes=log2_sizes, imbalances=imbalances, greedy_nrepeat=greedy_nrepeat, greedy_method=greedy_method) for i=1:length(groups)]
+        newparts = [bipartition_recursive(bipartiter, adj, groups[i], log2_sizes) for i=1:length(groups)]
         if length(newparts) >= 2
-            return coarse_grained_optimize(adj, parts, log2_sizes, greedy_method, greedy_nrepeat)
+            return coarse_grained_optimize(adj, parts, log2_sizes, bipartiter.greedy_method, bipartiter.greedy_nrepeat)
         else
             return newparts
         end
@@ -144,11 +154,16 @@ Then finds the contraction order inside each group with the greedy search algori
 * [Simulating the Sycamore quantum supremacy circuits](https://arxiv.org/abs/2103.03074)
 """
 function optimize_kahypar(@nospecialize(code::EinCode{ixs,iy}), size_dict; sc_target, max_group_size=40, imbalances=0.0:0.01:0.2, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=10) where {ixs, iy}
+    bipartiter = KaHyParBipartite(; sc_target=sc_target, max_group_size=max_group_size, imbalances=imbalances, greedy_method=greedy_method, greedy_nrepeat=greedy_nrepeat)
+    recursive_bipartite_optimize(bipartiter, code, size_dict)
+end
+
+function recursive_bipartite_optimize(bipartiter, @nospecialize(code::EinCode{ixs,iy}), size_dict) where {ixs, iy}
     ixv = [ixs..., iy]
     adj, edges = adjacency_matrix(ixv)
     vertices=collect(1:length(1:length(ixs)))
-    parts = kahypar_partitions_sc_recursive(adj, vertices; sc_target, max_size=max_group_size, log2_sizes=[log2(size_dict[e]) for e in edges], imbalances=imbalances, greedy_method=greedy_method, greedy_nrepeat=greedy_nrepeat)
-    recursive_construct_nestedeinsum(ixv, collect(iy), parts, size_dict, 0, greedy_method, greedy_nrepeat)
+    parts = bipartition_recursive(bipartiter, adj, vertices, [log2(size_dict[e]) for e in edges])
+    recursive_construct_nestedeinsum(ixv, collect(iy), parts, size_dict, 0, bipartiter.greedy_method, bipartiter.greedy_nrepeat)
 end
 
 function recursive_construct_nestedeinsum(ixs::AbstractVector, iy, parts::AbstractVector, size_dict, level, greedy_method, greedy_nrepeat)

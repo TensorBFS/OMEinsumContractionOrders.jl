@@ -41,11 +41,12 @@ end
     graph = sparse(rows, cols, ones(Int, length(rows)))
     sc_target = 28.0
     log2_sizes = fill(1, size(graph, 2))
-    group1, group2 = OMEinsumContractionOrders.kahypar_partitions_sc(graph, collect(1:size(graph, 1));log2_sizes=log2_sizes, sc_target=sc_target, imbalances=[0.0:0.02:0.8...])
+    b = KaHyParBipartite(sc_target=sc_target, imbalances=[0.0:0.02:0.8...])
+    group1, group2 = OMEinsumContractionOrders.bipartite_sc(b, graph, collect(1:size(graph, 1)), log2_sizes)
     @test OMEinsumContractionOrders.group_sc(graph, group1, log2_sizes) <= sc_target
     @test OMEinsumContractionOrders.group_sc(graph, group2, log2_sizes) <= sc_target
     sc_target = 27.0
-    group11, group12 = OMEinsumContractionOrders.kahypar_partitions_sc(graph, group1; log2_sizes=log2_sizes, sc_target=sc_target, imbalances=[0.0:0.02:1.0...])
+    group11, group12 = OMEinsumContractionOrders.bipartite_sc(b, graph, group1, log2_sizes)
     @test OMEinsumContractionOrders.group_sc(graph, group11, log2_sizes) <= sc_target
     @test OMEinsumContractionOrders.group_sc(graph, group12, log2_sizes) <= sc_target
 
