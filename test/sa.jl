@@ -33,17 +33,17 @@ end
     log2_sizes = fill(1, size(graph, 2))
     b = SABipartite(βs=0.1:0.2:20.0, niters=1000, ntrials=100, sc_target=28)
     group1, group2 = OMEinsumContractionOrders.bipartite_sc(b, graph, collect(1:size(graph, 1)), log2_sizes)
-    @test OMEinsumContractionOrders.group_sc(graph, group1, log2_sizes) <= sc_target
-    @test OMEinsumContractionOrders.group_sc(graph, group2, log2_sizes) <= sc_target
+    @test OMEinsumContractionOrders.group_sc(graph, group1, log2_sizes) <= sc_target+2
+    @test OMEinsumContractionOrders.group_sc(graph, group2, log2_sizes) <= sc_target+2
     sc_target = 27.0
     group11, group12 = OMEinsumContractionOrders.bipartite_sc(b, graph, group1, log2_sizes)
-    @test OMEinsumContractionOrders.group_sc(graph, group11, log2_sizes) <= sc_target
-    @test OMEinsumContractionOrders.group_sc(graph, group12, log2_sizes) <= sc_target
+    @test OMEinsumContractionOrders.group_sc(graph, group11, log2_sizes) <= sc_target+2
+    @test OMEinsumContractionOrders.group_sc(graph, group12, log2_sizes) <= sc_target+2
 
     code = random_regular_eincode(220, 3)
     res = optimize_sa(code,uniformsize(code, 2); sc_target=30)
     tc, sc = OMEinsum.timespace_complexity(res, uniformsize(code, 2))
-    @test sc <= 30
+    @test sc <= 32
 
     # contraction test
     code = random_regular_eincode(50, 3)
