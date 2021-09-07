@@ -40,6 +40,7 @@ end
 function bipartite_sc(bipartiter::SABipartite, adj::SparseMatrixCSC, vertices, log2_sizes)
     best = null_state() # it stores the configurations that satisfies the sc constraint, while minimizes cutsize, which is tc in bi-section
     degrees_all = sum(adj, dims=1)
+    adjt = SparseMatrixCSC(adj')
 
     for _ = 1:bipartiter.ntrials
         config = [rand() < 0.5 ? 1 : 2 for i = 1:length(vertices)]
@@ -53,7 +54,7 @@ function bipartite_sc(bipartiter::SABipartite, adj::SparseMatrixCSC, vertices, l
             ti = state.config[idxi]
             state.group_sizes[ti] <= 1 && continue
 
-            sc_ti, sc_tinew = space_complexity_singlestep_update(state, adj, degrees_all, log2_sizes, vertices, idxi)
+            sc_ti, sc_tinew = space_complexity_singlestep_update(state, adjt, degrees_all, log2_sizes, vertices, idxi)
             newloss = compute_loss(sc_ti, sc_tinew, state.group_sizes[ti]-1, state.group_sizes[3-ti]+1)
             sc_ti0, sc_tinew0 = state.group_scs[ti], state.group_scs[3-ti]
             accept = if max(sc_ti0, sc_tinew0) <= bipartiter.sc_target
@@ -73,7 +74,7 @@ function bipartite_sc(bipartiter::SABipartite, adj::SparseMatrixCSC, vertices, l
             #else
             #    false
             end
-            accept && update_state!(state, adj, vertices, idxi, sc_ti, sc_tinew, newloss)
+            accept && update_state!(state, adjt, vertices, idxi, sc_ti, sc_tinew, newloss)
         end
         tc, sc1, sc2 = timespace_complexity_singlestep(state, adj, vertices, log2_sizes)
         @assert state.group_scs ≈ [sc1, sc2]  # sanity check
@@ -101,40 +102,37 @@ function timespace_complexity_singlestep(state, adj, group, log2_sizes)
     return tc, sc1, sc2
 end
 
-function space_complexity_singlestep_update(state, adj, degrees_all, log2_sizes, group, idxi)
-    begin
+function space_complexity_singlestep_update(state, adjt, degrees_all, log2_sizes, group, idxi)
+    @inbounds begin
         vertex = group[idxi]
         ti = state.config[idxi]
         tinew = 3-ti
-        degree_changes = adj[vertex, :]
-        δsc_ti = δsc(-, view(state.group_degrees, :, ti), degree_changes, degrees_all, log2_sizes)
-        δsc_tinew = δsc(+, view(state.group_degrees, :, tinew), degree_changes, degrees_all, log2_sizes)
+        δsc_ti = δsc(-, view(state.group_degrees, :, ti), adjt, vertex, degrees_all, log2_sizes)
+        δsc_tinew = δsc(+, view(state.group_degrees, :, tinew), adjt, vertex, degrees_all, log2_sizes)
         sc_ti = state.group_scs[ti] + δsc_ti
         sc_tinew = state.group_scs[tinew] + δsc_tinew
     end
     return sc_ti, sc_tinew
 end
 
-function δsc(f, group_degrees, degree_changes, degrees_all, log2_sizes)
-    nnz(degree_changes) == 0 && return 0.0
-    return sum(zip(findnz(degree_changes)...)) do (i,v)
+@inline function δsc(f, group_degrees, adjt, vertex, degrees_all, log2_sizes)
+    res = 0.0
+    @inbounds for k in nzrange(adjt, vertex)
+        i = adjt.rowval[k]
         d0 = group_degrees[i]
         D = degrees_all[i]
-        d = f(d0, v)
+        d = f(d0, adjt.nzval[k])
         if d0 == D || d0 == 0     # absent
-            if d == D || d == 0   # absent
-                0.0
-            else
-                Float64(log2_sizes[i])
+            if d != D && d != 0   # absent
+                res += Float64(log2_sizes[i])
             end
         else                      # not absent
             if d == D || d == 0   # absent
-                -Float64(log2_sizes[i])
-            else
-                0.0
+                res -= Float64(log2_sizes[i])
             end
         end
     end
+    return res
 end
 
 
@@ -143,18 +141,19 @@ end
     max(sc1, sc2) / small * (gs1 + gs2)
 end
 
-function update_state!(state, adj, group, idxi, sc_ti, sc_tinew, newloss)
-    begin
+function update_state!(state, adjt, group, idxi, sc_ti, sc_tinew, newloss)
+    @inbounds begin
         ti = state.config[idxi]
         tinew = 3-ti
-        dd = adj[group[idxi],:]
         state.group_scs[tinew] = sc_tinew
         state.group_scs[ti] = sc_ti
         state.config[idxi] = tinew
         state.group_sizes[ti] -= 1
         state.group_sizes[tinew] += 1
-        state.group_degrees[:,ti] .-= dd
-        state.group_degrees[:,tinew] .+= dd
+        for i = nzrange(adjt,group[idxi])
+            state.group_degrees[adjt.rowval[i], ti] -= adjt.nzval[i]
+            state.group_degrees[adjt.rowval[i], tinew] += adjt.nzval[i]
+        end
         state.loss[] = newloss
     end
     return state
