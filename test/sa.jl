@@ -48,7 +48,7 @@ end
 
     # contraction test
     code = random_regular_eincode(50, 3)
-    codeg = optimize_sa(code, uniformsize(code, 2); sc_target=12, βs=βs)
+    codeg = optimize_sa(code, uniformsize(code, 2); sc_target=12, βs=βs, ntrials=1, initializer=:greedy)
     codek = optimize_greedy(code, uniformsize(code, 2))
     tc, sc = OMEinsum.timespace_complexity(codek, uniformsize(code, 2))
     @test sc <= 12
