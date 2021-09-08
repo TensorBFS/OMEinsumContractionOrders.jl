@@ -32,11 +32,16 @@ julia> code = random_regular_eincode(200, 3);
 
 julia> optcode = optimize_kahypar(code, uniformsize(code, 2); sc_target=30, max_group_size=50);
 
+julia> optcode_sa = optimize_sa(code, uniformsize(code, 2); sc_target=30, max_group_size=50);
+
 julia> OMEinsum.timespace_complexity(code, uniformsize(code, 2))
 (200.0, 0.0)
 
 julia> OMEinsum.timespace_complexity(optcode, uniformsize(code, 2))
 (38.0290167456887, 26.0)
+
+julia> OMEinsum.timespace_complexity(optcode_sa, uniformsize(code, 2))
+(34.86528023060411, 27.0)
 ```
 
 ## References
