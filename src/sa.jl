@@ -162,7 +162,7 @@ end
 
 ## interfaces
 """
-    optimize_sa(code, size_dict; sc_target, βs=0.1:0.2:15.0, niters=1000, ntrails=50, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=10)
+    optimize_sa(code, size_dict; sc_target, max_group_size=40, βs=0.1:0.2:15.0, niters=1000, ntrails=50, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=10)
 
 Optimize the einsum code contraction order using the Simulated Annealing + Greedy approach.
 This program first recursively cuts the tensors into several groups using simulated annealing,
@@ -180,7 +180,7 @@ Then finds the contraction order inside each group with the greedy search algori
 ### References
 * [Hyper-optimized tensor network contraction](https://arxiv.org/abs/2002.01935)
 """
-function optimize_sa(@nospecialize(code::EinCode{ixs,iy}), size_dict; sc_target, βs=0.1:0.2:15.0, niters=1000, ntrails=50, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=10) where {ixs, iy}
-    bipartiter = SABipartite(; sc_target=sc_target, βs=βs, niters=niters, ntrials=ntrails, greedy_method=greedy_method, greedy_nrepeat=greedy_nrepeat)
+function optimize_sa(@nospecialize(code::EinCode{ixs,iy}), size_dict; sc_target, max_group_size=40, βs=0.1:0.2:15.0, niters=1000, ntrails=50, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=10) where {ixs, iy}
+    bipartiter = SABipartite(; sc_target=sc_target, βs=βs, niters=niters, ntrials=ntrails, greedy_method=greedy_method, greedy_nrepeat=greedy_nrepeat, max_group_size=max_group_size)
     recursive_bipartite_optimize(bipartiter, code, size_dict)
 end
