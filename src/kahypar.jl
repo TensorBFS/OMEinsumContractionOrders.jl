@@ -64,8 +64,9 @@ function bipartition_recursive(bipartiter, adj::SparseMatrixCSC, vertices::Abstr
             end
         end
         newparts = [bipartition_recursive(bipartiter, adj, groups[i], log2_sizes) for i=1:length(groups)]
-        if length(newparts) >= 2
-            return coarse_grained_optimize(adj, parts, log2_sizes, bipartiter.greedy_method, bipartiter.greedy_nrepeat)
+        if length(groups) > 2
+            tree = coarse_grained_optimize(adj, groups, log2_sizes, bipartiter.greedy_method, bipartiter.greedy_nrepeat)
+            return map_tree_to_parts(tree, newparts)
         else
             return newparts
         end
@@ -102,7 +103,7 @@ function coarse_grained_optimize(adj, parts, log2_sizes, greedy_method, greedy_n
     incidence_list = get_coarse_grained_graph(adj, parts)
     log2_edge_sizes = Dict([i=>log2_sizes[i] for i=1:length(log2_sizes)])
     tree, _, _ = OMEinsum.tree_greedy(incidence_list, log2_edge_sizes; method=greedy_method, nrepeat=greedy_nrepeat)
-    return map_tree_to_parts(tree, parts)
+    return tree
 end
 
 function get_coarse_grained_graph(adj, parts)

@@ -20,7 +20,8 @@ using OMEinsumContractionOrders
     @test length(OMEinsumContractionOrders._connected_components(adj, parts[1])) == 2
 
     res = OMEinsumContractionOrders.coarse_grained_optimize(adj, parts, ones(6), OMEinsum.MinSpaceOut(), 10)
-    @test res == [[[1,3], [2]], [4]]
+    @test res == OMEinsum.ContractionTree(OMEinsum.ContractionTree(1,2), 3)
+    @test OMEinsumContractionOrders.map_tree_to_parts(res, [[[1,2], 3], [7,6], [9, [4,1]]]) == [[[[1,2], 3], [7,6]], [9, [4,1]]]
 end
 
 @testset "kahypar" begin
@@ -70,7 +71,7 @@ end
     code = random_regular_eincode(220, 3)
     codeg_auto = optimize_kahypar_auto(code, uniformsize(code, 2), greedy_method=OMEinsum.MinSpaceOut())
     tc, sc = OMEinsum.timespace_complexity(codeg_auto, uniformsize(code, 2))
-    @test sc <= 32 # sometimes not very good
+    @test sc <= 30
 end
 
 @testset "regression test" begin
