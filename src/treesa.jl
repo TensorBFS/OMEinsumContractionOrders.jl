@@ -1,5 +1,4 @@
 using OMEinsum.ContractionOrder: ContractionTree, log2sumexp2
-using Debugger
 
 export optimize_tree
 

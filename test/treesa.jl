@@ -89,6 +89,7 @@ end
 
     optcode = optimize_tree(res,uniformsize(code, 2); sc_target=32, βs=0.1:0.1:10, ntrials=2, niters=100, sc_weight=3.0)
     tc, sc = OMEinsum.timespace_complexity(optcode, uniformsize(code, 2))
+    @test sc <= 32
 
     # contraction test
     code = random_regular_eincode(50, 3)
