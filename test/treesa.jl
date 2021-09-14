@@ -1,5 +1,5 @@
 using OMEinsumContractionOrders, Test, Random
-using OMEinsumContractionOrders: random_exprtree, ExprTree, ExprInfo, ruleset, update_tree!, tcsc, optimize_subtree!, LeafNode, optimize_tree_sa
+using OMEinsumContractionOrders: random_exprtree, ExprTree, ExprInfo, ruleset, update_tree!, tcsc, optimize_subtree!, LeafNode, optimize_tree_sa, labels
 using OMEinsum, LightGraphs
 
 function random_regular_eincode(n, k)
@@ -33,10 +33,11 @@ end
     @test ruleset(t3) == 1:0
     @test ruleset(t4) == 1:4
     log2_sizes = ones(5)
-    @test tcsc(t1, log2_sizes) == (2.0, 1.0)
-    @test tcsc(t2, log2_sizes) == (2.0, 1.0)
-    @test tcsc(t3, log2_sizes) == (1.0, 1.0)
-    @test tcsc(t4, log2_sizes) == (2.0, 1.0)
+    _tcsc(t, l) = tcsc(labels(t.left), labels(t.right), labels(t), l)
+    @test _tcsc(t1, log2_sizes) == (2.0, 1.0)
+    @test _tcsc(t2, log2_sizes) == (2.0, 1.0)
+    @test _tcsc(t3, log2_sizes) == (1.0, 1.0)
+    @test _tcsc(t4, log2_sizes) == (2.0, 1.0)
     t11 = update_tree!(copy(t1), 3)
     @test t11 == ExprTree(LeafNode(1,[2,3]), ExprTree(LeafNode(3,[1,2]), LeafNode(2,[1,4]), ExprInfo([2])), ExprInfo([2]))
     t11_ = update_tree!(copy(t1), 4)
@@ -60,13 +61,13 @@ end
     size_dict = Dict([j=>exp2(log2_sizes[j]) for j=1:length(log2_sizes)])
     tc0_, sc0_ = timespace_complexity(NestedEinsum(tree), size_dict)
     @test tc0 ≈ tc0_ && sc0 ≈ sc0_
-    opt_tree = optimize_subtree!(copy(tree), 20.0, log2_sizes, 5, 2.0)
+    opt_tree = optimize_subtree!(copy(tree), 100.0, log2_sizes, 5, 2.0)
     tc1, sc1 = timespace_complexity(opt_tree, exp2.(log2_sizes))
     @test sc1 < sc0
 end
 
 @testset "optimize tree sa" begin
-    Random.seed!(2)
+    Random.seed!(3)
     n = 60
     ne = n + n÷2
     log2_sizes = ones(ne)
@@ -78,3 +79,26 @@ end
     tc1, sc1 = timespace_complexity(opttree, exp2.(log2_sizes))
     @test sc1 < sc0 || (sc1 == sc0 && tc1 < tc0)
 end
+
+@testset "sa tree" begin
+    Random.seed!(2)
+    g = random_regular_graph(220, 3)
+    code = random_regular_eincode(220, 3)
+    res = optimize_greedy(code,uniformsize(code, 2))
+    tc, sc = OMEinsum.timespace_complexity(res, uniformsize(code, 2))
+
+    optcode = optimize_tree(res,uniformsize(code, 2); sc_target=32, βs=0.1:0.1:10, ntrials=2, niters=100, sc_weight=3.0)
+    tc, sc = OMEinsum.timespace_complexity(optcode, uniformsize(code, 2))
+
+    # contraction test
+    code = random_regular_eincode(50, 3)
+    codek = optimize_greedy(code, uniformsize(code, 2))
+    codeg = optimize_tree(codek, uniformsize(code, 2))
+    tc, sc = OMEinsum.timespace_complexity(codek, uniformsize(code, 2))
+    @test sc <= 12
+    xs = [[2*randn(2, 2) for i=1:75]..., [randn(2) for i=1:50]...]
+    resg = codeg(xs...)
+    resk = codek(xs...)
+    @test resg ≈ resk
+end
+

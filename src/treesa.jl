@@ -1,4 +1,7 @@
 using OMEinsum.ContractionOrder: ContractionTree, log2sumexp2
+using Debugger
+
+export optimize_tree
 
 struct ExprInfo
     out_dims::Vector{Int}
@@ -25,8 +28,15 @@ print_expr(io::IO, expr::LeafNode, level=0) = print(io, " "^(2*level), expr.labe
 Base.show(io::IO, expr::ExprTree) = print_expr(io, expr, 0)
 Base.show(io::IO, ::MIME"text/plain", expr::ExprTree) = show(io, expr)
 
-space_complexity(t::ExprTree, log2_sizes) = length(labels(t))==0 ? 0.0 : log2sumexp2(getindex.(Ref(log2_sizes), labels(t)))
-tcsc(t::ExprTree, log2_sizes) = OMEinsum._timespace_complexity([labels(t.left), labels(t.right)], labels(t), log2_sizes)
+function optimize_tree(code::NestedEinsum, size_dict; sc_target=32, βs=0.1:0.1:10, ntrials=2, niters=100, sc_weight=1.0)
+    labels = _label_dict(OMEinsum.flatten(code))  # label to int
+    inverse_map = Dict([v=>k for (k,v) in labels])
+    log2_sizes = [log2.(size_dict[inverse_map[i]]) for i=1:length(labels)]
+    tree = _exprtree(code, labels)
+    opttree = optimize_tree_sa(tree, log2_sizes; sc_target=sc_target, βs=βs, ntrials=ntrials, niters=niters, sc_weight=sc_weight)
+    return NestedEinsum(opttree, inverse_map)
+end
+
 siblings(t::ExprTree) = Any[t.left, t.right]
 siblings(::LeafNode) = Any[]
 Base.copy(t::ExprTree) = ExprTree(copy(t.left), copy(t.right), ExprInfo(copy(t.info.out_dims)))
@@ -36,11 +46,11 @@ labels(t::LeafNode) = t.labels
 maxlabel(t::ExprTree) = max(isempty(labels(t)) ? 0 : maximum(labels(t)), maxlabel(t.left), maxlabel(t.right))
 maxlabel(t::LeafNode) = maximum(isempty(labels(t)) ? 0 : labels(t))
 Base.:(==)(t1::ExprTree, t2::ExprTree) = _equal(t1, t2)
+Base.:(==)(t1::ExprInfo, t2::ExprInfo) = _equal(t1.out_dims, t2.out_dims)
 _equal(t1::ExprTree, t2::ExprTree) = _equal(t1.left, t2.left) && _equal(t1.right, t2.right) && t1.info == t2.info
 _equal(t1::LeafNode, t2::LeafNode) = t1.tensorid == t2.tensorid
 _equal(t1::Vector, t2::Vector) = Set(t1) == Set(t2)
 _equal(a, b) = false
-Base.:(==)(t1::ExprInfo, t2::ExprInfo) = _equal(t1.out_dims, t2.out_dims)
 
 function optimize_tree_sa(tree::ExprTree, log2_sizes; βs, niters, ntrials, sc_target, sc_weight)
     best_tree = tree
@@ -51,12 +61,11 @@ function optimize_tree_sa(tree::ExprTree, log2_sizes; βs, niters, ntrials, sc_t
             optimize_subtree!(ctree, β, log2_sizes, sc_target, sc_weight)  # single sweep
         end
         tc, sc = tree_timespace_complexity(ctree, log2_sizes)
-        if sc < best_sc || (sc <= best_sc && tc < best_tc)
+        if sc < best_sc || (sc == best_sc && tc < best_tc)
             best_tree, best_tc, best_sc = ctree, tc, sc
         end
     end
     @debug "best space complexities = $best_tc time complexity = $best_sc"
-    @show best_sc
     if best_sc > sc_target
         @warn "target space complexity not found, got: $best_sc, with time complexity $best_tc."
     end
@@ -67,47 +76,31 @@ function OMEinsum.timespace_complexity(tree::ExprTree, size_vec)
     tree_timespace_complexity(tree, log2.(size_vec))
 end
 function tree_timespace_complexity(tree::LeafNode, log2_sizes)
-    -Inf, log2sumexp2(getindex.(Ref(log2_sizes), tree.labels))
+    -Inf, sum(i->log2_sizes[i], tree.labels)
 end
 function tree_timespace_complexity(tree::ExprTree, log2_sizes)
     tcl, scl = tree_timespace_complexity(tree.left, log2_sizes)
     tcr, scr = tree_timespace_complexity(tree.right, log2_sizes)
-    tc, sc = tcsc(tree, log2_sizes)
+    tc, sc = tcsc(labels(tree.left), labels(tree.right), labels(tree), log2_sizes)
     return log2sumexp2([tc, tcl, tcr]), max(sc, scl, scr)
+end
+function tcsc(ix1, ix2, iy, log2_sizes)
+    l1, l2, l3 = ix1, ix2, iy
+    sc = isempty(l3) ? 0 : sum(i->log2_sizes[i], l3)
+    tc = sc
+    # Note: assuming labels in `l1` being unique
+    for l in l1
+        if l ∈ l2 && l ∉ l3
+            tc += log2_sizes[l]
+        end
+    end
+    return tc, sc
 end
 
 function random_exprtree(@nospecialize(code::EinCode{ixs, iy})) where {ixs, iy}
     labels = _label_dict(code)
     return random_exprtree([[labels[l] for l in ix] for ix in ixs], [labels[l] for l in iy], length(labels))
 end
-
-# from label to integer.
-function _label_dict(@nospecialize(code::EinCode{ixs, iy})) where {ixs, iy}
-    ixsv, iyv = collect.(ixs), collect(iy)
-    v = unique(vcat(ixsv..., iyv))
-    labels = Dict(zip(v, 1:length(v)))
-    return labels
-end
-
-ExprTree(code::NestedEinsum) = _exprtree(code, _label_dict(OMEinsum.flatten(code)))
-function _exprtree(code::NestedEinsum, labels)
-    @assert length(code.args) == 2
-    ExprTree(map(enumerate(code.args)) do (i,arg)
-        if arg isa Int
-            LeafNode(arg, [labels[i] for i=OMEinsum.getixs(code.eins)[i]])
-        else
-            res = _exprtree(arg, labels)
-        end
-    end..., ExprInfo([labels[i] for i=OMEinsum.getiy(code.eins)]))
-end
-
-OMEinsum.NestedEinsum(expr::ExprTree) = _nestedeinsum(expr, 1:maxlabel(expr))
-OMEinsum.NestedEinsum(expr::ExprTree, labelmap) = _nestedeinsum(expr, labelmap)
-function _nestedeinsum(tree::ExprTree, lbs)
-    eins = EinCode(((getindex.(Ref(lbs), labels(tree.left))...,), (getindex.(Ref(lbs), labels(tree.right))...,)), (getindex.(Ref(lbs), labels(tree))...,))
-    NestedEinsum((_nestedeinsum(tree.left, lbs), _nestedeinsum(tree.right, lbs)), eins)
-end
-_nestedeinsum(tree::LeafNode, lbs) = tree.tensorid
 
 function random_exprtree(ixs::Vector{Vector{Int}}, iy::Vector{Int}, nedge::Int)
     outercount = zeros(Int, nedge)
@@ -149,7 +142,7 @@ function optimize_subtree!(tree, β, log2_sizes, sc_target, sc_weight)
     rst = ruleset(tree)
     if !isempty(rst)
         rule = rand(rst)
-        sc = space_complexity(tree, log2_sizes)
+        sc = length(labels(tree))==0 ? 0.0 : log2sumexp2(getindex.(Ref(log2_sizes), labels(tree)))
         dtc, dsc = tcsc_diff(tree, rule, log2_sizes)
         #log2(α*RW + tc) is the original `tc` term, which also optimizes read-write overheads.
         dE = (max(sc, sc+dsc) > sc_target ? sc_weight : 0) * dsc + dtc
@@ -178,34 +171,38 @@ end
 
 function tcsc_diff(tree::ExprTree, rule, log2_sizes)
     if rule == 1 # (a,b), c -> (a,c),b
-        tc0, sc0 = tcsc(tree.left, log2_sizes) .+ tcsc(tree, log2_sizes)
-        labels_ac = (labels(tree.left.left) ∪ labels(tree.right)) ∩ (labels(tree.left.right) ∪ labels(tree))
-        newtree = build_tree(build_tree(tree.left.left, tree.right, labels_ac), tree.left.right, labels(tree))
-        tc1, sc1 = tcsc(newtree.left, log2_sizes) .+ tcsc(newtree, log2_sizes)
-        return tc1-tc0, sc1-sc0
+        return abcacb(labels(tree.left.left), labels(tree.left.right), labels(tree.right), labels(tree), log2_sizes)
     elseif rule == 2 # (a,b), c -> (c,b),a
-        tc0, sc0 = tcsc(tree.left, log2_sizes) .+ tcsc(tree, log2_sizes)
-        labels_cb = (labels(tree.left.right) ∪ labels(tree.right)) ∩ (labels(tree.left.left) ∪ labels(tree))
-        newtree = build_tree(build_tree(tree.right, tree.left.right, labels_cb), tree.left.left, labels(tree))
-        tc1, sc1 = tcsc(newtree.left, log2_sizes) .+ tcsc(newtree, log2_sizes)
-        return tc1-tc0, sc1-sc0
+        return abcacb(labels(tree.left.right), labels(tree.left.left), labels(tree.right), labels(tree), log2_sizes)
     elseif rule == 3 # a,(b,c) -> b,(a,c)
-        tc0, sc0 = tcsc(tree.right, log2_sizes) .+ tcsc(tree, log2_sizes)
-        labels_ac = (labels(tree.left) ∪ labels(tree.right.right)) ∩ (labels(tree.right.left) ∪ labels(tree))
-        newtree = build_tree(tree.right.left, build_tree(tree.left, tree.right.right, labels_ac), labels(tree))
-        tc1, sc1 = tcsc(newtree.right, log2_sizes) .+ tcsc(newtree, log2_sizes)
-        return tc1-tc0, sc1-sc0
+        return abcacb(labels(tree.right.right), labels(tree.right.left), labels(tree.left), labels(tree), log2_sizes)
     else  # a,(b,c) -> c,(b,a)
-        tc0, sc0 = tcsc(tree.right, log2_sizes) .+ tcsc(tree, log2_sizes)
-        labels_ba = (labels(tree.left) ∪ labels(tree.right.left)) ∩ (labels(tree.right.right) ∪ labels(tree))
-        newtree = build_tree(tree.right.right, build_tree(tree.right.left, tree.left, labels_ba), labels(tree))
-        tc1, sc1 = tcsc(newtree.right, log2_sizes) .+ tcsc(newtree, log2_sizes)
-        return tc1-tc0, sc1-sc0
+        return abcacb(labels(tree.right.left), labels(tree.right.right), labels(tree.left), labels(tree), log2_sizes)
     end
 end
 
-function build_tree(left, right, out_dims)
-    ExprTree(left, right, ExprInfo(out_dims))
+function abcacb(a, b, c, d, log2_sizes)
+    tc0, sc0 = _tcsc_merge(a, b, c, d, log2_sizes)
+    tc1, sc1 = _tcsc_merge(a, c, b, d, log2_sizes)
+    return tc1-tc0, sc1-sc0
+end
+
+function _tcsc_merge(a, b, c, d, log2_sizes)
+    ab = Int[]
+    for l in a
+        if l ∈ c || l ∈ d  # suppose no repeated indices
+            push!(ab, l)
+        end
+    end
+    for l in b
+        if l ∉ a && (l ∈ c || l ∈ d)  # suppose no repeated indices
+            push!(ab, l)
+        end
+    end
+    ab = (a ∪ b) ∩ (c ∪ d)
+    tcl, scl = tcsc(a, b, ab, log2_sizes)  # this is correct
+    tcr, scr = tcsc(ab, c, d, log2_sizes)
+    log2sumexp2([tcl, tcr]), max(scl, scr)
 end
 
 function update_tree!(tree::ExprTree, rule::Int)
@@ -232,3 +229,32 @@ function update_tree!(tree::ExprTree, rule::Int)
     end
     return tree
 end
+
+# from label to integer.
+function _label_dict(@nospecialize(code::EinCode{ixs, iy})) where {ixs, iy}
+    ixsv, iyv = collect.(ixs), collect(iy)
+    v = unique(vcat(ixsv..., iyv))
+    labels = Dict(zip(v, 1:length(v)))
+    return labels
+end
+
+ExprTree(code::NestedEinsum) = _exprtree(code, _label_dict(OMEinsum.flatten(code)))
+function _exprtree(code::NestedEinsum, labels)
+    @assert length(code.args) == 2
+    ExprTree(map(enumerate(code.args)) do (i,arg)
+        if arg isa Int
+            LeafNode(arg, [labels[i] for i=OMEinsum.getixs(code.eins)[i]])
+        else
+            res = _exprtree(arg, labels)
+        end
+    end..., ExprInfo([labels[i] for i=OMEinsum.getiy(code.eins)]))
+end
+
+OMEinsum.NestedEinsum(expr::ExprTree) = _nestedeinsum(expr, 1:maxlabel(expr))
+OMEinsum.NestedEinsum(expr::ExprTree, labelmap) = _nestedeinsum(expr, labelmap)
+function _nestedeinsum(tree::ExprTree, lbs)
+    eins = EinCode(((getindex.(Ref(lbs), labels(tree.left))...,), (getindex.(Ref(lbs), labels(tree.right))...,)), (getindex.(Ref(lbs), labels(tree))...,))
+    NestedEinsum((_nestedeinsum(tree.left, lbs), _nestedeinsum(tree.right, lbs)), eins)
+end
+_nestedeinsum(tree::LeafNode, lbs) = tree.tensorid
+
