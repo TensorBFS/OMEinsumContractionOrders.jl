@@ -2,13 +2,12 @@ using OMEinsumContractionOrders, Test, Random
 using OMEinsumContractionOrders: random_exprtree, ExprTree, ExprInfo, ruleset, update_tree!, tcsc, optimize_subtree!, LeafNode, optimize_tree_sa, labels
 using OMEinsum, LightGraphs
 
-function random_regular_eincode(n, k)
-    g = LightGraphs.random_regular_graph(n, k)
-    ixs = [minmax(e.src,e.dst) for e in LightGraphs.edges(g)]
-    return EinCode((ixs..., [(i,) for i in LightGraphs.vertices(g)]...), ())
-end
-
 @testset "random expr tree" begin
+    function random_regular_eincode(n, k)
+        g = LightGraphs.random_regular_graph(n, k)
+        ixs = [minmax(e.src,e.dst) for e in LightGraphs.edges(g)]
+        return EinCode((ixs..., [(i,) for i in LightGraphs.vertices(g)]...), ())
+    end
     Random.seed!(2)
     tree = random_exprtree([[1,2,5], [2,3], [2,4]], [5], 5)
     @test tree isa OMEinsumContractionOrders.ExprTree
@@ -51,22 +50,32 @@ end
 end
 
 @testset "optimization" begin
+    function random_regular_eincode(n, k)
+        g = LightGraphs.random_regular_graph(n, k)
+        ixs = [minmax(e.src,e.dst) for e in LightGraphs.edges(g)]
+        return EinCode((ixs..., [(i,) for i in LightGraphs.vertices(g)]...), ())
+    end
     Random.seed!(2)
     n = 20
     log2_sizes = rand(n+n÷2) * 2
     code = random_regular_eincode(20, 3)
     optcode = optimize_greedy(code, uniformsize(code, 2))
     tree = ExprTree(optcode)
-    tc0, sc0 = timespace_complexity(tree, exp2.(log2_sizes))
+    tc0, sc0 = OMEinsum.timespace_complexity(tree, exp2.(log2_sizes))
     size_dict = Dict([j=>exp2(log2_sizes[j]) for j=1:length(log2_sizes)])
-    tc0_, sc0_ = timespace_complexity(NestedEinsum(tree), size_dict)
+    tc0_, sc0_ = OMEinsum.timespace_complexity(NestedEinsum(tree), size_dict)
     @test tc0 ≈ tc0_ && sc0 ≈ sc0_
     opt_tree = optimize_subtree!(copy(tree), 100.0, log2_sizes, 5, 2.0)
-    tc1, sc1 = timespace_complexity(opt_tree, exp2.(log2_sizes))
+    tc1, sc1 = OMEinsum.timespace_complexity(opt_tree, exp2.(log2_sizes))
     @test sc1 < sc0
 end
 
 @testset "optimize tree sa" begin
+    function random_regular_eincode(n, k)
+        g = LightGraphs.random_regular_graph(n, k)
+        ixs = [minmax(e.src,e.dst) for e in LightGraphs.edges(g)]
+        return EinCode((ixs..., [(i,) for i in LightGraphs.vertices(g)]...), ())
+    end
     Random.seed!(3)
     n = 60
     ne = n + n÷2
@@ -74,13 +83,18 @@ end
     code = random_regular_eincode(n, 3)
     optcode = optimize_greedy(code, uniformsize(code, 2))
     tree = ExprTree(optcode)
-    tc0, sc0 = timespace_complexity(tree, exp2.(log2_sizes))
+    tc0, sc0 = OMEinsum.timespace_complexity(tree, exp2.(log2_sizes))
     opttree = optimize_tree_sa(tree, log2_sizes; sc_target=sc0-2.0, βs=0.1:0.1:10, ntrials=2, niters=100, sc_weight=3.0)
-    tc1, sc1 = timespace_complexity(opttree, exp2.(log2_sizes))
+    tc1, sc1 = OMEinsum.timespace_complexity(opttree, exp2.(log2_sizes))
     @test sc1 < sc0 || (sc1 == sc0 && tc1 < tc0)
 end
 
 @testset "sa tree" begin
+    function random_regular_eincode(n, k)
+        g = LightGraphs.random_regular_graph(n, k)
+        ixs = [minmax(e.src,e.dst) for e in LightGraphs.edges(g)]
+        return EinCode((ixs..., [(i,) for i in LightGraphs.vertices(g)]...), ())
+    end
     Random.seed!(2)
     g = random_regular_graph(220, 3)
     code = random_regular_eincode(220, 3)
