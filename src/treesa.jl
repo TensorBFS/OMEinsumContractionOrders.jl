@@ -42,27 +42,25 @@ _equal(t1::Vector, t2::Vector) = Set(t1) == Set(t2)
 _equal(a, b) = false
 Base.:(==)(t1::ExprInfo, t2::ExprInfo) = _equal(t1.out_dims, t2.out_dims)
 
-function optimize_tree_sa(tree::ExprTree, log2_sizes; βs, niters, ntrials, sc_target)
+function optimize_tree_sa(tree::ExprTree, log2_sizes; βs, niters, ntrials, sc_target, sc_weight)
     best_tree = tree
-    best_tc, best_sc = timespace_complexity(tree, log2_sizes)
+    best_tc, best_sc = tree_timespace_complexity(tree, log2_sizes)
     for _ = 1:ntrials
         ctree = copy(tree)
-        if state.group_sizes[1]==0 || state.group_sizes[2] == 0
-            continue
-        end
         @inbounds for β in βs, _ = 1:niters
-            optimize_subtree!(ctree, β, log2_sizes, sc_target)  # single sweep
+            optimize_subtree!(ctree, β, log2_sizes, sc_target, sc_weight)  # single sweep
         end
-        tc, sc = timespace_complexity(ctree, log2_sizes)
+        tc, sc = tree_timespace_complexity(ctree, log2_sizes)
         if sc < best_sc || (sc <= best_sc && tc < best_tc)
             best_tree, best_tc, best_sc = ctree, tc, sc
         end
     end
     @debug "best space complexities = $best_tc time complexity = $best_sc"
-    if sc > sc_target
+    @show best_sc
+    if best_sc > sc_target
         @warn "target space complexity not found, got: $best_sc, with time complexity $best_tc."
     end
-    return tree
+    return best_tree
 end
 
 function OMEinsum.timespace_complexity(tree::ExprTree, size_vec)

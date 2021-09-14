@@ -1,5 +1,5 @@
 using OMEinsumContractionOrders, Test, Random
-using OMEinsumContractionOrders: random_exprtree, ExprTree, ExprInfo, ruleset, update_tree!, tcsc, optimize_subtree!, LeafNode
+using OMEinsumContractionOrders: random_exprtree, ExprTree, ExprInfo, ruleset, update_tree!, tcsc, optimize_subtree!, LeafNode, optimize_tree_sa
 using OMEinsum, LightGraphs
 
 function random_regular_eincode(n, k)
@@ -48,6 +48,7 @@ end
     t44 = update_tree!(copy(t4), 1)
     @test t44 == ExprTree(ExprTree(LeafNode(1,[2,3]), ExprTree(LeafNode(4,[5,1]), LeafNode(3,[1]), ExprInfo([1])), ExprInfo([1,2])), LeafNode(2,[1,4]), ExprInfo([2]))
 end
+
 @testset "optimization" begin
     Random.seed!(2)
     n = 20
@@ -62,4 +63,18 @@ end
     opt_tree = optimize_subtree!(copy(tree), 20.0, log2_sizes, 5, 2.0)
     tc1, sc1 = timespace_complexity(opt_tree, exp2.(log2_sizes))
     @test sc1 < sc0
+end
+
+@testset "optimize tree sa" begin
+    Random.seed!(2)
+    n = 60
+    ne = n + n÷2
+    log2_sizes = ones(ne)
+    code = random_regular_eincode(n, 3)
+    optcode = optimize_greedy(code, uniformsize(code, 2))
+    tree = ExprTree(optcode)
+    tc0, sc0 = timespace_complexity(tree, exp2.(log2_sizes))
+    opttree = optimize_tree_sa(tree, log2_sizes; sc_target=sc0-2.0, βs=0.1:0.1:10, ntrials=2, niters=100, sc_weight=3.0)
+    tc1, sc1 = timespace_complexity(opttree, exp2.(log2_sizes))
+    @test sc1 < sc0 || (sc1 == sc0 && tc1 < tc0)
 end
