@@ -7,5 +7,6 @@ using OMEinsum: NestedEinsum
 
 include("kahypar.jl")
 include("sa.jl")
+include("treesa.jl")
 
 end

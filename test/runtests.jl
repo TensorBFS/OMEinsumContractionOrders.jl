@@ -8,3 +8,7 @@ end
 @testset "sa" begin
     include("sa.jl")
 end
+
+@testset "treesa" begin
+    include("treesa.jl")
+end

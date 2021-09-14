@@ -75,13 +75,13 @@ function bipartite_sc(bipartiter::SABipartite, adj::SparseMatrixCSC, vertices, l
             end
             accept && update_state!(state, adjt, vertices, idxi, sc_ti, sc_tinew, newloss)
         end
-        tc, sc1, sc2 = timespace_complexity_singlestep(state, adj, vertices, log2_sizes)
+        tc, sc1, sc2 = timespace_complexity_singlestep(state.config, adj, vertices, log2_sizes)
         @assert state.group_scs ≈ [sc1, sc2]  # sanity check
         if maximum(state.group_scs) <= max(bipartiter.sc_target, maximum(best.group_scs)) && (maximum(best.group_scs) >= bipartiter.sc_target || state.loss[] < best.loss[])
             best = state
         end
     end
-    best_tc, = timespace_complexity_singlestep(best, adj, vertices, log2_sizes)
+    best_tc, = timespace_complexity_singlestep(best.config, adj, vertices, log2_sizes)
     @debug "best loss = $(round(best.loss[]; digits=3)) space complexities = $(best.group_scs) time complexity = $(best_tc) groups_sizes = $(best.group_sizes)"
     if maximum(best.group_scs) > bipartiter.sc_target
         @warn "target space complexity not found, got: $(maximum(best.group_scs)), with time complexity $best_tc."
@@ -89,9 +89,9 @@ function bipartite_sc(bipartiter::SABipartite, adj::SparseMatrixCSC, vertices, l
     return vertices[findall(==(1), best.config)], vertices[findall(==(2), best.config)]
 end
 
-function timespace_complexity_singlestep(state, adj, group, log2_sizes)
-    g1 = group[findall(==(1), state.config)]
-    g2 = group[findall(==(2), state.config)]
+function timespace_complexity_singlestep(config, adj, group, log2_sizes)
+    g1 = group[findall(==(1), config)]
+    g2 = group[findall(==(2), config)]
     d1 = sum(adj[g1,:], dims=1)
     d2 = sum(adj[g2,:], dims=1)
     dall = sum(adj, dims=1)
