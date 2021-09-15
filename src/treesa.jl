@@ -26,25 +26,6 @@ end
 print_expr(io::IO, expr::LeafNode, level=0) = print(io, " "^(2*level), expr.labels, " ($(expr.tensorid))")
 Base.show(io::IO, expr::ExprTree) = print_expr(io, expr, 0)
 Base.show(io::IO, ::MIME"text/plain", expr::ExprTree) = show(io, expr)
-
-"""
-    optimize_tree(code::NestedEinsum, size_dict; sc_target=20, βs=0.1:0.1:10, ntrials=2, niters=100, sc_weight=1.0)
-
-Optimize the contraction tree specified by `code`, and edge sizes specified by `size_dict`, key word arguments are
-
-* `sc_target` is the target space complexity,
-* `ntrails`, `βs` and `niters` are annealing parameters, doing `ntrails` indepedent annealings, each has inverse tempteratures specified by `βs`, in each temperature, do `niters` updates of the tree.
-* `sc_weight` is the relative importance factor of space complexity in loss compared with time complexity.
-"""
-function optimize_tree(code::NestedEinsum, size_dict; sc_target=20, βs=0.1:0.1:10, ntrials=2, niters=100, sc_weight=1.0)
-    labels = _label_dict(OMEinsum.flatten(code))  # label to int
-    inverse_map = Dict([v=>k for (k,v) in labels])
-    log2_sizes = [log2.(size_dict[inverse_map[i]]) for i=1:length(labels)]
-    tree = _exprtree(code, labels)
-    opttree = optimize_tree_sa(tree, log2_sizes; sc_target=sc_target, βs=βs, ntrials=ntrials, niters=niters, sc_weight=sc_weight)
-    return NestedEinsum(opttree, inverse_map)
-end
-
 siblings(t::ExprTree) = Any[t.left, t.right]
 siblings(::LeafNode) = Any[]
 Base.copy(t::ExprTree) = ExprTree(copy(t.left), copy(t.right), ExprInfo(copy(t.info.out_dims)))
@@ -60,24 +41,62 @@ _equal(t1::LeafNode, t2::LeafNode) = t1.tensorid == t2.tensorid
 _equal(t1::Vector, t2::Vector) = Set(t1) == Set(t2)
 _equal(a, b) = false
 
-function optimize_tree_sa(tree::ExprTree, log2_sizes; βs, niters, ntrials, sc_target, sc_weight)
-    best_tree = tree
-    best_tc, best_sc = tree_timespace_complexity(tree, log2_sizes)
-    for _ = 1:ntrials
-        ctree = copy(tree)
-        @inbounds for β in βs, _ = 1:niters
-            optimize_subtree!(ctree, β, log2_sizes, sc_target, sc_weight)  # single sweep
-        end
-        tc, sc = tree_timespace_complexity(ctree, log2_sizes)
+"""
+    optimize_tree(code::NestedEinsum, size_dict; sc_target=20, βs=0.1:0.1:10, ntrials=2, niters=100, sc_weight=1.0)
+
+Optimize the contraction tree specified by `code`, and edge sizes specified by `size_dict`, key word arguments are
+
+* `sc_target` is the target space complexity,
+* `ntrails`, `βs` and `niters` are annealing parameters, doing `ntrails` indepedent annealings, each has inverse tempteratures specified by `βs`, in each temperature, do `niters` updates of the tree.
+* `sc_weight` is the relative importance factor of space complexity in loss compared with time complexity.
+"""
+function optimize_tree(code, size_dict; sc_target=20, βs=0.1:0.1:10, ntrials=20, niters=100, sc_weight=1.0, initializer=:greedy, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=10)
+    labels = _label_dict(OMEinsum.flatten(code))  # label to int
+    inverse_map = Dict([v=>k for (k,v) in labels])
+    log2_sizes = [log2.(size_dict[inverse_map[i]]) for i=1:length(labels)]
+    best_tree = _initializetree(code, size_dict, initializer; greedy_method=greedy_method, greedy_nrepeat=greedy_nrepeat)
+    best_tc, best_sc = tree_timespace_complexity(best_tree, log2_sizes)
+    for t = 1:ntrials
+        tree = _initializetree(code, size_dict, initializer; greedy_method=greedy_method, greedy_nrepeat=greedy_nrepeat)
+        tc0, sc0 = tree_timespace_complexity(tree, log2_sizes)
+        opttree = optimize_tree_sa!(tree, log2_sizes; sc_target=sc_target, βs=βs, niters=niters, sc_weight=sc_weight)
+        tc, sc = tree_timespace_complexity(tree, log2_sizes)
+        @debug "trial $t, time complexity = $tc, space complexity = $sc."
         if sc < best_sc || (sc == best_sc && tc < best_tc)
-            best_tree, best_tc, best_sc = ctree, tc, sc
+            best_tree, best_tc, best_sc = tree, tc, sc
         end
     end
     @debug "best space complexities = $best_tc time complexity = $best_sc"
     if best_sc > sc_target
         @warn "target space complexity not found, got: $best_sc, with time complexity $best_tc."
     end
-    return best_tree
+    return NestedEinsum(best_tree, inverse_map)
+end
+
+function _initializetree(@nospecialize(code), size_dict, method; greedy_method, greedy_nrepeat)
+    flatcode = OMEinsum.flatten(code)
+    if method == :greedy
+        labels = _label_dict(flatcode)  # label to int
+        return _exprtree(optimize_greedy(flatcode, size_dict; method=greedy_method, nrepeat=greedy_nrepeat), labels)
+    elseif method == :random
+        return random_exprtree(flatcode)
+    elseif method == :specified
+        labels = _label_dict(flatcode)  # label to int
+        return _exprtree(code, labels)
+    else
+        throw(ArgumentError("intializier `$method` is not defined!"))
+    end
+end
+
+function optimize_tree_sa!(tree::ExprTree, log2_sizes; βs, niters, sc_target, sc_weight)
+    for β in βs
+        global_tc, sc = tree_timespace_complexity(tree, log2_sizes)  # recompute the time complexity
+        @debug "β = $β, tc = $global_tc, sc = $sc"
+        for _ = 1:niters
+            optimize_subtree!(tree, global_tc, β, log2_sizes, sc_target, sc_weight)  # single sweep
+        end
+    end
+    return tree
 end
 
 function tree_timespace_complexity(tree::LeafNode, log2_sizes)
@@ -104,7 +123,7 @@ end
 
 function random_exprtree(@nospecialize(code::EinCode{ixs, iy})) where {ixs, iy}
     labels = _label_dict(code)
-    return random_exprtree([[labels[l] for l in ix] for ix in ixs], [labels[l] for l in iy], length(labels))
+    return random_exprtree([Int[labels[l] for l in ix] for ix in ixs], Int[labels[l] for l in iy], length(labels))
 end
 
 function random_exprtree(ixs::Vector{Vector{Int}}, iy::Vector{Int}, nedge::Int)
@@ -119,13 +138,12 @@ function random_exprtree(ixs::Vector{Vector{Int}}, iy::Vector{Int}, nedge::Int)
             allcount[l] += 1
         end
     end
-    _random_exprtree(ixs, outercount, allcount, Ref(0))
+    _random_exprtree(ixs, collect(1:length(ixs)), outercount, allcount)
 end
-function _random_exprtree(ixs::Vector{Vector{Int}}, outercount::Vector{Int}, allcount::Vector{Int}, k)
+function _random_exprtree(ixs::Vector{Vector{Int}}, xindices, outercount::Vector{Int}, allcount::Vector{Int})
     n = length(ixs)
     if n == 1
-        k[] += 1
-        return LeafNode(k[], ixs[1])
+        return LeafNode(xindices[1], ixs[1])
     end
     mask = rand(Bool, n)
     if all(mask) || !any(mask)  # prevent invalid partition
@@ -140,26 +158,29 @@ function _random_exprtree(ixs::Vector{Vector{Int}}, outercount::Vector{Int}, all
             counter[l] += 1
         end
     end
-    return ExprTree(_random_exprtree(ixs[mask], outercount1, allcount, k), _random_exprtree(ixs[(!).(mask)], outercount2, allcount, k), info)
+    return ExprTree(_random_exprtree(ixs[mask], xindices[mask], outercount1, allcount), _random_exprtree(ixs[(!).(mask)], xindices[(!).(mask)], outercount2, allcount), info)
 end
 
-function optimize_subtree!(tree, β, log2_sizes, sc_target, sc_weight)
+function optimize_subtree!(tree, global_tc, β, log2_sizes, sc_target, sc_weight)
     rst = ruleset(tree)
     if !isempty(rst)
         rule = rand(rst)
-        sc = length(labels(tree))==0 ? 0.0 : log2sumexp2(getindex.(Ref(log2_sizes), labels(tree)))
-        dtc, dsc, subout = tcsc_diff(tree, rule, log2_sizes)
+        tc0, tc1, dsc, subout = tcsc_diff(tree, rule, log2_sizes)
+        #dtc = (exp2(tc1) - exp2(tc0)) / exp2(global_tc)  # note: contribution to total tc, seems not good.
+        dtc = tc1 - tc0
         #log2(α*RW + tc) is the original `tc` term, which also optimizes read-write overheads.
+        sc = _sc(tree, rule, log2_sizes)
         dE = (max(sc, sc+dsc) > sc_target ? sc_weight : 0) * dsc + dtc
         if rand() < exp(-β*dE)
             update_tree!(tree, rule, subout)
         end
         for subtree in siblings(tree)
-            optimize_subtree!(subtree, β, log2_sizes, sc_target, sc_weight)
+            optimize_subtree!(subtree, global_tc, β, log2_sizes, sc_target, sc_weight)
         end
     end
-    return tree
 end
+_sc(tree, rule, log2_sizes) = max(__sc(tree, log2_sizes), __sc((rule == 1 || rule == 2) ? tree.left : tree.right, log2_sizes))
+__sc(tree, log2_sizes) = length(labels(tree))==0 ? 0.0 : sum(l->log2_sizes[l], labels(tree))
 
 ruleset(::LeafNode) = 1:-1
 @inline function ruleset(tree::ExprTree)
@@ -200,7 +221,7 @@ function abcacb(a, b, ab, c, d, log2_sizes)
         end
     end
     tc1, sc1, ab1 = _tcsc_merge(a, c, ac, b, d, log2_sizes)
-    return tc1-tc0, sc1-sc0, ab1  # Note: this tc diff does not make much sense
+    return tc0, tc1, sc1-sc0, ab1  # Note: this tc diff does not make much sense
 end
 
 function _tcsc_merge(a, b, ab, c, d, log2_sizes)
