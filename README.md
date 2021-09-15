@@ -42,6 +42,11 @@ julia> OMEinsum.timespace_complexity(optcode, uniformsize(code, 2))
 
 julia> OMEinsum.timespace_complexity(optcode_sa, uniformsize(code, 2))
 (34.86528023060411, 27.0)
+
+julia> optcode_tree = optimize_tree(code,uniformsize(code, 2); sc_target=28, βs=0.1:0.1:10, ntrials=2, niters=100, sc_weight=3.0);
+
+julia> tc, sc = OMEinsum.timespace_complexity(optcode_tree, uniformsize(code, 2))
+(30.541894421918297, 26.0)
 ```
 
 ## References
