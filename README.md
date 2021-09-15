@@ -48,6 +48,7 @@ julia> OMEinsum.timespace_complexity(optcode_sa, uniformsize(code, 2))
 
 If you find this package useful in your research, please cite the following papers
 
+To credit the `optimize_kahypar` and `optimize_sa` method,
 ```
 @misc{Pan2021,
       title={Simulating the Sycamore quantum supremacy circuits}, 
@@ -56,6 +57,22 @@ If you find this package useful in your research, please cite the following pape
       eprint={2103.03074},
       archivePrefix={arXiv},
       primaryClass={quant-ph}
+}
+```
+
+To credit the `optimize_kahypar` method,
+```
+@Article{10.21468/SciPostPhys.7.5.060,
+	title={{Fast counting with tensor networks}},
+	author={Stefanos Kourtis and Claudio Chamon and Eduardo R. Mucciolo and Andrei E. Ruckenstein},
+	journal={SciPost Phys.},
+	volume={7},
+	issue={5},
+	pages={60},
+	year={2019},
+	publisher={SciPost},
+	doi={10.21468/SciPostPhys.7.5.060},
+	url={https://scipost.org/10.21468/SciPostPhys.7.5.060},
 }
 ```
 
@@ -72,6 +89,18 @@ If you find this package useful in your research, please cite the following pape
    year={2021},
    month={Mar},
    pages={410}
+}
+```
+
+To credit the `optimize_tree` method,
+```
+@misc{kalachev2021recursive,
+      title={Recursive Multi-Tensor Contraction for XEB Verification of Quantum Circuits}, 
+      author={Gleb Kalachev and Pavel Panteleev and Man-Hong Yung},
+      year={2021},
+      eprint={2108.05665},
+      archivePrefix={arXiv},
+      primaryClass={quant-ph}
 }
 ```
 
