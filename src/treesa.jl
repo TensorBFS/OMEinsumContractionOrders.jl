@@ -27,7 +27,16 @@ print_expr(io::IO, expr::LeafNode, level=0) = print(io, " "^(2*level), expr.labe
 Base.show(io::IO, expr::ExprTree) = print_expr(io, expr, 0)
 Base.show(io::IO, ::MIME"text/plain", expr::ExprTree) = show(io, expr)
 
-function optimize_tree(code::NestedEinsum, size_dict; sc_target=32, βs=0.1:0.1:10, ntrials=2, niters=100, sc_weight=1.0)
+"""
+    optimize_tree(code::NestedEinsum, size_dict; sc_target=20, βs=0.1:0.1:10, ntrials=2, niters=100, sc_weight=1.0)
+
+Optimize the contraction tree specified by `code`, and edge sizes specified by `size_dict`, key word arguments are
+
+* `sc_target` is the target space complexity,
+* `ntrails`, `βs` and `niters` are annealing parameters, doing `ntrails` indepedent annealings, each has inverse tempteratures specified by `βs`, in each temperature, do `niters` updates of the tree.
+* `sc_weight` is the relative importance factor of space complexity in loss compared with time complexity.
+"""
+function optimize_tree(code::NestedEinsum, size_dict; sc_target=20, βs=0.1:0.1:10, ntrials=2, niters=100, sc_weight=1.0)
     labels = _label_dict(OMEinsum.flatten(code))  # label to int
     inverse_map = Dict([v=>k for (k,v) in labels])
     log2_sizes = [log2.(size_dict[inverse_map[i]]) for i=1:length(labels)]
@@ -71,9 +80,6 @@ function optimize_tree_sa(tree::ExprTree, log2_sizes; βs, niters, ntrials, sc_t
     return best_tree
 end
 
-function OMEinsum.timespace_complexity(tree::ExprTree, size_vec)
-    tree_timespace_complexity(tree, log2.(size_vec))
-end
 function tree_timespace_complexity(tree::LeafNode, log2_sizes)
     -Inf, sum(i->log2_sizes[i], tree.labels)
 end
@@ -85,10 +91,10 @@ function tree_timespace_complexity(tree::ExprTree, log2_sizes)
 end
 function tcsc(ix1, ix2, iy, log2_sizes)
     l1, l2, l3 = ix1, ix2, iy
-    sc = isempty(l3) ? 0 : sum(i->log2_sizes[i], l3)
+    sc = isempty(l3) ? 0 : sum(i->(@inbounds log2_sizes[i]), l3)
     tc = sc
     # Note: assuming labels in `l1` being unique
-    for l in l1
+    @inbounds for l in l1
         if l ∈ l2 && l ∉ l3
             tc += log2_sizes[l]
         end
@@ -142,11 +148,11 @@ function optimize_subtree!(tree, β, log2_sizes, sc_target, sc_weight)
     if !isempty(rst)
         rule = rand(rst)
         sc = length(labels(tree))==0 ? 0.0 : log2sumexp2(getindex.(Ref(log2_sizes), labels(tree)))
-        dtc, dsc = tcsc_diff(tree, rule, log2_sizes)
+        dtc, dsc, subout = tcsc_diff(tree, rule, log2_sizes)
         #log2(α*RW + tc) is the original `tc` term, which also optimizes read-write overheads.
         dE = (max(sc, sc+dsc) > sc_target ? sc_weight : 0) * dsc + dtc
         if rand() < exp(-β*dE)
-            update_tree!(tree, rule)
+            update_tree!(tree, rule, subout)
         end
         for subtree in siblings(tree)
             optimize_subtree!(subtree, β, log2_sizes, sc_target, sc_weight)
@@ -170,61 +176,62 @@ end
 
 function tcsc_diff(tree::ExprTree, rule, log2_sizes)
     if rule == 1 # (a,b), c -> (a,c),b
-        return abcacb(labels(tree.left.left), labels(tree.left.right), labels(tree.right), labels(tree), log2_sizes)
+        return abcacb(labels(tree.left.left), labels(tree.left.right), labels(tree.left), labels(tree.right), labels(tree), log2_sizes)
     elseif rule == 2 # (a,b), c -> (c,b),a
-        return abcacb(labels(tree.left.right), labels(tree.left.left), labels(tree.right), labels(tree), log2_sizes)
+        return abcacb(labels(tree.left.right), labels(tree.left.left), labels(tree.left), labels(tree.right), labels(tree), log2_sizes)
     elseif rule == 3 # a,(b,c) -> b,(a,c)
-        return abcacb(labels(tree.right.right), labels(tree.right.left), labels(tree.left), labels(tree), log2_sizes)
+        return abcacb(labels(tree.right.right), labels(tree.right.left), labels(tree.right), labels(tree.left), labels(tree), log2_sizes)
     else  # a,(b,c) -> c,(b,a)
-        return abcacb(labels(tree.right.left), labels(tree.right.right), labels(tree.left), labels(tree), log2_sizes)
+        return abcacb(labels(tree.right.left), labels(tree.right.right), labels(tree.right), labels(tree.left), labels(tree), log2_sizes)
     end
 end
 
-function abcacb(a, b, c, d, log2_sizes)
-    tc0, sc0 = _tcsc_merge(a, b, c, d, log2_sizes)
-    tc1, sc1 = _tcsc_merge(a, c, b, d, log2_sizes)
-    return tc1-tc0, sc1-sc0
-end
-
-function _tcsc_merge(a, b, c, d, log2_sizes)
-    ab = Int[]
+function abcacb(a, b, ab, c, d, log2_sizes)
+    tc0, sc0, ab0 = _tcsc_merge(a, b, ab, c, d, log2_sizes)
+    ac = Int[]
     for l in a
-        if l ∈ c || l ∈ d  # suppose no repeated indices
-            push!(ab, l)
+        if l ∈ b || l ∈ d  # suppose no repeated indices
+            push!(ac, l)
         end
     end
-    for l in b
-        if l ∉ a && (l ∈ c || l ∈ d)  # suppose no repeated indices
-            push!(ab, l)
+    for l in c
+        if l ∉ a && (l ∈ b || l ∈ d)  # suppose no repeated indices
+            push!(ac, l)
         end
     end
-    ab = (a ∪ b) ∩ (c ∪ d)
+    tc1, sc1, ab1 = _tcsc_merge(a, c, ac, b, d, log2_sizes)
+    return tc1-tc0, sc1-sc0, ab1  # Note: this tc diff does not make much sense
+end
+
+function _tcsc_merge(a, b, ab, c, d, log2_sizes)
     tcl, scl = tcsc(a, b, ab, log2_sizes)  # this is correct
     tcr, scr = tcsc(ab, c, d, log2_sizes)
-    log2sumexp2([tcl, tcr]), max(scl, scr)
+    mm, ms = minmax(tcl, tcr)
+    tclr = log2(exp2(mm - ms) + 1) + ms
+    tclr, max(scl, scr), ab
 end
 
-function update_tree!(tree::ExprTree, rule::Int)
+function update_tree!(tree::ExprTree, rule::Int, subout)
     if rule == 1 # (a,b), c -> (a,c),b
         b, c = tree.left.right, tree.right
         tree.left.right = c
         tree.right = b
-        tree.left.info = ExprInfo((labels(tree.left.left) ∪ labels(tree.left.right)) ∩ (labels(tree) ∪ labels(tree.right)))
+        tree.left.info = ExprInfo(subout)
     elseif rule == 2 # (a,b), c -> (c,b),a
         a, c = tree.left.left, tree.right
         tree.left.left = c
         tree.right = a
-        tree.left.info = ExprInfo((labels(tree.left.left) ∪ labels(tree.left.right)) ∩ (labels(tree) ∪ labels(tree.right)))
+        tree.left.info = ExprInfo(subout)
     elseif rule == 3 # a,(b,c) -> b,(a,c)
         a, b = tree.left, tree.right.left
         tree.left = b
         tree.right.left = a
-        tree.right.info = ExprInfo((labels(tree.right.left) ∪ labels(tree.right.right)) ∩ (labels(tree) ∪ labels(tree.left)))
+        tree.right.info = ExprInfo(subout)
     else  # a,(b,c) -> c,(b,a)
         a, c = tree.left, tree.right.right
         tree.left = c
         tree.right.right = a
-        tree.right.info = ExprInfo((labels(tree.right.left) ∪ labels(tree.right.right)) ∩ (labels(tree) ∪ labels(tree.left)))
+        tree.right.info = ExprInfo(subout)
     end
     return tree
 end
