@@ -291,7 +291,7 @@ end
 
 @inline function fast_log2sumexp2(a, b)
     mm, ms = minmax(a, b)
-    return ms #log2(exp2(mm - ms) + 1) + ms
+    return log2(exp2(mm - ms) + 1) + ms
 end
 
 @inline function fast_log2sumexp2(a, b, c)
@@ -308,6 +308,6 @@ end
             m1, m2, ms = b, a, c
         end
     end
-    return ms #Base.FastMath.log2(Base.FastMath.exp2(m1 - ms) + Base.FastMath.exp2(m2 - ms) + 1) + ms
+    return Base.FastMath.log2(Base.FastMath.exp2(m1 - ms) + Base.FastMath.exp2(m2 - ms) + 1) + ms
 end
 
