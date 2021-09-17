@@ -107,13 +107,13 @@ function tree_timespace_complexity(tree::ExprTree, log2_sizes)
     tcl, scl, rwl = tree_timespace_complexity(tree.left, log2_sizes)
     tcr, scr, rwr = tree_timespace_complexity(tree.right, log2_sizes)
     tc, sc, rw = tcscrw(labels(tree.left), labels(tree.right), labels(tree), log2_sizes)
-    return log2sumexp2([tc, tcl, tcr]), max(sc, scl, scr), log2sumexp2([rw, rwl, rwr])
+    return fast_log2sumexp2(tc, tcl, tcr), max(sc, scl, scr), fast_log2sumexp2(rw, rwl, rwr)
 end
-@inline function tcscrw(ix1, ix2, iy, log2_sizes)
+@inline function tcscrw(ix1, ix2, iy, log2_sizes::Vector{T}) where T
     l1, l2, l3 = ix1, ix2, iy
-    sc1 = isempty(l1) ? 0 : sum(i->(@inbounds log2_sizes[i]), l1)
-    sc2 = isempty(l2) ? 0 : sum(i->(@inbounds log2_sizes[i]), l2)
-    sc = isempty(l3) ? 0 : sum(i->(@inbounds log2_sizes[i]), l3)
+    sc1 = isempty(l1) ? zero(T) : sum(i->(@inbounds log2_sizes[i]), l1)
+    sc2 = isempty(l2) ? zero(T) : sum(i->(@inbounds log2_sizes[i]), l2)
+    sc = isempty(l3) ? zero(T) : sum(i->(@inbounds log2_sizes[i]), l3)
     tc = sc
     # Note: assuming labels in `l1` being unique
     @inbounds for l in l1
@@ -121,7 +121,7 @@ end
             tc += log2_sizes[l]
         end
     end
-    rw = log2sumexp2([sc, sc1, sc2])
+    rw = fast_log2sumexp2(sc, sc1, sc2)
     return tc, sc, rw
 end
 
@@ -291,5 +291,22 @@ _nestedeinsum(tree::LeafNode, lbs) = tree.tensorid
 @inline function fast_log2sumexp2(a, b)
     mm, ms = minmax(a, b)
     return log2(exp2(mm - ms) + 1) + ms
+end
+
+@inline function fast_log2sumexp2(a, b, c)
+    if a > b
+        if a > c
+            m1, m2, ms = b, c, a
+        else
+            m1, m2, ms = a, b, c
+        end
+    else
+        if b > c
+            m1, m2, ms = c, a, b
+        else
+            m1, m2, ms = b, a, c
+        end
+    end
+    return Base.FastMath.log2(Base.FastMath.exp2(m1 - ms) + Base.FastMath.exp2(m2 - ms) + 1) + ms
 end
 

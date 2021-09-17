@@ -1,5 +1,5 @@
 using OMEinsumContractionOrders, Test, Random
-using OMEinsumContractionOrders: random_exprtree, ExprTree, ExprInfo, ruleset, update_tree!, tcscrw, optimize_subtree!, LeafNode, optimize_tree_sa!, labels, tree_timespace_complexity
+using OMEinsumContractionOrders: random_exprtree, ExprTree, ExprInfo, ruleset, update_tree!, tcscrw, optimize_subtree!, LeafNode, optimize_tree_sa!, labels, tree_timespace_complexity, fast_log2sumexp2
 using OMEinsum, LightGraphs
 
 @testset "random expr tree" begin
@@ -130,3 +130,8 @@ end
     @test resg ≈ resk
 end
 
+@testset "fast log2sumexp2" begin
+    a, b, c = randn(3)
+    @test fast_log2sumexp2(a, b) ≈ log2(sum(exp2.([a,b])))
+    @test fast_log2sumexp2(a, b, c) ≈ log2(sum(exp2.([a,b,c])))
+end
