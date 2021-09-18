@@ -1,5 +1,5 @@
 using OMEinsumContractionOrders, Test, Random
-using OMEinsumContractionOrders: random_exprtree, ExprTree, ExprInfo, ruleset, update_tree!, tcsc, optimize_subtree!, LeafNode, optimize_tree_sa!, labels, tree_timespace_complexity
+using OMEinsumContractionOrders: random_exprtree, ExprTree, ExprInfo, ruleset, update_tree!, tcscrw, optimize_subtree!, optimize_tree_sa!, labels, tree_timespace_complexity, fast_log2sumexp2
 using OMEinsum, LightGraphs
 
 @testset "random expr tree" begin
@@ -23,6 +23,7 @@ using OMEinsum, LightGraphs
 end
 
 @testset "rules" begin
+    LeafNode(id, labels) = ExprTree(ExprInfo(labels, id))
     t1 = ExprTree(LeafNode(3, [1,2]), ExprTree(LeafNode(1,[2,3]), LeafNode(2,[1,4]), ExprInfo([1,2])), ExprInfo([2]))
     t2 = ExprTree(ExprTree(LeafNode(1, [2,3]), LeafNode(2, [1,4]), ExprInfo([1,2,3])), LeafNode(3,[1,2]), ExprInfo([2]))
     t3 = ExprTree(LeafNode(1,[2,3]), LeafNode(2, [1,2]), ExprInfo([2]))
@@ -32,11 +33,11 @@ end
     @test ruleset(t3) == 1:0
     @test ruleset(t4) == 1:4
     log2_sizes = ones(5)
-    _tcsc(t, l) = tcsc(labels(t.left), labels(t.right), labels(t), l)
-    @test _tcsc(t1, log2_sizes) == (2.0, 1.0)
-    @test _tcsc(t2, log2_sizes) == (2.0, 1.0)
-    @test _tcsc(t3, log2_sizes) == (1.0, 1.0)
-    @test _tcsc(t4, log2_sizes) == (2.0, 1.0)
+    _tcsc(t, l) = tcscrw(labels(t.left), labels(t.right), labels(t), l, true)
+    @test all(_tcsc(t1, log2_sizes) .≈ (2.0, 1.0, log2(10)))
+    @test all(_tcsc(t2, log2_sizes) .≈ (2.0, 1.0, log2(14)))
+    @test all(_tcsc(t3, log2_sizes) .≈ (1.0, 1.0, log2(10)))
+    @test all(_tcsc(t4, log2_sizes) .≈ (2.0, 1.0, log2(8)))
     t11 = update_tree!(copy(t1), 3, [2])
     @test t11 == ExprTree(LeafNode(1,[2,3]), ExprTree(LeafNode(3,[1,2]), LeafNode(2,[1,4]), ExprInfo([2])), ExprInfo([2]))
     t11_ = update_tree!(copy(t1), 4, [1,2])
@@ -61,13 +62,13 @@ end
     code = random_regular_eincode(n, 3)
     optcode = optimize_greedy(code, uniformsize(code, 2))
     tree = ExprTree(optcode)
-    tc0, sc0 = tree_timespace_complexity(tree, log2_sizes)
+    tc0, sc0, rw0 = tree_timespace_complexity(tree, log2_sizes)
     size_dict = Dict([j=>exp2(log2_sizes[j]) for j=1:length(log2_sizes)])
     tc0_, sc0_ = OMEinsum.timespace_complexity(NestedEinsum(tree), size_dict)
     @test tc0 ≈ tc0_ && sc0 ≈ sc0_
     opt_tree = copy(tree)
-    optimize_subtree!(opt_tree, tc0, 100.0, log2_sizes, 5, 2.0)
-    tc1, sc1 = tree_timespace_complexity(opt_tree, log2_sizes)
+    optimize_subtree!(opt_tree, tc0, 100.0, log2_sizes, 5, 2.0, 1.0)
+    tc1, sc1, rw0 = tree_timespace_complexity(opt_tree, log2_sizes)
     @test sc1 < sc0 || (sc1 == sc0 && tc1 < tc0)
 end
 
@@ -84,10 +85,10 @@ end
     code = random_regular_eincode(n, 3)
     optcode = optimize_greedy(code, uniformsize(code, 2))
     tree = ExprTree(optcode)
-    tc0, sc0 = tree_timespace_complexity(tree, log2_sizes)
+    tc0, sc0, rw0 = tree_timespace_complexity(tree, log2_sizes)
     opttree = copy(tree)
-    optimize_tree_sa!(opttree, log2_sizes; sc_target=sc0-2.0, βs=0.1:0.1:10.0, niters=100, sc_weight=1.0)
-    tc1, sc1 = tree_timespace_complexity(opttree, log2_sizes)
+    optimize_tree_sa!(opttree, log2_sizes; sc_target=sc0-2.0, βs=0.1:0.1:10.0, niters=100, sc_weight=1.0, rw_weight=1.0)
+    tc1, sc1, rw1 = tree_timespace_complexity(opttree, log2_sizes)
     @test sc1 < sc0 || (sc1 == sc0 && tc1 < tc0)
 end
 
@@ -103,7 +104,7 @@ end
     res = optimize_greedy(code,uniformsize(code, 2))
     tc, sc = OMEinsum.timespace_complexity(res, uniformsize(code, 2))
 
-    optcode = optimize_tree(res,uniformsize(code, 2); sc_target=32, βs=0.1:0.05:10.0, ntrials=2, niters=100, sc_weight=1.0)
+    optcode = optimize_tree(res,uniformsize(code, 2); sc_target=32, βs=0.1:0.05:10.0, ntrials=2, niters=100, sc_weight=1.0, rw_weight=1.0)
     tc, sc = OMEinsum.timespace_complexity(optcode, uniformsize(code, 2))
     @test sc <= 32
 
@@ -130,3 +131,8 @@ end
     @test resg ≈ resk
 end
 
+@testset "fast log2sumexp2" begin
+    a, b, c = randn(3)
+    @test fast_log2sumexp2(a, b) ≈ log2(sum(exp2.([a,b])))
+    @test fast_log2sumexp2(a, b, c) ≈ log2(sum(exp2.([a,b,c])))
+end
