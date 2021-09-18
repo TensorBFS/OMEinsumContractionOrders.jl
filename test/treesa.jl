@@ -1,5 +1,5 @@
 using OMEinsumContractionOrders, Test, Random
-using OMEinsumContractionOrders: random_exprtree, ExprTree, ExprInfo, ruleset, update_tree!, tcscrw, optimize_subtree!, LeafNode, optimize_tree_sa!, labels, tree_timespace_complexity, fast_log2sumexp2
+using OMEinsumContractionOrders: random_exprtree, ExprTree, ExprInfo, ruleset, update_tree!, tcscrw, optimize_subtree!, optimize_tree_sa!, labels, tree_timespace_complexity, fast_log2sumexp2
 using OMEinsum, LightGraphs
 
 @testset "random expr tree" begin
@@ -17,12 +17,13 @@ using OMEinsum, LightGraphs
     optcode = optimize_greedy(code, uniformsize(code, 2))
     tree3 = ExprTree(optcode)
     @test tree isa OMEinsumContractionOrders.ExprTree
-    labelmap = Dict([v=>k for (k,v) in OMEinsumContractionOrders._label_dict(code)])
+    labelmap = Dict([v=>k for (k,v) in OMEinsumContractionOrders._label_dict(Int, code)])
     optcode_reconstruct = NestedEinsum(tree3, labelmap)
     @test optcode == optcode_reconstruct
 end
 
 @testset "rules" begin
+    LeafNode(id, labels) = ExprTree(ExprInfo(labels, id))
     t1 = ExprTree(LeafNode(3, [1,2]), ExprTree(LeafNode(1,[2,3]), LeafNode(2,[1,4]), ExprInfo([1,2])), ExprInfo([2]))
     t2 = ExprTree(ExprTree(LeafNode(1, [2,3]), LeafNode(2, [1,4]), ExprInfo([1,2,3])), LeafNode(3,[1,2]), ExprInfo([2]))
     t3 = ExprTree(LeafNode(1,[2,3]), LeafNode(2, [1,2]), ExprInfo([2]))

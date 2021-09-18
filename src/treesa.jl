@@ -4,42 +4,41 @@ export optimize_tree
 
 struct ExprInfo
     out_dims::Vector{Int}
-end
-struct LeafNode
     tensorid::Int
-    labels::Vector{Int}
 end
+ExprInfo(out_dims::Vector{Int}) = ExprInfo(out_dims, -1)
 
 mutable struct ExprTree
-    left::Union{ExprTree,LeafNode}
-    right::Union{ExprTree,LeafNode}
+    left::ExprTree
+    right::ExprTree
     info::ExprInfo
+    ExprTree(info) = (res = new(); res.info=info; res)
+    ExprTree(left, right, info) = new(left, right, info)
 end
 function print_expr(io::IO, expr::ExprTree, level=0)
+    isleaf(expr) && return print(io, " "^(2*level), labels(expr), " ($(expr.info.tensorid))")
     print(io, " "^(2*level), "(\n")
     print_expr(io, expr.left, level+1)
     print("\n")
     print_expr(io, expr.right, level+1)
     print("\n")
-    print(io, " "^(2*level), ") := ", expr.info.out_dims)
+    print(io, " "^(2*level), ") := ", labels(expr))
 end
-print_expr(io::IO, expr::LeafNode, level=0) = print(io, " "^(2*level), expr.labels, " ($(expr.tensorid))")
+isleaf(expr::ExprTree) = !isdefined(expr, :left)
 Base.show(io::IO, expr::ExprTree) = print_expr(io, expr, 0)
 Base.show(io::IO, ::MIME"text/plain", expr::ExprTree) = show(io, expr)
-siblings(t::ExprTree) = Any[t.left, t.right]
-siblings(::LeafNode) = Any[]
-Base.copy(t::ExprTree) = ExprTree(copy(t.left), copy(t.right), ExprInfo(copy(t.info.out_dims)))
-Base.copy(t::LeafNode) = LeafNode(t.tensorid, copy(t.labels))
+siblings(t::ExprTree) = isleaf(t) ? ExprTree[] : ExprTree[t.left, t.right]
+Base.copy(t::ExprTree) = isleaf(t) ? ExprTree(t.info) : ExprTree(copy(t.left), copy(t.right), copy(t.info))
+Base.copy(info::ExprInfo) = ExprInfo(copy(info.out_dims), info.tensorid)
 labels(t::ExprTree) = t.info.out_dims
-labels(t::LeafNode) = t.labels
-maxlabel(t::ExprTree) = max(isempty(labels(t)) ? 0 : maximum(labels(t)), maxlabel(t.left), maxlabel(t.right))
-maxlabel(t::LeafNode) = maximum(isempty(labels(t)) ? 0 : labels(t))
+maxlabel(t::ExprTree) = isleaf(t) ? maximum(isempty(labels(t)) ? 0 : labels(t)) : max(isempty(labels(t)) ? 0 : maximum(labels(t)), maxlabel(t.left), maxlabel(t.right))
 Base.:(==)(t1::ExprTree, t2::ExprTree) = _equal(t1, t2)
-Base.:(==)(t1::ExprInfo, t2::ExprInfo) = _equal(t1.out_dims, t2.out_dims)
-_equal(t1::ExprTree, t2::ExprTree) = _equal(t1.left, t2.left) && _equal(t1.right, t2.right) && t1.info == t2.info
-_equal(t1::LeafNode, t2::LeafNode) = t1.tensorid == t2.tensorid
+Base.:(==)(t1::ExprInfo, t2::ExprInfo) = _equal(t1.out_dims, t2.out_dims) && t1.tensorid == t2.tensorid
+function _equal(t1::ExprTree, t2::ExprTree)
+    isleaf(t1) != isleaf(t2) && return false
+    isleaf(t1) ? t1.info == t2.info : _equal(t1.left, t2.left) && _equal(t1.right, t2.right) && t1.info == t2.info
+end
 _equal(t1::Vector, t2::Vector) = Set(t1) == Set(t2)
-_equal(a, b) = false
 
 """
     optimize_tree(code, size_dict; sc_target=20, βs=0.1:0.1:10, ntrials=2, niters=100, sc_weight=1.0, rw_weight=1.0, initializer=:greedy, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=1)
@@ -100,14 +99,12 @@ function optimize_tree_sa!(tree::ExprTree, log2_sizes; βs, niters, sc_target, s
     return tree
 end
 
-function tree_timespace_complexity(tree::LeafNode, log2_sizes)
-    -Inf, sum(i->log2_sizes[i], tree.labels), -Inf
-end
 function tree_timespace_complexity(tree::ExprTree, log2_sizes)
+    isleaf(tree) && return (-Inf, sum(i->log2_sizes[i], labels(tree)), -Inf)
     tcl, scl, rwl = tree_timespace_complexity(tree.left, log2_sizes)
     tcr, scr, rwr = tree_timespace_complexity(tree.right, log2_sizes)
     tc, sc, rw = tcscrw(labels(tree.left), labels(tree.right), labels(tree), log2_sizes)
-    return fast_log2sumexp2(tc, tcl, tcr), max(sc, scl, scr), fast_log2sumexp2(rw, rwl, rwr)
+    return (fast_log2sumexp2(tc, tcl, tcr), max(sc, scl, scr), fast_log2sumexp2(rw, rwl, rwr))
 end
 @inline function tcscrw(ix1, ix2, iy, log2_sizes::Vector{T}) where T
     l1, l2, l3 = ix1, ix2, iy
@@ -147,7 +144,7 @@ end
 function _random_exprtree(ixs::Vector{Vector{Int}}, xindices, outercount::Vector{Int}, allcount::Vector{Int})
     n = length(ixs)
     if n == 1
-        return LeafNode(xindices[1], ixs[1])
+        return ExprTree(ExprInfo(ixs[1], xindices[1]))
     end
     mask = rand(Bool, n)
     if all(mask) || !any(mask)  # prevent invalid partition
@@ -187,16 +184,15 @@ end
 _sc(tree, rule, log2_sizes) = max(__sc(tree, log2_sizes), __sc((rule == 1 || rule == 2) ? tree.left : tree.right, log2_sizes))
 __sc(tree, log2_sizes) = length(labels(tree))==0 ? 0.0 : sum(l->log2_sizes[l], labels(tree))
 
-ruleset(::LeafNode) = 1:-1
 @inline function ruleset(tree::ExprTree)
-    if tree.left isa ExprTree && tree.right isa ExprTree
-        return 1:4
-    elseif tree.left isa ExprTree
+    if isleaf(tree) || (isleaf(tree.left) && isleaf(tree.right))
+        return 1:0
+    elseif isleaf(tree.right)
         return 1:2
-    elseif tree.right isa ExprTree
+    elseif isleaf(tree.left)
         return 3:4
     else
-        return 1:0
+        return 1:4
     end
 end
 
@@ -269,25 +265,28 @@ function _label_dict(@nospecialize(code::EinCode{ixs, iy})) where {ixs, iy}
     return labels
 end
 
-ExprTree(code::NestedEinsum) = _exprtree(code, _label_dict(OMEinsum.flatten(code)))
+function ExprTree(code::NestedEinsum)
+    flatcode = OMEinsum.flatten(code)
+    _exprtree(code, _label_dict(OMEinsum.flatten(code)))
+end
 function _exprtree(code::NestedEinsum, labels)
     @assert length(code.args) == 2
     ExprTree(map(enumerate(code.args)) do (i,arg)
         if arg isa Int
-            LeafNode(arg, [labels[i] for i=OMEinsum.getixs(code.eins)[i]])
+            ExprTree(ExprInfo(Int[labels[i] for i=OMEinsum.getixs(code.eins)[i]], arg))
         else
             res = _exprtree(arg, labels)
         end
-    end..., ExprInfo([labels[i] for i=OMEinsum.getiy(code.eins)]))
+    end..., ExprInfo(Int[labels[i] for i=OMEinsum.getiy(code.eins)]))
 end
 
 OMEinsum.NestedEinsum(expr::ExprTree) = _nestedeinsum(expr, 1:maxlabel(expr))
 OMEinsum.NestedEinsum(expr::ExprTree, labelmap) = _nestedeinsum(expr, labelmap)
 function _nestedeinsum(tree::ExprTree, lbs)
+    isleaf(tree) && return tree.info.tensorid
     eins = EinCode(((getindex.(Ref(lbs), labels(tree.left))...,), (getindex.(Ref(lbs), labels(tree.right))...,)), (getindex.(Ref(lbs), labels(tree))...,))
     NestedEinsum((_nestedeinsum(tree.left, lbs), _nestedeinsum(tree.right, lbs)), eins)
 end
-_nestedeinsum(tree::LeafNode, lbs) = tree.tensorid
 
 @inline function fast_log2sumexp2(a, b)
     mm, ms = minmax(a, b)
