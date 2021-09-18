@@ -154,7 +154,7 @@ function _random_exprtree(ixs::Vector{Vector{Int}}, xindices, outercount::Vector
         i = rand(1:n)
         mask[i] = ~(mask[i])
     end
-    info = ExprInfo([i for i=1:length(outercount) if outercount[i]!=allcount[i] && outercount[i]!=0])
+    info = ExprInfo(Int[i for i=1:length(outercount) if outercount[i]!=allcount[i] && outercount[i]!=0])
     outercount1, outercount2 = copy(outercount), copy(outercount)
     for i=1:n
         counter = mask[i] ? outercount2 : outercount1
@@ -262,9 +262,10 @@ end
 
 # from label to integer.
 function _label_dict(@nospecialize(code::EinCode{ixs, iy})) where {ixs, iy}
+    T = promote_type(eltype.(ixs)..., eltype(iy))
     ixsv, iyv = collect.(ixs), collect(iy)
     v = unique(vcat(ixsv..., iyv))
-    labels = Dict(zip(v, 1:length(v)))
+    labels = Dict{T,Int}(zip(v, 1:length(v)))
     return labels
 end
 
