@@ -17,7 +17,7 @@ using OMEinsum, LightGraphs
     optcode = optimize_greedy(code, uniformsize(code, 2))
     tree3 = ExprTree(optcode)
     @test tree isa OMEinsumContractionOrders.ExprTree
-    labelmap = Dict([v=>k for (k,v) in OMEinsumContractionOrders._label_dict(Int, code)])
+    labelmap = Dict([v=>k for (k,v) in OMEinsumContractionOrders._label_dict(code)])
     optcode_reconstruct = NestedEinsum(tree3, labelmap)
     @test optcode == optcode_reconstruct
 end
@@ -33,7 +33,7 @@ end
     @test ruleset(t3) == 1:0
     @test ruleset(t4) == 1:4
     log2_sizes = ones(5)
-    _tcsc(t, l) = tcscrw(labels(t.left), labels(t.right), labels(t), l)
+    _tcsc(t, l) = tcscrw(labels(t.left), labels(t.right), labels(t), l, true)
     @test all(_tcsc(t1, log2_sizes) .≈ (2.0, 1.0, log2(10)))
     @test all(_tcsc(t2, log2_sizes) .≈ (2.0, 1.0, log2(14)))
     @test all(_tcsc(t3, log2_sizes) .≈ (1.0, 1.0, log2(10)))
