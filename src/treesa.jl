@@ -89,11 +89,14 @@ function _initializetree(@nospecialize(code), size_dict, method; greedy_method, 
 end
 
 function optimize_tree_sa!(tree::ExprTree, log2_sizes; βs, niters, sc_target, sc_weight, rw_weight)
+    @assert rw_weight >= 0
+    @assert sc_weight >= 0
+    log2rw_weight = log2(rw_weight)
     for β in βs
         global_tc, sc, rw = tree_timespace_complexity(tree, log2_sizes)  # recompute the time complexity
         @debug "β = $β, tc = $global_tc, sc = $sc, rw = $rw"
         for _ = 1:niters
-            optimize_subtree!(tree, global_tc, β, log2_sizes, sc_target, sc_weight, rw_weight)  # single sweep
+            optimize_subtree!(tree, global_tc, β, log2_sizes, sc_target, sc_weight, log2rw_weight)  # single sweep
         end
     end
     return tree
@@ -162,22 +165,21 @@ function _random_exprtree(ixs::Vector{Vector{Int}}, xindices, outercount::Vector
     return ExprTree(_random_exprtree(ixs[mask], xindices[mask], outercount1, allcount), _random_exprtree(ixs[(!).(mask)], xindices[(!).(mask)], outercount2, allcount), info)
 end
 
-function optimize_subtree!(tree, global_tc, β, log2_sizes, sc_target, sc_weight, rw_weight)
+function optimize_subtree!(tree, global_tc, β, log2_sizes, sc_target, sc_weight, log2rw_weight)
     rst = ruleset(tree)
     if !isempty(rst)
         rule = rand(rst)
-        optimize_rw = !iszero(rw_weight)
+        optimize_rw = log2rw_weight != -Inf
         tc0, tc1, dsc, rw0, rw1, subout = tcsc_diff(tree, rule, log2_sizes, optimize_rw)
         #dtc = (exp2(tc1) - exp2(tc0)) / exp2(global_tc)  # note: contribution to total tc, seems not good.
-        dtc = optimize_rw ? log2(exp2(tc1) + rw_weight * exp2(rw1)) - log2(exp2(tc0) + rw_weight * exp2(rw0)) : tc1 - tc0
-        #log2(α*RW + tc) is the original `tc` term, which also optimizes read-write overheads.
+        dtc = optimize_rw ? fast_log2sumexp2(tc1, log2rw_weight + rw1) - fast_log2sumexp2(tc0, log2rw_weight + rw0) : tc1 - tc0
         sc = _sc(tree, rule, log2_sizes)
         dE = (max(sc, sc+dsc) > sc_target ? sc_weight : 0) * dsc + dtc
         if rand() < exp(-β*dE)
             update_tree!(tree, rule, subout)
         end
         for subtree in siblings(tree)
-            optimize_subtree!(subtree, global_tc, β, log2_sizes, sc_target, sc_weight, rw_weight)
+            optimize_subtree!(subtree, global_tc, β, log2_sizes, sc_target, sc_weight, log2rw_weight)
         end
     end
 end
