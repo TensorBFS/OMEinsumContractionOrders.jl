@@ -103,13 +103,13 @@ function tree_timespace_complexity(tree::ExprTree, log2_sizes)
     isleaf(tree) && return (-Inf, sum(i->log2_sizes[i], labels(tree)), -Inf)
     tcl, scl, rwl = tree_timespace_complexity(tree.left, log2_sizes)
     tcr, scr, rwr = tree_timespace_complexity(tree.right, log2_sizes)
-    tc, sc, rw = tcscrw(labels(tree.left), labels(tree.right), labels(tree), log2_sizes)
+    tc, sc, rw = tcscrw(labels(tree.left), labels(tree.right), labels(tree), log2_sizes, true)
     return (fast_log2sumexp2(tc, tcl, tcr), max(sc, scl, scr), fast_log2sumexp2(rw, rwl, rwr))
 end
-@inline function tcscrw(ix1, ix2, iy, log2_sizes::Vector{T}) where T
+@inline function tcscrw(ix1, ix2, iy, log2_sizes::Vector{T}, optimize_rw) where T
     l1, l2, l3 = ix1, ix2, iy
-    sc1 = isempty(l1) ? zero(T) : sum(i->(@inbounds log2_sizes[i]), l1)
-    sc2 = isempty(l2) ? zero(T) : sum(i->(@inbounds log2_sizes[i]), l2)
+    sc1 = (!optimize_rw || isempty(l1)) ? zero(T) : sum(i->(@inbounds log2_sizes[i]), l1)
+    sc2 = (!optimize_rw || isempty(l2)) ? zero(T) : sum(i->(@inbounds log2_sizes[i]), l2)
     sc = isempty(l3) ? zero(T) : sum(i->(@inbounds log2_sizes[i]), l3)
     tc = sc
     # Note: assuming labels in `l1` being unique
@@ -118,7 +118,7 @@ end
             tc += log2_sizes[l]
         end
     end
-    rw = fast_log2sumexp2(sc, sc1, sc2)
+    rw = optimize_rw ? fast_log2sumexp2(sc, sc1, sc2) : 0.0
     return tc, sc, rw
 end
 
@@ -166,10 +166,10 @@ function optimize_subtree!(tree, global_tc, β, log2_sizes, sc_target, sc_weight
     rst = ruleset(tree)
     if !isempty(rst)
         rule = rand(rst)
-        tc0, tc1, dsc, rw0, rw1, subout = tcsc_diff(tree, rule, log2_sizes)
+        optimize_rw = !iszero(rw_weight)
+        tc0, tc1, dsc, rw0, rw1, subout = tcsc_diff(tree, rule, log2_sizes, optimize_rw)
         #dtc = (exp2(tc1) - exp2(tc0)) / exp2(global_tc)  # note: contribution to total tc, seems not good.
-        #dtc = tc1 - tc0
-        dtc = log2(exp2(tc1) + rw_weight * exp2(rw1)) - log2(exp2(tc0) + rw_weight * exp2(rw0))
+        dtc = optimize_rw ? log2(exp2(tc1) + rw_weight * exp2(rw1)) - log2(exp2(tc0) + rw_weight * exp2(rw0)) : tc1 - tc0
         #log2(α*RW + tc) is the original `tc` term, which also optimizes read-write overheads.
         sc = _sc(tree, rule, log2_sizes)
         dE = (max(sc, sc+dsc) > sc_target ? sc_weight : 0) * dsc + dtc
@@ -196,20 +196,20 @@ __sc(tree, log2_sizes) = length(labels(tree))==0 ? 0.0 : sum(l->log2_sizes[l], l
     end
 end
 
-function tcsc_diff(tree::ExprTree, rule, log2_sizes)
+function tcsc_diff(tree::ExprTree, rule, log2_sizes, optimize_rw)
     if rule == 1 # (a,b), c -> (a,c),b
-        return abcacb(labels(tree.left.left), labels(tree.left.right), labels(tree.left), labels(tree.right), labels(tree), log2_sizes)
+        return abcacb(labels(tree.left.left), labels(tree.left.right), labels(tree.left), labels(tree.right), labels(tree), log2_sizes, optimize_rw)
     elseif rule == 2 # (a,b), c -> (c,b),a
-        return abcacb(labels(tree.left.right), labels(tree.left.left), labels(tree.left), labels(tree.right), labels(tree), log2_sizes)
+        return abcacb(labels(tree.left.right), labels(tree.left.left), labels(tree.left), labels(tree.right), labels(tree), log2_sizes, optimize_rw)
     elseif rule == 3 # a,(b,c) -> b,(a,c)
-        return abcacb(labels(tree.right.right), labels(tree.right.left), labels(tree.right), labels(tree.left), labels(tree), log2_sizes)
+        return abcacb(labels(tree.right.right), labels(tree.right.left), labels(tree.right), labels(tree.left), labels(tree), log2_sizes, optimize_rw)
     else  # a,(b,c) -> c,(b,a)
-        return abcacb(labels(tree.right.left), labels(tree.right.right), labels(tree.right), labels(tree.left), labels(tree), log2_sizes)
+        return abcacb(labels(tree.right.left), labels(tree.right.right), labels(tree.right), labels(tree.left), labels(tree), log2_sizes, optimize_rw)
     end
 end
 
-function abcacb(a, b, ab, c, d, log2_sizes)
-    tc0, sc0, rw0, ab0 = _tcsc_merge(a, b, ab, c, d, log2_sizes)
+function abcacb(a, b, ab, c, d, log2_sizes, optimize_rw)
+    tc0, sc0, rw0, ab0 = _tcsc_merge(a, b, ab, c, d, log2_sizes, optimize_rw)
     ac = Int[]
     for l in a
         if l ∈ b || l ∈ d  # suppose no repeated indices
@@ -221,14 +221,14 @@ function abcacb(a, b, ab, c, d, log2_sizes)
             push!(ac, l)
         end
     end
-    tc1, sc1, rw1, ab1 = _tcsc_merge(a, c, ac, b, d, log2_sizes)
+    tc1, sc1, rw1, ab1 = _tcsc_merge(a, c, ac, b, d, log2_sizes, optimize_rw)
     return tc0, tc1, sc1-sc0, rw0, rw1, ab1  # Note: this tc diff does not make much sense
 end
 
-function _tcsc_merge(a, b, ab, c, d, log2_sizes)
-    tcl, scl, rwl = tcscrw(a, b, ab, log2_sizes)  # this is correct
-    tcr, scr, rwr = tcscrw(ab, c, d, log2_sizes)
-    fast_log2sumexp2(tcl, tcr), max(scl, scr), fast_log2sumexp2(rwl, rwr), ab
+function _tcsc_merge(a, b, ab, c, d, log2_sizes, optimize_rw)
+    tcl, scl, rwl = tcscrw(a, b, ab, log2_sizes, optimize_rw)  # this is correct
+    tcr, scr, rwr = tcscrw(ab, c, d, log2_sizes, optimize_rw)
+    fast_log2sumexp2(tcl, tcr), max(scl, scr), (optimize_rw ? fast_log2sumexp2(rwl, rwr) : 0.0), ab
 end
 
 function update_tree!(tree::ExprTree, rule::Int, subout)
@@ -266,7 +266,6 @@ function _label_dict(@nospecialize(code::EinCode{ixs, iy})) where {ixs, iy}
 end
 
 function ExprTree(code::NestedEinsum)
-    flatcode = OMEinsum.flatten(code)
     _exprtree(code, _label_dict(OMEinsum.flatten(code)))
 end
 function _exprtree(code::NestedEinsum, labels)
