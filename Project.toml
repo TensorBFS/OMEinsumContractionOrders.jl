@@ -12,7 +12,7 @@ Suppressor = "fd094767-a336-5f1f-9728-57cf17d0bbfb"
 
 [compat]
 KaHyPar = "0.2"
-OMEinsum = "0.4.3"
+OMEinsum = "0.5"
 Suppressor = "0.2"
 BetterExp = "0.1"
 julia = "1"

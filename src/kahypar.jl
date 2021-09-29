@@ -10,8 +10,8 @@ Base.@kwdef struct KaHyParBipartite{RT,IT}
     greedy_nrepeat::Int = 10
 end
 
-function uniformsize(@nospecialize(code::EinCode{ixs,iy}), size::Int) where {ixs, iy}
-    Dict([c=>size for c in [Iterators.flatten(ixs)..., iy...]])
+function uniformsize(@nospecialize(code::EinCode), size::Int)
+    Dict([c=>size for c in [Iterators.flatten(getixs(code))..., getiy(code)...]])
 end
 uniformsize(ne::NestedEinsum, size::Int) = uniformsize(OMEinsum.flatten(ne), size)
 
@@ -157,20 +157,21 @@ Then finds the contraction order inside each group with the greedy search algori
 * [Hyper-optimized tensor network contraction](https://arxiv.org/abs/2002.01935)
 * [Simulating the Sycamore quantum supremacy circuits](https://arxiv.org/abs/2103.03074)
 """
-function optimize_kahypar(@nospecialize(code::EinCode{ixs,iy}), size_dict; sc_target, max_group_size=40, imbalances=0.0:0.01:0.2, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=10) where {ixs, iy}
+function optimize_kahypar(@nospecialize(code::EinCode), size_dict; sc_target, max_group_size=40, imbalances=0.0:0.01:0.2, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=10)
     bipartiter = KaHyParBipartite(; sc_target=sc_target, max_group_size=max_group_size, imbalances=imbalances, greedy_method=greedy_method, greedy_nrepeat=greedy_nrepeat)
     recursive_bipartite_optimize(bipartiter, code, size_dict)
 end
 
-function recursive_bipartite_optimize(bipartiter, @nospecialize(code::EinCode{ixs,iy}), size_dict) where {ixs, iy}
-    ixv = [ixs..., iy]
+function recursive_bipartite_optimize(bipartiter, @nospecialize(code::EinCode), size_dict)
+    LT, ixs, iy = OMEinsum.labeltype(code), getixs(code), getiy(code)
+    ixv = [collect.(Ref(LT), ixs)..., collect(LT, iy)]
     adj, edges = adjacency_matrix(ixv)
-    vertices=collect(1:length(1:length(ixs)))
+    vertices=collect(1:length(ixs))
     parts = bipartition_recursive(bipartiter, adj, vertices, [log2(size_dict[e]) for e in edges])
-    recursive_construct_nestedeinsum(ixv, collect(iy), parts, size_dict, 0, bipartiter.greedy_method, bipartiter.greedy_nrepeat)
+    recursive_construct_nestedeinsum(ixv, collect(LT, iy), parts, size_dict, 0, bipartiter.greedy_method, bipartiter.greedy_nrepeat)
 end
 
-function recursive_construct_nestedeinsum(ixs::AbstractVector, iy, parts::AbstractVector, size_dict, level, greedy_method, greedy_nrepeat)
+function recursive_construct_nestedeinsum(ixs::AbstractVector{<:AbstractVector}, iy, parts::AbstractVector, size_dict, level, greedy_method, greedy_nrepeat)
     if length(parts) == 2
         # code is a nested einsum
         code1 = recursive_construct_nestedeinsum(ixs, iy, parts[1], size_dict, level+1, greedy_method, greedy_nrepeat)
@@ -187,7 +188,7 @@ function recursive_construct_nestedeinsum(ixs::AbstractVector, iy, parts::Abstra
     end
 end
 
-function recursive_construct_nestedeinsum(ixs::AbstractVector, iy, parts::AbstractVector{<:Integer}, size_dict, level, greedy_method, greedy_nrepeat)
+function recursive_construct_nestedeinsum(ixs::AbstractVector{<:AbstractVector}, iy, parts::AbstractVector{<:Integer}, size_dict, level, greedy_method, greedy_nrepeat)
     if isempty(parts)
         error("got empty group!")
     end
@@ -217,13 +218,13 @@ recursive_flatten(obj) = obj
 Find the optimal contraction order automatically by determining the `sc_target` with bisection.
 It can fail if the tree width of your graph is larger than `100`.
 """
-function optimize_kahypar_auto(@nospecialize(code::EinCode{ixs,iy}), size_dict; max_group_size=40, effort=500, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=10) where {ixs, iy}
+function optimize_kahypar_auto(@nospecialize(code::EinCode), size_dict; max_group_size=40, effort=500, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=10)
     sc_high = 100
     sc_low = 1
     order_high = optimize_kahypar(code, size_dict; sc_target=sc_high, max_group_size=max_group_size, imbalances=0.0:0.6/effort*(sc_high-sc_low):0.6)
     _optimize_kahypar_auto(code, size_dict, sc_high, order_high, sc_low, max_group_size, effort, greedy_method, greedy_nrepeat)
 end
-function _optimize_kahypar_auto(@nospecialize(code::EinCode{ixs,iy}), size_dict, sc_high, order_high, sc_low, max_group_size, effort, greedy_method, greedy_nrepeat) where {ixs, iy}
+function _optimize_kahypar_auto(@nospecialize(code::EinCode), size_dict, sc_high, order_high, sc_low, max_group_size, effort, greedy_method, greedy_nrepeat)
     if sc_high <= sc_low + 1
         order_high
     else

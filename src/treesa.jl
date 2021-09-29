@@ -125,9 +125,9 @@ end
     return tc, sc, rw
 end
 
-function random_exprtree(@nospecialize(code::EinCode{ixs, iy})) where {ixs, iy}
+function random_exprtree(@nospecialize(code::EinCode))
     labels = _label_dict(code)
-    return random_exprtree([Int[labels[l] for l in ix] for ix in ixs], Int[labels[l] for l in iy], length(labels))
+    return random_exprtree([Int[labels[l] for l in ix] for ix in getixs(code)], Int[labels[l] for l in getiy(code)], length(labels))
 end
 
 function random_exprtree(ixs::Vector{Vector{Int}}, iy::Vector{Int}, nedge::Int)
@@ -259,11 +259,11 @@ function update_tree!(tree::ExprTree, rule::Int, subout)
 end
 
 # from label to integer.
-function _label_dict(@nospecialize(code::EinCode{ixs, iy})) where {ixs, iy}
-    T = promote_type(eltype.(ixs)..., eltype(iy))
-    ixsv, iyv = collect.(ixs), collect(iy)
+function _label_dict(@nospecialize(code::EinCode))
+    LT = OMEinsum.labeltype(code)
+    ixsv, iyv = [collect(LT, ix) for ix in getixs(code)], collect(LT, getiy(code))
     v = unique(vcat(ixsv..., iyv))
-    labels = Dict{T,Int}(zip(v, 1:length(v)))
+    labels = Dict{LT,Int}(zip(v, 1:length(v)))
     return labels
 end
 
@@ -274,7 +274,7 @@ function _exprtree(code::NestedEinsum, labels)
     @assert length(code.args) == 2
     ExprTree(map(enumerate(code.args)) do (i,arg)
         if arg isa Int
-            ExprTree(ExprInfo(Int[labels[i] for i=OMEinsum.getixs(code.eins)[i]], arg))
+            ExprTree(ExprInfo(Int[labels[i] for i=getixs(code.eins)[i]], arg))
         else
             res = _exprtree(arg, labels)
         end
