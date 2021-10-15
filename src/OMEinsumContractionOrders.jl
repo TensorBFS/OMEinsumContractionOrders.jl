@@ -3,7 +3,7 @@ module OMEinsumContractionOrders
 using KaHyPar
 using SparseArrays, Suppressor
 using OMEinsum
-using OMEinsum: NestedEinsum
+using OMEinsum: NestedEinsum, getixs, getiy
 
 include("kahypar.jl")
 include("sa.jl")

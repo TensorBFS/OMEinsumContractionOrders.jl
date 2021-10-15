@@ -221,9 +221,9 @@ Then finds the contraction order inside each group with the greedy search algori
 ### References
 * [Hyper-optimized tensor network contraction](https://arxiv.org/abs/2002.01935)
 """
-function optimize_sa(@nospecialize(code::EinCode{ixs,iy}), size_dict; sc_target, max_group_size=40,
+function optimize_sa(@nospecialize(code::EinCode), size_dict; sc_target, max_group_size=40,
              βs=0.01:0.02:15.0, niters=1000, ntrials=50, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=10,
-             initializer=:random) where {ixs, iy}
+             initializer=:random)
     bipartiter = SABipartite(; sc_target=sc_target, βs=βs, niters=niters, ntrials=ntrials, greedy_method=greedy_method, greedy_nrepeat=greedy_nrepeat, max_group_size=max_group_size, initializer=initializer)
     
     recursive_bipartite_optimize(bipartiter, code, size_dict)

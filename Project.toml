@@ -1,7 +1,7 @@
 name = "OMEinsumContractionOrders"
 uuid = "6f22d1fd-8eed-4bb7-9776-e7d684900715"
 authors = ["Jin-Guo Liu", "Pan Zhang"]
-version = "0.4.2"
+version = "0.4.3"
 
 [deps]
 BetterExp = "7cffe744-45fd-4178-b173-cf893948b8b7"
@@ -12,7 +12,7 @@ Suppressor = "fd094767-a336-5f1f-9728-57cf17d0bbfb"
 
 [compat]
 KaHyPar = "0.2"
-OMEinsum = "0.4.3"
+OMEinsum = "0.5"
 Suppressor = "0.2"
 BetterExp = "0.1"
 julia = "1"
