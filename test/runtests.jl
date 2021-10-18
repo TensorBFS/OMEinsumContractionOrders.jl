@@ -12,3 +12,7 @@ end
 @testset "treesa" begin
     include("treesa.jl")
 end
+
+@testset "simplify" begin
+    include("simplify.jl")
+end

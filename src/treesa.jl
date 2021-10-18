@@ -66,7 +66,7 @@ function optimize_tree(code, size_dict; sc_target=20, βs=0.1:0.1:10, ntrials=20
             best_tree, best_tc, best_sc, best_rw = tree, tc, sc, rw
         end
     end
-    @debug "best space complexities = $best_tc, time complexity = $best_sc, read-right complexity $best_rw."
+    @debug "best space complexities = $best_tc, time complexity = $best_sc, read-write complexity $best_rw."
     if best_sc > sc_target
         @warn "target space complexity not found, got: $best_sc, with time complexity $best_tc, read-right complexity $best_rw."
     end

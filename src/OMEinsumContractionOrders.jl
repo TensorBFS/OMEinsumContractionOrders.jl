@@ -8,5 +8,6 @@ using OMEinsum: NestedEinsum, getixsv, getiyv, DynamicEinCode, StaticEinCode, is
 include("kahypar.jl")
 include("sa.jl")
 include("treesa.jl")
+include("simplify.jl")
 
 end
