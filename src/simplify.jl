@@ -5,7 +5,7 @@ struct VectorRemover
     operations::Vector{NestedEinsum}
 end
 
-function merge_vectors(@nospecialize(code::EinCode))
+function merge_vectors(code::EinCode)
     ixs = OMEinsum.getixs(code)
     mask = trues(length(ixs))
     ops = [NestedEinsum((i,), _similar(code, (ix,), ix)) for (i,ix) in enumerate(ixs)]
@@ -21,7 +21,7 @@ function merge_vectors(@nospecialize(code::EinCode))
             end
         end
     end
-    newcode = _similar(code, ixs[mask], getiy(code))
+    newcode = _similar(code, ixs[mask], OMEinsum.getiy(code))
     return VectorRemover(ops[mask]), newcode
 end
 _similar(::DynamicEinCode, ixs, iy) = DynamicEinCode(collect(ixs), iy)
@@ -46,8 +46,8 @@ function embed_simplifier(code::Integer, simplifier::VectorRemover)
 end
 
 function unwrap_identity(op::NestedEinsum)
-    ixs = getixs(op.eins)
-    if length(ixs) == 1 && ixs[1] == getiy(op.eins)  # identity
+    ixs = OMEinsum.getixs(op.eins)
+    if length(ixs) == 1 && ixs[1] == OMEinsum.getiy(op.eins)  # identity
         if op.args[1] isa Integer
             return op.args[1]
         else
