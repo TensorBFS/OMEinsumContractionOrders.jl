@@ -180,7 +180,7 @@ function recursive_construct_nestedeinsum(ixs::AbstractVector{<:AbstractVector},
         inset12, outset12 = ixs[AB], ixs[setdiff(1:length(ixs), AB)]
         iy12 = Iterators.flatten(inset12) ∩  (Iterators.flatten(outset12) ∪ iy)
         iy1, iy2 = OMEinsum.getiy(code1.eins), OMEinsum.getiy(code2.eins)
-        return NestedEinsum((code1, code2), EinCode((iy1, iy2), ((level==0 ? iy : iy12)...,)))
+        return NestedEinsum((code1, code2), EinCode([iy1, iy2], eltype(iy)[(level==0 ? iy : iy12)...]))
     elseif length(parts) == 1
         return recursive_construct_nestedeinsum(ixs, iy, parts[1], size_dict, level, greedy_method, greedy_nrepeat)
     else

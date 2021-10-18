@@ -24,7 +24,7 @@ function merge_vectors(@nospecialize(code::EinCode))
     newcode = _similar(code, ixs[mask], getiy(code))
     return VectorRemover(ops[mask]), newcode
 end
-_similar(::DynamicEinCode, ixs, iy) = DynamicEinCode(ixs, iy)
+_similar(::DynamicEinCode, ixs, iy) = DynamicEinCode(collect(ixs), iy)
 _similar(::StaticEinCode, ixs, iy) = StaticEinCode{ixs, iy}()
 
 function apply_simplifier(s::VectorRemover, xs)
