@@ -10,8 +10,8 @@ Base.@kwdef struct KaHyParBipartite{RT,IT}
     greedy_nrepeat::Int = 10
 end
 
-function uniformsize(@nospecialize(code::EinCode), size::Int)
-    Dict([c=>size for c in [Iterators.flatten(getixs(code))..., getiy(code)...]])
+function uniformsize(code::EinCode, size::Int)
+    Dict([c=>size for c in [Iterators.flatten(getixsv(code))..., getiyv(code)...]])
 end
 uniformsize(ne::NestedEinsum, size::Int) = uniformsize(OMEinsum.flatten(ne), size)
 
@@ -162,16 +162,16 @@ function optimize_kahypar(@nospecialize(code::EinCode), size_dict; sc_target, ma
     recursive_bipartite_optimize(bipartiter, code, size_dict)
 end
 
-function recursive_bipartite_optimize(bipartiter, @nospecialize(code::EinCode), size_dict)
-    LT, ixs, iy = OMEinsum.labeltype(code), getixs(code), getiy(code)
-    ixv = [collect.(Ref(LT), ixs)..., collect(LT, iy)]
+function recursive_bipartite_optimize(bipartiter, code::EinCode, size_dict)
+    ixs, iy = getixsv(code), getiyv(code)
+    ixv = [ixs..., iy]
     adj, edges = adjacency_matrix(ixv)
     vertices=collect(1:length(ixs))
     parts = bipartition_recursive(bipartiter, adj, vertices, [log2(size_dict[e]) for e in edges])
-    recursive_construct_nestedeinsum(ixv, collect(LT, iy), parts, size_dict, 0, bipartiter.greedy_method, bipartiter.greedy_nrepeat)
+    recursive_construct_nestedeinsum(ixv, iy, parts, size_dict, 0, bipartiter.greedy_method, bipartiter.greedy_nrepeat)
 end
 
-function recursive_construct_nestedeinsum(ixs::AbstractVector{<:AbstractVector}, iy, parts::AbstractVector, size_dict, level, greedy_method, greedy_nrepeat)
+function recursive_construct_nestedeinsum(ixs::AbstractVector{<:AbstractVector}, iy::AbstractVector{L}, parts::AbstractVector, size_dict, level, greedy_method, greedy_nrepeat) where L
     if length(parts) == 2
         # code is a nested einsum
         code1 = recursive_construct_nestedeinsum(ixs, iy, parts[1], size_dict, level+1, greedy_method, greedy_nrepeat)
@@ -179,8 +179,8 @@ function recursive_construct_nestedeinsum(ixs::AbstractVector{<:AbstractVector},
         AB = recursive_flatten(parts[2]) ∪ recursive_flatten(parts[1])
         inset12, outset12 = ixs[AB], ixs[setdiff(1:length(ixs), AB)]
         iy12 = Iterators.flatten(inset12) ∩  (Iterators.flatten(outset12) ∪ iy)
-        iy1, iy2 = OMEinsum.getiy(code1.eins), OMEinsum.getiy(code2.eins)
-        return NestedEinsum((code1, code2), EinCode((iy1, iy2), ((level==0 ? iy : iy12)...,)))
+        iy1, iy2 = getiyv(code1.eins), getiyv(code2.eins)
+        return NestedEinsum([code1, code2], EinCode([iy1, iy2], L[(level==0 ? iy : iy12)...]))
     elseif length(parts) == 1
         return recursive_construct_nestedeinsum(ixs, iy, parts[1], size_dict, level, greedy_method, greedy_nrepeat)
     else
@@ -188,21 +188,20 @@ function recursive_construct_nestedeinsum(ixs::AbstractVector{<:AbstractVector},
     end
 end
 
-function recursive_construct_nestedeinsum(ixs::AbstractVector{<:AbstractVector}, iy, parts::AbstractVector{<:Integer}, size_dict, level, greedy_method, greedy_nrepeat)
+function recursive_construct_nestedeinsum(ixs::AbstractVector{<:AbstractVector}, iy::AbstractVector{L}, parts::AbstractVector{<:Integer}, size_dict, level, greedy_method, greedy_nrepeat) where L
     if isempty(parts)
         error("got empty group!")
     end
     inset, outset = ixs[parts], ixs[setdiff(1:length(ixs), parts)]
     iy1 = Iterators.flatten(inset) ∩  (Iterators.flatten(outset) ∪ iy)
-    res = optimize_greedy(inset, iy1, size_dict; method=greedy_method, nrepeat=greedy_nrepeat)
+    res = optimize_greedy(DynamicEinCode{L}, inset, iy1, size_dict; method=greedy_method, nrepeat=greedy_nrepeat)
     return maplocs(res, parts)
 end
 
-maplocs(ne::NestedEinsum, parts) = NestedEinsum(maplocs.(ne.args, Ref(parts)), ne.eins)
-maplocs(i::Int, parts) = parts[i]
+maplocs(ne::NestedEinsum{ET}, parts) where ET = isleaf(ne) ? NestedEinsum{ET}(parts[ne.tensorindex]) : NestedEinsum(maplocs.(ne.args, Ref(parts)), ne.eins)
 
 function kahypar_recursive(ne::NestedEinsum; log2_size_dict, sc_target, min_size, imbalances=0.0:0.04:0.8)
-    if length(ne.args >= min_size) && all(x->x isa Integer, ne.args)
+    if length(ne.args >= min_size) && all(isleaf, ne.args)
         bipartite_eincode(adj, ne.args, ne.eins; log2_size_dict=log2_size_dict, sc_target=sc_target, min_size=min_size, imbalances=imbalances)
     end
     kahypar_recursive(ne.args; log2_size_dict, sc_target=sc_target, min_size=min_size, imbalances=imbalances)
@@ -218,7 +217,7 @@ recursive_flatten(obj) = obj
 Find the optimal contraction order automatically by determining the `sc_target` with bisection.
 It can fail if the tree width of your graph is larger than `100`.
 """
-function optimize_kahypar_auto(@nospecialize(code::EinCode), size_dict; max_group_size=40, effort=500, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=10)
+function optimize_kahypar_auto(code::EinCode, size_dict; max_group_size=40, effort=500, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=10)
     sc_high = 100
     sc_low = 1
     order_high = optimize_kahypar(code, size_dict; sc_target=sc_high, max_group_size=max_group_size, imbalances=0.0:0.6/effort*(sc_high-sc_low):0.6)

@@ -24,7 +24,7 @@ function print_expr(io::IO, expr::ExprTree, level=0)
     print("\n")
     print(io, " "^(2*level), ") := ", labels(expr))
 end
-isleaf(expr::ExprTree) = !isdefined(expr, :left)
+OMEinsum.isleaf(expr::ExprTree) = !isdefined(expr, :left)
 Base.show(io::IO, expr::ExprTree) = print_expr(io, expr, 0)
 Base.show(io::IO, ::MIME"text/plain", expr::ExprTree) = show(io, expr)
 siblings(t::ExprTree) = isleaf(t) ? ExprTree[] : ExprTree[t.left, t.right]
@@ -73,7 +73,7 @@ function optimize_tree(code, size_dict; sc_target=20, βs=0.1:0.1:10, ntrials=20
     return NestedEinsum(best_tree, inverse_map)
 end
 
-function _initializetree(@nospecialize(code), size_dict, method; greedy_method, greedy_nrepeat)
+function _initializetree(code, size_dict, method; greedy_method, greedy_nrepeat)
     flatcode = OMEinsum.flatten(code)
     if method == :greedy
         labels = _label_dict(flatcode)  # label to int
@@ -125,9 +125,9 @@ end
     return tc, sc, rw
 end
 
-function random_exprtree(@nospecialize(code::EinCode))
+function random_exprtree(code::EinCode)
     labels = _label_dict(code)
-    return random_exprtree([Int[labels[l] for l in ix] for ix in getixs(code)], Int[labels[l] for l in getiy(code)], length(labels))
+    return random_exprtree([Int[labels[l] for l in ix] for ix in getixsv(code)], Int[labels[l] for l in getiyv(code)], length(labels))
 end
 
 function random_exprtree(ixs::Vector{Vector{Int}}, iy::Vector{Int}, nedge::Int)
@@ -259,9 +259,9 @@ function update_tree!(tree::ExprTree, rule::Int, subout)
 end
 
 # from label to integer.
-function _label_dict(@nospecialize(code::EinCode))
+function _label_dict(code::EinCode)
     LT = OMEinsum.labeltype(code)
-    ixsv, iyv = [collect(LT, ix) for ix in getixs(code)], collect(LT, getiy(code))
+    ixsv, iyv = getixsv(code), getiyv(code)
     v = unique(vcat(ixsv..., iyv))
     labels = Dict{LT,Int}(zip(v, 1:length(v)))
     return labels
@@ -273,8 +273,8 @@ end
 function _exprtree(code::NestedEinsum, labels)
     @assert length(code.args) == 2
     ExprTree(map(enumerate(code.args)) do (i,arg)
-        if arg isa Int
-            ExprTree(ExprInfo(Int[labels[i] for i=getixs(code.eins)[i]], arg))
+        if isleaf(arg)
+            ExprTree(ExprInfo(Int[labels[i] for i=OMEinsum.getixs(code.eins)[i]], arg.tensorindex))
         else
             res = _exprtree(arg, labels)
         end
