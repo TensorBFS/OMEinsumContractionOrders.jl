@@ -157,7 +157,7 @@ Then finds the contraction order inside each group with the greedy search algori
 * [Hyper-optimized tensor network contraction](https://arxiv.org/abs/2002.01935)
 * [Simulating the Sycamore quantum supremacy circuits](https://arxiv.org/abs/2103.03074)
 """
-function optimize_kahypar(@nospecialize(code::EinCode), size_dict; sc_target, max_group_size=40, imbalances=0.0:0.01:0.2, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=10)
+function optimize_kahypar(code::EinCode, size_dict; sc_target, max_group_size=40, imbalances=0.0:0.01:0.2, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=10)
     bipartiter = KaHyParBipartite(; sc_target=sc_target, max_group_size=max_group_size, imbalances=imbalances, greedy_method=greedy_method, greedy_nrepeat=greedy_nrepeat)
     recursive_bipartite_optimize(bipartiter, code, size_dict)
 end
@@ -223,7 +223,7 @@ function optimize_kahypar_auto(code::EinCode, size_dict; max_group_size=40, effo
     order_high = optimize_kahypar(code, size_dict; sc_target=sc_high, max_group_size=max_group_size, imbalances=0.0:0.6/effort*(sc_high-sc_low):0.6)
     _optimize_kahypar_auto(code, size_dict, sc_high, order_high, sc_low, max_group_size, effort, greedy_method, greedy_nrepeat)
 end
-function _optimize_kahypar_auto(@nospecialize(code::EinCode), size_dict, sc_high, order_high, sc_low, max_group_size, effort, greedy_method, greedy_nrepeat)
+function _optimize_kahypar_auto(code::EinCode, size_dict, sc_high, order_high, sc_low, max_group_size, effort, greedy_method, greedy_nrepeat)
     if sc_high <= sc_low + 1
         order_high
     else

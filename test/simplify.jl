@@ -1,5 +1,16 @@
 using OMEinsumContractionOrders, OMEinsum
 using Test, Random
+using OMEinsum: getixs, getiy, isleaf
+
+function have_identity(ne::NestedEinsum)
+    if isleaf(ne)
+        return false
+    elseif length(getixs(ne.eins)) == 1 && getixs(ne.eins)[1] == getiy(ne.eins)
+        return true
+    else
+        return any(have_identity, ne.args)
+    end
+end
 
 @testset "simplify vectors" begin
     tn = ein"ab,bc,cd,de,a,b,c,d,f,f,e->ab"
@@ -9,6 +20,7 @@ using Test, Random
     @test tn(xs...) ≈ tn2(simplifier(xs...)...)
     tn3 = optimize_greedy(tn2, uniformsize(tn2, 2))
     tn4 = embed_simplifier(tn3, simplifier)
+    @test !have_identity(tn4)
     @test tn(xs...) ≈ tn4(xs...)
 
     tn = OMEinsum.DynamicEinCode(tn)
@@ -18,5 +30,6 @@ using Test, Random
     @test tn(xs...) ≈ tn2(simplifier(xs...)...)
     tn3 = optimize_greedy(tn2, uniformsize(tn2, 2))
     tn4 = embed_simplifier(tn3, simplifier)
+    @test !have_identity(tn4)
     @test tn(xs...) ≈ tn4(xs...)
 end

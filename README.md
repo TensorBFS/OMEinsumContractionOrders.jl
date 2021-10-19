@@ -13,14 +13,14 @@ OMEinsumContractionOrders is a Julia Language package. To install OMEinsumContra
 For stable release
 
 ```julia
-pkg> add https://github.com/kahypar/KaHyPar.jl.git#master
 pkg> add OMEinsumContractionOrders
+pkg> add KaHyPar  # some people complaint it is hard to install, so this is optional
 ```
 
 ## Example
 Contract a tensor network
 ```julia
-julia> using OMEinsum, OMEinsumContractionOrders, LightGraphs
+julia> using OMEinsum, OMEinsumContractionOrders, LightGraphs, KaHyPar
 
 julia> function random_regular_eincode(n, k; optimize=nothing)
 	    g = LightGraphs.random_regular_graph(n, k)
