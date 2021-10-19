@@ -3,6 +3,7 @@ using LightGraphs
 using Test, Random
 using SparseArrays
 using OMEinsumContractionOrders
+using KaHyPar
 
 @testset "graph coarse graining" begin
     Random.seed!(2)
