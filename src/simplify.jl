@@ -1,7 +1,9 @@
 using OMEinsum: StaticEinCode, DynamicEinCode
+using OMEinsum.ContractionOrder: IncidenceList, ContractionTree
 export merge_vectors, embed_simplifier
+export merge_greedy
 
-struct VectorRemover
+struct NetworkSimplifier
     operations::Vector{NestedEinsum}
 end
 
@@ -23,17 +25,57 @@ function merge_vectors(code::EinCode)
         end
     end
     newcode = _similar(code, ixs[mask], OMEinsum.getiy(code))
-    return VectorRemover(ops[mask]), newcode
+    return NetworkSimplifier(ops[mask]), newcode
 end
-_similar(::DynamicEinCode, ixs, iy) = DynamicEinCode(collect(ixs), iy)
-_similar(::StaticEinCode, ixs, iy) = StaticEinCode{ixs, iy}()
+_similar(::DynamicEinCode, ixs, iy) = DynamicEinCode(collect(collect.(ixs)), collect(iy))
+_similar(::StaticEinCode, ixs, iy) = StaticEinCode{(Tuple.(ixs)...,), (iy...,)}()
 
-function apply_simplifier(s::VectorRemover, xs)
+function merge_greedy(code::EinCode, size_dict; threshhold=-1e-12)
+    ixs, iy, L = getixsv(code), getiyv(code), OMEinsum.labeltype(code)
+    ET = code isa DynamicEinCode ? typeof(code) : StaticEinCode
+    log2_edge_sizes = Dict{L,Float64}()
+    for (k, v) in size_dict
+        log2_edge_sizes[k] = log2(v)
+    end
+    incidence_list = IncidenceList(Dict([i=>ixs[i] for i=1:length(ixs)]); openedges=iy)
+    n = ContractionOrder.nv(incidence_list)
+    if n == 0
+        return nothing
+    elseif n == 1
+        return collect(ContractionOrder.vertices(incidence_list))[1]
+    end
+    tree = Dict{Int,NestedEinsum}([v=>NestedEinsum{ET}(v) for v in ContractionOrder.vertices(incidence_list)])
+    cost_values = ContractionOrder.evaluate_costs(MinSpaceDiff(), incidence_list, log2_edge_sizes)
+    while true
+        if length(cost_values) == 0
+            return _buildsimplifier(code, tree, incidence_list)
+        end
+        v, pair = findmin(cost_values)
+        if v <= threshhold
+            _, _, c = ContractionOrder.contract_pair!(incidence_list, pair..., log2_edge_sizes)
+            tree[pair[1]] = NestedEinsum((tree[pair[1]], tree[pair[2]]), _similar(code, c.first, c.second))
+            if ContractionOrder.nv(incidence_list) <= 1
+                return _buildsimplifier(code, tree, incidence_list)
+            end
+            ContractionOrder.update_costs!(cost_values, pair..., MinSpaceDiff(), incidence_list, log2_edge_sizes)
+        else
+            return _buildsimplifier(code, tree, incidence_list)
+        end
+    end
+end
+function _buildsimplifier(code, tree, incidence_list)
+    vertices = sort!(collect(keys(incidence_list.v2e)))
+    ixs = [incidence_list.v2e[v] for v in vertices]
+    iy = incidence_list.openedges
+    NetworkSimplifier([tree[v] for v in vertices]), _similar(code, ixs, iy)
+end
+
+function apply_simplifier(s::NetworkSimplifier, xs)
     map(s.operations) do op
         return op(xs...)
     end
 end
-(s::VectorRemover)(xs...) = apply_simplifier(s, xs)
+(s::NetworkSimplifier)(xs...) = apply_simplifier(s, xs)
 
 function embed_simplifier(code::NestedEinsum, simplifier)
     if OMEinsum.isleaf(code)
