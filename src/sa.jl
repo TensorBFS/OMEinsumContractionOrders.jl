@@ -4,15 +4,36 @@ using BetterExp
 
 export SABipartite, optimize_sa
 
-Base.@kwdef struct SABipartite{RT,BT}
+"""
+    SABipartite{RT,BT}
+    SABipartite(; sc_target=25, ntrials=50, βs=0.1:0.2:15.0, niters=1000
+        max_group_size=40, greedy_config=GreedyMethod(), initializer=:random)
+
+Optimize the einsum code contraction order using the Simulated Annealing bipartition + Greedy approach.
+This program first recursively cuts the tensors into several groups using simulated annealing,
+with maximum group size specifed by `max_group_size` and maximum space complexity specified by `sc_target`,
+Then finds the contraction order inside each group with the greedy search algorithm. Other arguments are
+
+* `size_dict`, a dictionary that specifies leg dimensions,
+* `sc_target` is the target space complexity, defined as `log2(number of elements in the largest tensor)`,
+* `max_group_size` is the maximum size that allowed to used greedy search,
+* `βs` is a list of inverse temperature `1/T`,
+* `niters` is the number of iteration in each temperature,
+* `ntrials` is the number of repetition (with different random seeds),
+* `greedy_config` configures the greedy method,
+* `initializer`, the partition configuration initializer, one can choose `:random` or `:greedy` (slow but better).
+
+### References
+* [Hyper-optimized tensor network contraction](https://arxiv.org/abs/2002.01935)
+"""
+Base.@kwdef struct SABipartite{RT,BT,GM} <: CodeOptimizer
     sc_target::RT = 25
     ntrials::Int = 50  # number of trials
     βs::BT = 0.1:0.2:15.0  # temperatures
     niters::Int = 1000  # number of iterations in each temperature
     max_group_size::Int = 40
     # configure greedy algorithm
-    greedy_method = OMEinsum.MinSpaceOut()
-    greedy_nrepeat::Int = 10
+    greedy_config::GM = GreedyMethod()
     initializer::Symbol = :random
 end
 
@@ -60,18 +81,6 @@ function bipartite_sc(bipartiter::SABipartite, adj::SparseMatrixCSC, vertices, l
                 max(sc_ti, sc_tinew) <= bipartiter.sc_target && (rand() < BetterExp.exp2(β*(state.loss[] - newloss)))
             else
                 rand() < BetterExp.exp2(-β*(max(sc_ti, sc_tinew) - max(sc_ti0, sc_tinew0)))
-            #elseif sc_ti > sc_ti0 && sc_tinew > sc_tinew0
-            #    false
-            #elseif sc_ti <= sc_ti0 && sc_tinew <= sc_tinew0
-            #    true
-            #elseif sc_tinew >= sc_tinew0 && sc_tinew <  bipartiter.sc_target
-            #    true
-            #elseif sc_ti >= sc_ti0 && sc_ti < bipartiter.sc_target
-            #    true
-            #elseif max(sc_ti, sc_tinew) < max(sc_ti0, sc_tinew0)
-            #    true
-            #else
-            #    false
             end
             accept && update_state!(state, adjt, vertices, idxi, sc_ti, sc_tinew, newloss)
         end
@@ -197,26 +206,14 @@ function get_vertices!(out, tree)
     return out
 end
 
-
-
-## interfaces
+# legacy interface
 """
     optimize_sa(code, size_dict; sc_target, max_group_size=40, βs=0.1:0.2:15.0, niters=1000, ntrials=50,
             greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=10, initializer=:random)
 
-Optimize the einsum code contraction order using the Simulated Annealing + Greedy approach.
-This program first recursively cuts the tensors into several groups using simulated annealing,
-with maximum group size specifed by `max_group_size` and maximum space complexity specified by `sc_target`,
-Then finds the contraction order inside each group with the greedy search algorithm. Other arguments are
-
-* `size_dict`, a dictionary that specifies leg dimensions,
-* `sc_target` is the target space complexity, defined as `log2(number of elements in the largest tensor)`,
-* `max_group_size` is the maximum size that allowed to used greedy search,
-* `βs` is a list of inverse temperature `1/T`,
-* `niters` is the number of iteration in each temperature,
-* `ntrials` is the number of repetition (with different random seeds),
-* `greedy_method` and `greedy_nrepeat` are for configuring the greedy method,
-* `initializer`, the partition configuration initializer, one can choose `:random` or `:greedy` (slow but better).
+Optimize the einsum `code` contraction order using the Simulated Annealing bipartition + Greedy approach.
+`size_dict` is a dictionary that specifies leg dimensions. 
+Check the docstring of `SABipartite` for detailed explaination of other input arguments.
 
 ### References
 * [Hyper-optimized tensor network contraction](https://arxiv.org/abs/2002.01935)
@@ -224,7 +221,8 @@ Then finds the contraction order inside each group with the greedy search algori
 function optimize_sa(code::EinCode, size_dict; sc_target, max_group_size=40,
              βs=0.01:0.02:15.0, niters=1000, ntrials=50, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=10,
              initializer=:random)
-    bipartiter = SABipartite(; sc_target=sc_target, βs=βs, niters=niters, ntrials=ntrials, greedy_method=greedy_method, greedy_nrepeat=greedy_nrepeat, max_group_size=max_group_size, initializer=initializer)
-    
+    bipartiter = SABipartite(; sc_target=sc_target, βs=βs, niters=niters, ntrials=ntrials,
+        greedy_config=GreedyMethod(method=greedy_method, nrepeat=greedy_nrepeat),
+        max_group_size=max_group_size, initializer=initializer)
     recursive_bipartite_optimize(bipartiter, code, size_dict)
 end

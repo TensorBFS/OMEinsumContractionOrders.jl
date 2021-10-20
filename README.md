@@ -30,20 +30,20 @@ julia> function random_regular_eincode(n, k; optimize=nothing)
     
 julia> code = random_regular_eincode(200, 3);
 
-julia> optcode = optimize_kahypar(code, uniformsize(code, 2); sc_target=30, max_group_size=50);
+julia> optcode_tree = optimize_code(code, uniformsize(code, 2), TreeSA(sc_target=28, βs=0.1:0.1:10, ntrials=2, niters=100, sc_weight=3.0));
 
-julia> optcode_sa = optimize_sa(code, uniformsize(code, 2); sc_target=30, max_group_size=50);
+julia> optcode_kahypar = optimize_code(code, uniformsize(code, 2), KaHyParBipartite(sc_target=30, max_group_size=50));
+
+julia> optcode_sa = optimize_code(code, uniformsize(code, 2), SABipartite(sc_target=30, max_group_size=50));
 
 julia> OMEinsum.timespace_complexity(code, uniformsize(code, 2))
 (200.0, 0.0)
 
-julia> OMEinsum.timespace_complexity(optcode, uniformsize(code, 2))
+julia> OMEinsum.timespace_complexity(optcode_kahypar, uniformsize(code, 2))
 (38.0290167456887, 26.0)
 
 julia> OMEinsum.timespace_complexity(optcode_sa, uniformsize(code, 2))
 (34.86528023060411, 27.0)
-
-julia> optcode_tree = optimize_tree(code,uniformsize(code, 2); sc_target=28, βs=0.1:0.1:10, ntrials=2, niters=100, sc_weight=3.0);
 
 julia> tc, sc = OMEinsum.timespace_complexity(optcode_tree, uniformsize(code, 2))
 (30.541894421918297, 26.0)
@@ -53,7 +53,7 @@ julia> tc, sc = OMEinsum.timespace_complexity(optcode_tree, uniformsize(code, 2)
 
 If you find this package useful in your research, please cite the following papers
 
-To credit the `optimize_kahypar` and `optimize_sa` method,
+To credit the `KaHyParBipartite` and `SABipartite` method,
 ```
 @misc{Pan2021,
       title={Simulating the Sycamore quantum supremacy circuits}, 
@@ -65,7 +65,7 @@ To credit the `optimize_kahypar` and `optimize_sa` method,
 }
 ```
 
-To credit the `optimize_kahypar` method,
+To credit the `KaHyParBipartite` method,
 ```
 @Article{10.21468/SciPostPhys.7.5.060,
 	title={{Fast counting with tensor networks}},
@@ -97,7 +97,7 @@ To credit the `optimize_kahypar` method,
 }
 ```
 
-To credit the `optimize_tree` method,
+To credit the `TreeSA` method,
 ```
 @misc{kalachev2021recursive,
       title={Recursive Multi-Tensor Contraction for XEB Verification of Quantum Circuits}, 

@@ -16,3 +16,7 @@ end
 @testset "simplify" begin
     include("simplify.jl")
 end
+
+@testset "interfaces" begin
+    include("interfaces.jl")
+end

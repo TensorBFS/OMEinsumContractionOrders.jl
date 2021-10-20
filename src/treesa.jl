@@ -2,6 +2,34 @@ using OMEinsum.ContractionOrder: ContractionTree, log2sumexp2
 
 export optimize_tree
 
+"""
+    TreeSA{RT,IT,GM}
+    TreeSA(; sc_target=20, βs=collect(0.01:0.05:15), ntrials=10, niters=50,
+        sc_weight=1.0, rw_weight=0.2, initializer=:greedy, greedy_config=GreedyMethod(; nrepeat=1))
+
+Optimize the einsum contraction pattern using the simulated annealing on tensor expression tree.
+
+* `sc_target` is the target space complexity,
+* `ntrails`, `βs` and `niters` are annealing parameters, doing `ntrails` indepedent annealings, each has inverse tempteratures specified by `βs`, in each temperature, do `niters` updates of the tree.
+* `sc_weight` is the relative importance factor of space complexity in the loss compared with the time complexity.
+* `rw_weight` is the relative importance factor of memory read and write in the loss compared with the time complexity.
+* `initializer` specifies how to determine the initial configuration, it can be `:greedy` or `:random`. If it is using `:greedy` method to generate the initial configuration, it also uses two extra arguments `greedy_method` and `greedy_nrepeat`.
+
+### References
+* [Recursive Multi-Tensor Contraction for XEB Verification of Quantum Circuits](https://arxiv.org/abs/2108.05665)
+"""
+Base.@kwdef struct TreeSA{RT,IT,GM} <: CodeOptimizer
+    sc_target::RT = 20
+    βs::IT = 0.01:0.05:15
+    ntrials::Int = 10
+    niters::Int = 50
+    sc_weight::Float64 = 1.0
+    rw_weight::Float64 = 0.2
+    initializer::Symbol = :greedy
+    # configure greedy method
+    greedy_config::GM = GreedyMethod(nrepeat=1)
+end
+
 struct ExprInfo
     out_dims::Vector{Int}
     tensorid::Int
@@ -41,17 +69,12 @@ end
 _equal(t1::Vector, t2::Vector) = Set(t1) == Set(t2)
 
 """
-    optimize_tree(code, size_dict; sc_target=20, βs=0.1:0.1:10, ntrials=2, niters=100, sc_weight=1.0, rw_weight=1.0, initializer=:greedy, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=1)
+    optimize_tree(code, size_dict; sc_target=20, βs=0.1:0.1:10, ntrials=2, niters=100, sc_weight=1.0, rw_weight=0.2, initializer=:greedy, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=1)
 
 Optimize the einsum contraction pattern specified by `code`, and edge sizes specified by `size_dict`. Key word arguments are
-
-* `sc_target` is the target space complexity,
-* `ntrails`, `βs` and `niters` are annealing parameters, doing `ntrails` indepedent annealings, each has inverse tempteratures specified by `βs`, in each temperature, do `niters` updates of the tree.
-* `sc_weight` is the relative importance factor of space complexity in the loss compared with the time complexity.
-* `rw_weight` is the relative importance factor of memory read and write in the loss compared with the time complexity.
-* `initializer` specifies how to determine the initial configuration, it can be `:greedy` or `:random`. If it is using `:greedy` method to generate the initial configuration, it also uses two extra arguments `greedy_method` and `greedy_nrepeat`.
+Check the docstring of `TreeSA` for detailed explaination of other input arguments.
 """
-function optimize_tree(code, size_dict; sc_target=20, βs=0.1:0.1:10, ntrials=20, niters=100, sc_weight=1.0, rw_weight=1.0, initializer=:greedy, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=1)
+function optimize_tree(code, size_dict; sc_target=20, βs=0.1:0.1:10, ntrials=20, niters=100, sc_weight=1.0, rw_weight=0.2, initializer=:greedy, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=1)
     labels = _label_dict(OMEinsum.flatten(code))  # label to int
     inverse_map = Dict([v=>k for (k,v) in labels])
     log2_sizes = [log2.(size_dict[inverse_map[i]]) for i=1:length(labels)]

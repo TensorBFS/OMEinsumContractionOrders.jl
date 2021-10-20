@@ -1,13 +1,30 @@
 export uniformsize, optimize_kahypar, optimize_kahypar_auto
 export KaHyParBipartite
 
-Base.@kwdef struct KaHyParBipartite{RT,IT}
+"""
+    KaHyParBipartite{RT,IT,GM}
+    KaHyParBipartite(; sc_target, imbalances=collect(0.0:0.005:0.8),
+        max_group_size=40, greedy_config=GreedyMethod())
+
+Optimize the einsum code contraction order using the KaHyPar + Greedy approach.
+This program first recursively cuts the tensors into several groups using KaHyPar,
+with maximum group size specifed by `max_group_size` and maximum space complexity specified by `sc_target`,
+Then finds the contraction order inside each group with the greedy search algorithm. Other arguments are
+
+* `sc_target` is the target space complexity, defined as `log2(number of elements in the largest tensor)`,
+* `imbalances` is a KaHyPar parameter that controls the group sizes in hierarchical bipartition,
+* `max_group_size` is the maximum size that allowed to used greedy search,
+* `greedy_config` is a greedy optimizer.
+
+### References
+* [Hyper-optimized tensor network contraction](https://arxiv.org/abs/2002.01935)
+* [Simulating the Sycamore quantum supremacy circuits](https://arxiv.org/abs/2103.03074)
+"""
+Base.@kwdef struct KaHyParBipartite{RT,IT,GM} <: CodeOptimizer
     sc_target::RT
-    imbalances::IT = collect(0.0:0.005:0.8)
+    imbalances::IT = 0.0:0.005:0.8
     max_group_size::Int = 40
-    # configure greedy algorithm
-    greedy_method = OMEinsum.MinSpaceOut()
-    greedy_nrepeat::Int = 10
+    greedy_config::GM = GreedyMethod()
 end
 
 function uniformsize(code::EinCode, size::Int)
@@ -65,7 +82,7 @@ function bipartition_recursive(bipartiter, adj::SparseMatrixCSC, vertices::Abstr
         end
         newparts = [bipartition_recursive(bipartiter, adj, groups[i], log2_sizes) for i=1:length(groups)]
         if length(groups) > 2
-            tree = coarse_grained_optimize(adj, groups, log2_sizes, bipartiter.greedy_method, bipartiter.greedy_nrepeat)
+            tree = coarse_grained_optimize(adj, groups, log2_sizes, bipartiter.greedy_config)
             return map_tree_to_parts(tree, newparts)
         else
             return newparts
@@ -99,10 +116,10 @@ function push_connected!(set, visit_mask, adj, i)
     end
 end
 
-function coarse_grained_optimize(adj, parts, log2_sizes, greedy_method, greedy_nrepeat)
+function coarse_grained_optimize(adj, parts, log2_sizes, greedy_config)
     incidence_list = get_coarse_grained_graph(adj, parts)
     log2_edge_sizes = Dict([i=>log2_sizes[i] for i=1:length(log2_sizes)])
-    tree, _, _ = OMEinsum.tree_greedy(incidence_list, log2_edge_sizes; method=greedy_method, nrepeat=greedy_nrepeat)
+    tree, _, _ = OMEinsum.tree_greedy(incidence_list, log2_edge_sizes; method=greedy_config.method, nrepeat=greedy_config.nrepeat)
     return tree
 end
 
@@ -139,26 +156,15 @@ function adjacency_matrix(ixs::AbstractVector)
     return sparse(rows, cols, ones(Int, length(rows))), edges
 end
 
+# legacy interface
 """
     optimize_kahypar(code, size_dict; sc_target, max_group_size=40, imbalances=0.0:0.01:0.2, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=10)
 
-Optimize the einsum code contraction order using the KaHyPar + Greedy approach.
-This program first recursively cuts the tensors into several groups using KaHyPar,
-with maximum group size specifed by `max_group_size` and maximum space complexity specified by `sc_target`,
-Then finds the contraction order inside each group with the greedy search algorithm. Other arguments are
-
-* `size_dict` is a dictionary that specifies leg dimensions,
-* `sc_target` is the target space complexity, defined as `log2(number of elements in the largest tensor)`,
-* `max_group_size` is the maximum size that allowed to used greedy search,
-* `imbalances` is a KaHyPar parameter that controls the group sizes in hierarchical bipartition,
-* `greedy_method` and `greedy_nrepeat` are for configuring the greedy method.
-
-### References
-* [Hyper-optimized tensor network contraction](https://arxiv.org/abs/2002.01935)
-* [Simulating the Sycamore quantum supremacy circuits](https://arxiv.org/abs/2103.03074)
+Optimize the einsum `code` contraction order using the KaHyPar + Greedy approach. `size_dict` is a dictionary that specifies leg dimensions. 
+Check the docstring of `KaHyParBipartite` for detailed explaination of other input arguments.
 """
 function optimize_kahypar(code::EinCode, size_dict; sc_target, max_group_size=40, imbalances=0.0:0.01:0.2, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=10)
-    bipartiter = KaHyParBipartite(; sc_target=sc_target, max_group_size=max_group_size, imbalances=imbalances, greedy_method=greedy_method, greedy_nrepeat=greedy_nrepeat)
+    bipartiter = KaHyParBipartite(; sc_target=sc_target, max_group_size=max_group_size, imbalances=imbalances, greedy_config=GreedyMethod(method=greedy_method, nrepeat=greedy_nrepeat))
     recursive_bipartite_optimize(bipartiter, code, size_dict)
 end
 
@@ -168,33 +174,33 @@ function recursive_bipartite_optimize(bipartiter, code::EinCode, size_dict)
     adj, edges = adjacency_matrix(ixv)
     vertices=collect(1:length(ixs))
     parts = bipartition_recursive(bipartiter, adj, vertices, [log2(size_dict[e]) for e in edges])
-    recursive_construct_nestedeinsum(ixv, iy, parts, size_dict, 0, bipartiter.greedy_method, bipartiter.greedy_nrepeat)
+    recursive_construct_nestedeinsum(ixv, iy, parts, size_dict, 0, bipartiter.greedy_config)
 end
 
-function recursive_construct_nestedeinsum(ixs::AbstractVector{<:AbstractVector}, iy::AbstractVector{L}, parts::AbstractVector, size_dict, level, greedy_method, greedy_nrepeat) where L
+function recursive_construct_nestedeinsum(ixs::AbstractVector{<:AbstractVector}, iy::AbstractVector{L}, parts::AbstractVector, size_dict, level, greedy_config) where L
     if length(parts) == 2
         # code is a nested einsum
-        code1 = recursive_construct_nestedeinsum(ixs, iy, parts[1], size_dict, level+1, greedy_method, greedy_nrepeat)
-        code2 = recursive_construct_nestedeinsum(ixs, iy, parts[2], size_dict, level+1, greedy_method, greedy_nrepeat)
+        code1 = recursive_construct_nestedeinsum(ixs, iy, parts[1], size_dict, level+1, greedy_config)
+        code2 = recursive_construct_nestedeinsum(ixs, iy, parts[2], size_dict, level+1, greedy_config)
         AB = recursive_flatten(parts[2]) ∪ recursive_flatten(parts[1])
         inset12, outset12 = ixs[AB], ixs[setdiff(1:length(ixs), AB)]
         iy12 = Iterators.flatten(inset12) ∩  (Iterators.flatten(outset12) ∪ iy)
         iy1, iy2 = getiyv(code1.eins), getiyv(code2.eins)
         return NestedEinsum([code1, code2], EinCode([iy1, iy2], L[(level==0 ? iy : iy12)...]))
     elseif length(parts) == 1
-        return recursive_construct_nestedeinsum(ixs, iy, parts[1], size_dict, level, greedy_method, greedy_nrepeat)
+        return recursive_construct_nestedeinsum(ixs, iy, parts[1], size_dict, level, greedy_config)
     else
         error("not a bipartition, got size $(length(parts))")
     end
 end
 
-function recursive_construct_nestedeinsum(ixs::AbstractVector{<:AbstractVector}, iy::AbstractVector{L}, parts::AbstractVector{<:Integer}, size_dict, level, greedy_method, greedy_nrepeat) where L
+function recursive_construct_nestedeinsum(ixs::AbstractVector{<:AbstractVector}, iy::AbstractVector{L}, parts::AbstractVector{<:Integer}, size_dict, level, greedy_config) where L
     if isempty(parts)
         error("got empty group!")
     end
     inset, outset = ixs[parts], ixs[setdiff(1:length(ixs), parts)]
     iy1 = Iterators.flatten(inset) ∩  (Iterators.flatten(outset) ∪ iy)
-    res = optimize_greedy(DynamicEinCode{L}, inset, iy1, size_dict; method=greedy_method, nrepeat=greedy_nrepeat)
+    res = optimize_greedy(DynamicEinCode{L}, inset, iy1, size_dict; method=greedy_config.method, nrepeat=greedy_config.nrepeat)
     return maplocs(res, parts)
 end
 

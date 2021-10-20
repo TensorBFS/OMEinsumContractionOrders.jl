@@ -20,7 +20,7 @@ using KaHyPar
 
     @test length(OMEinsumContractionOrders._connected_components(adj, parts[1])) == 2
 
-    res = OMEinsumContractionOrders.coarse_grained_optimize(adj, parts, ones(6), OMEinsum.MinSpaceOut(), 10)
+    res = OMEinsumContractionOrders.coarse_grained_optimize(adj, parts, ones(6), GreedyMethod(OMEinsum.MinSpaceOut(), 10))
     @test res == OMEinsum.ContractionTree(OMEinsum.ContractionTree(1,2), 3)
     @test OMEinsumContractionOrders.map_tree_to_parts(res, [[[1,2], 3], [7,6], [9, [4,1]]]) == [[[[1,2], 3], [7,6]], [9, [4,1]]]
 end
