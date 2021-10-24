@@ -126,7 +126,7 @@ function optimize_tree_sa!(tree::ExprTree, log2_sizes; βs, niters, sc_target, s
 end
 
 function tree_timespace_complexity(tree::ExprTree, log2_sizes)
-    isleaf(tree) && return (-Inf, sum(i->log2_sizes[i], labels(tree)), -Inf)
+    isleaf(tree) && return (-Inf, isempty(labels(tree)) ? 0.0 : sum(i->log2_sizes[i], labels(tree)), -Inf)
     tcl, scl, rwl = tree_timespace_complexity(tree.left, log2_sizes)
     tcr, scr, rwr = tree_timespace_complexity(tree.right, log2_sizes)
     tc, sc, rw = tcscrw(labels(tree.left), labels(tree.right), labels(tree), log2_sizes, true)
