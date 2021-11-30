@@ -75,7 +75,12 @@ Optimize the einsum contraction pattern specified by `code`, and edge sizes spec
 Check the docstring of `TreeSA` for detailed explaination of other input arguments.
 """
 function optimize_tree(code, size_dict; sc_target=20, βs=0.1:0.1:10, ntrials=20, niters=100, sc_weight=1.0, rw_weight=0.2, initializer=:greedy, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=1)
-    labels = _label_dict(OMEinsum.flatten(code))  # label to int
+    flatten_code = OMEinsum.flatten(code)
+    ninputs = length(OMEinsum.getixs(flatten_code))
+    if ninputs <= 2
+        return NestedEinsum(ntuple(i->i, ninputs), DynamicEinCode(flatten_code))
+    end
+    labels = _label_dict(flatten_code)  # label to int
     inverse_map = Dict([v=>k for (k,v) in labels])
     log2_sizes = [log2.(size_dict[inverse_map[i]]) for i=1:length(labels)]
     best_tree = _initializetree(code, size_dict, initializer; greedy_method=greedy_method, greedy_nrepeat=greedy_nrepeat)

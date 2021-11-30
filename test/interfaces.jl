@@ -1,6 +1,7 @@
 using OMEinsum, OMEinsumContractionOrders
 using Test, Random, LightGraphs
 using KaHyPar
+using OMEinsum: NestedEinsum, DynamicEinCode
 
 @testset "interface" begin
     function random_regular_eincode(n, k)
@@ -26,4 +27,15 @@ using KaHyPar
     for i=1:length(results)-1
         @test results[i] ≈ results[i+1]
     end
+end
+
+@testset "corner case: smaller contraction orders" begin
+    code = ein"i->"
+    sizes = uniformsize(code, 2)
+    ne = NestedEinsum((1,), code)
+    dne = NestedEinsum((1,), DynamicEinCode(code))
+    @test optimize_code(code, sizes, GreedyMethod()) == ne
+    @test optimize_code(code, sizes, TreeSA()) == dne
+    @test optimize_code(code, sizes, KaHyParBipartite(sc_target=25)) == dne
+    @test optimize_code(code, sizes, SABipartite(sc_target=25)) == dne
 end
