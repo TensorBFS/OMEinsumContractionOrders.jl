@@ -1,4 +1,5 @@
 using OMEinsum.ContractionOrder: ContractionTree, log2sumexp2
+using Base.Threads
 
 export optimize_tree
 
@@ -10,7 +11,7 @@ export optimize_tree
 Optimize the einsum contraction pattern using the simulated annealing on tensor expression tree.
 
 * `sc_target` is the target space complexity,
-* `ntrails`, `βs` and `niters` are annealing parameters, doing `ntrails` indepedent annealings, each has inverse tempteratures specified by `βs`, in each temperature, do `niters` updates of the tree.
+* `ntrials`, `βs` and `niters` are annealing parameters, doing `ntrials` indepedent annealings, each has inverse tempteratures specified by `βs`, in each temperature, do `niters` updates of the tree.
 * `sc_weight` is the relative importance factor of space complexity in the loss compared with the time complexity.
 * `rw_weight` is the relative importance factor of memory read and write in the loss compared with the time complexity.
 * `initializer` specifies how to determine the initial configuration, it can be `:greedy` or `:random`. If it is using `:greedy` method to generate the initial configuration, it also uses two extra arguments `greedy_method` and `greedy_nrepeat`.
@@ -83,15 +84,22 @@ function optimize_tree(code, size_dict; sc_target=20, βs=0.1:0.1:10, ntrials=20
     labels = _label_dict(flatten_code)  # label to int
     inverse_map = Dict([v=>k for (k,v) in labels])
     log2_sizes = [log2.(size_dict[inverse_map[i]]) for i=1:length(labels)]
-    best_tree = _initializetree(code, size_dict, initializer; greedy_method=greedy_method, greedy_nrepeat=greedy_nrepeat)
-    best_tc, best_sc, best_rw = tree_timespace_complexity(best_tree, log2_sizes)
-    for t = 1:ntrials
+    if ntrials <= 0
+        best_tree = _initializetree(code, size_dict, initializer; greedy_method=greedy_method, greedy_nrepeat=greedy_nrepeat)
+        return NestedEinsum(best_tree, inverse_map)
+    end
+    trees, tcs, scs, rws = Vector{ExprTree}(undef, ntrials), zeros(ntrials), zeros(ntrials), zeros(ntrials)
+    @threads for t = 1:ntrials
         tree = _initializetree(code, size_dict, initializer; greedy_method=greedy_method, greedy_nrepeat=greedy_nrepeat)
         optimize_tree_sa!(tree, log2_sizes; sc_target=sc_target, βs=βs, niters=niters, sc_weight=sc_weight, rw_weight=rw_weight)
         tc, sc, rw = tree_timespace_complexity(tree, log2_sizes)
-        @debug "trial $t, time complexity = $tc, space complexity = $sc."
-        if sc < best_sc || (sc == best_sc && exp2(tc) + rw_weight * exp2(rw) < exp2(best_tc) + rw_weight * exp2(rw))
-            best_tree, best_tc, best_sc, best_rw = tree, tc, sc, rw
+        @debug "trial $t, time complexity = $tc, space complexity = $sc, read-write complexity = $rw."
+        trees[t], tcs[t], scs[t], rws[t] = tree, tc, sc, rw
+    end
+    best_tree, best_tc, best_sc, best_rw = first(trees), first(tcs), first(scs), first(rws)
+    for i=2:ntrials
+        if scs[i] < best_sc || (scs[i] == best_sc && exp2(tcs[i]) + rw_weight * exp2(rws[i]) < exp2(best_tc) + rw_weight * exp2(rws[i]))
+            best_tree, best_tc, best_sc, best_rw = trees[i], tcs[i], scs[i], rws[i]
         end
     end
     @debug "best space complexities = $best_tc, time complexity = $best_sc, read-write complexity $best_rw."
