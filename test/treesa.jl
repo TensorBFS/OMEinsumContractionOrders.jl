@@ -1,12 +1,12 @@
 using OMEinsumContractionOrders, Test, Random
 using OMEinsumContractionOrders: random_exprtree, ExprTree, ExprInfo, ruleset, update_tree!, tcscrw, optimize_subtree!, optimize_tree_sa!, labels, tree_timespace_complexity, fast_log2sumexp2
-using OMEinsum, LightGraphs
+using OMEinsum, Graphs
 
 @testset "random expr tree" begin
     function random_regular_eincode(n, k)
-        g = LightGraphs.random_regular_graph(n, k)
-        ixs = [minmax(e.src,e.dst) for e in LightGraphs.edges(g)]
-        return EinCode((ixs..., [(i,) for i in LightGraphs.vertices(g)]...), ())
+        g = Graphs.random_regular_graph(n, k)
+        ixs = [minmax(e.src,e.dst) for e in Graphs.edges(g)]
+        return EinCode((ixs..., [(i,) for i in Graphs.vertices(g)]...), ())
     end
     Random.seed!(2)
     tree = random_exprtree([[1,2,5], [2,3], [2,4]], [5], 5)
@@ -52,9 +52,9 @@ end
 
 @testset "optimization" begin
     function random_regular_eincode(n, k)
-        g = LightGraphs.random_regular_graph(n, k)
-        ixs = [minmax(e.src,e.dst) for e in LightGraphs.edges(g)]
-        return EinCode((ixs..., [(i,) for i in LightGraphs.vertices(g)]...), ())
+        g = Graphs.random_regular_graph(n, k)
+        ixs = [minmax(e.src,e.dst) for e in Graphs.edges(g)]
+        return EinCode((ixs..., [(i,) for i in Graphs.vertices(g)]...), ())
     end
     Random.seed!(2)
     n = 40
@@ -74,9 +74,9 @@ end
 
 @testset "optimize tree sa" begin
     function random_regular_eincode(n, k)
-        g = LightGraphs.random_regular_graph(n, k)
-        ixs = [minmax(e.src,e.dst) for e in LightGraphs.edges(g)]
-        return EinCode((ixs..., [(i,) for i in LightGraphs.vertices(g)]...), ())
+        g = Graphs.random_regular_graph(n, k)
+        ixs = [minmax(e.src,e.dst) for e in Graphs.edges(g)]
+        return EinCode((ixs..., [(i,) for i in Graphs.vertices(g)]...), ())
     end
     Random.seed!(3)
     n = 60
@@ -103,9 +103,9 @@ end
 
 @testset "sa tree" begin
     function random_regular_eincode(n, k)
-        g = LightGraphs.random_regular_graph(n, k)
-        ixs = [minmax(e.src,e.dst) for e in LightGraphs.edges(g)]
-        return EinCode((ixs..., [(i,) for i in LightGraphs.vertices(g)]...), ())
+        g = Graphs.random_regular_graph(n, k)
+        ixs = [minmax(e.src,e.dst) for e in Graphs.edges(g)]
+        return EinCode((ixs..., [(i,) for i in Graphs.vertices(g)]...), ())
     end
     Random.seed!(2)
     g = random_regular_graph(220, 3)
