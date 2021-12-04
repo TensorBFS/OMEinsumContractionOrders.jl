@@ -215,7 +215,6 @@ function optimize_tree_sa!(tree::ExprTree, log2_sizes, slicer::Slicer; βs, nite
             best_labels = _best_labels(scs, lbs)
 
             best_not_sliced_labels = filter(x->!haskey(slicer.legs, x), best_labels)
-            @debug "length of `best_labels` = $(length(best_labels))"
             if !isempty(best_not_sliced_labels)
                 best_not_sliced_label = rand(best_not_sliced_labels)
                 if length(slicer) < slicer.max_size
