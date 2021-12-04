@@ -113,16 +113,16 @@ end
     res = optimize_greedy(code,uniformsize(code, 2))
     tc, sc = OMEinsum.timespace_complexity(res, uniformsize(code, 2))
 
-    @test optimize_tree(res,uniformsize(code, 2); sc_target=32, βs=0.1:0.05:10.0, ntrials=0, niters=100, sc_weight=1.0, rw_weight=1.0) isa NestedEinsum
-    optcode, optslicer = optimize_tree(res,uniformsize(code, 2); sc_target=32, βs=0.1:0.05:10.0, ntrials=2, niters=100, sc_weight=1.0, rw_weight=1.0)
+    @test optimize_tree(res,uniformsize(code, 2); sc_target=32, βs=0.1:0.05:20.0, ntrials=0, niters=10, sc_weight=1.0, rw_weight=1.0) isa NestedEinsum
+    optcode = optimize_tree(res,uniformsize(code, 2); sc_target=32, βs=0.1:0.05:20.0, ntrials=2, niters=10, sc_weight=1.0, rw_weight=1.0)
     tc, sc = OMEinsum.timespace_complexity(optcode, uniformsize(code, 2))
     @test sc <= 32
-    @test length(optslicer) == 0
+    @test length(optcode.slicing) == 0
 
     # contraction test
     code = random_regular_eincode(50, 3)
     codek = optimize_greedy(code, uniformsize(code, 2))
-    codeg, slicerg = optimize_tree(code, uniformsize(code, 2); initializer=:random)
+    codeg = optimize_tree(code, uniformsize(code, 2); initializer=:random)
     tc, sc = OMEinsum.timespace_complexity(codek, uniformsize(code, 2))
     @test sc <= 12
     xs = [[2*randn(2, 2) for i=1:75]..., [randn(2) for i=1:50]...]
@@ -133,7 +133,7 @@ end
     # contraction test
     code = random_regular_eincode(50, 3)
     codek = optimize_greedy(code, uniformsize(code, 2))
-    codeg, slicerg = optimize_tree(codek, uniformsize(code, 2); initializer=:specified)
+    codeg = optimize_tree(codek, uniformsize(code, 2); initializer=:specified)
     tc, sc = OMEinsum.timespace_complexity(codek, uniformsize(code, 2))
     @test sc <= 12
     xs = [[2*randn(2, 2) for i=1:75]..., [randn(2) for i=1:50]...]
@@ -172,27 +172,29 @@ end
     Random.seed!(2)
     code = random_regular_eincode(100, 3)
     code0 = optimize_greedy(code, uniformsize(code, 2))
-    codek, slicerk = optimize_tree(code0, uniformsize(code, 2); initializer=:specified, nslices=0, niters=5)
-    codeg, slicerg = optimize_tree(code0, uniformsize(code, 2); initializer=:specified, nslices=5, niters=5)
-    tc0, sc0 = OMEinsum.timespace_complexity(codek, slicerk)
-    tc, sc = OMEinsum.timespace_complexity(codek, slicerg)
-    @test sc <= sc0 - 2
+    codek = optimize_tree(code0, uniformsize(code, 2); initializer=:specified, nslices=0, niters=5)
+    codeg = optimize_tree(code0, uniformsize(code, 2); initializer=:specified, nslices=5, niters=5)
+    tc0, sc0 = OMEinsum.timespace_complexity(codek, uniformsize(code, 2))
+    tc, sc = OMEinsum.timespace_complexity(codeg, uniformsize(code, 2))
+    @show tc, sc, tc0, sc0
+    @test sc <= sc0 - 4
     xs = [[2*randn(2, 2) for i=1:150]..., [randn(2) for i=1:100]...]
-    resg = codeg(slicerg, xs...)
+    resg = codeg(xs...)
     resk = codek(xs...)
     @test resg ≈ resk
 
     # with open edges
     Random.seed!(2)
     code = EinCode(random_regular_eincode(100, 3).ixs, [3,81,2])
-    codek, slicerk = optimize_tree(code0, uniformsize(code, 2); initializer=:specified, nslices=0, niters=5)
-    codeg, slicerg = optimize_tree(code0, uniformsize(code, 2); initializer=:specified, nslices=5, niters=5)
-    tc0, sc0 = OMEinsum.timespace_complexity(codek, slicerk)
-    tc, sc = OMEinsum.timespace_complexity(codek, slicerg)
-    @test sc <= sc0 - 3
+    codek = optimize_tree(code0, uniformsize(code, 2); initializer=:specified, nslices=0, niters=5)
+    codeg = optimize_tree(code0, uniformsize(code, 2); initializer=:specified, nslices=5, niters=5)
+    tc0, sc0 = OMEinsum.timespace_complexity(codek, uniformsize(code, 2))
+    tc, sc = OMEinsum.timespace_complexity(codeg, uniformsize(code, 2))
+    @show tc, sc, tc0, sc0
+    @test sc <= sc0 - 4
     @test sc <= 17
     xs = [[2*randn(2, 2) for i=1:150]..., [randn(2) for i=1:100]...]
-    resg = codeg(slicerg, xs...)
+    resg = codeg(xs...)
     resk = codek(xs...)
     @test resg ≈ resk
 end

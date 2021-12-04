@@ -87,3 +87,5 @@ function embed_simplifier(code::NestedEinsum, simplifier)
         end, code.eins)
     end
 end
+
+embed_simplifier(code::SlicedEinsum, simplifier) = SlicedEinsum(code.slicing, embed_simplifier(code.eins, simplifier))

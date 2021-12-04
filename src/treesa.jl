@@ -15,6 +15,7 @@ Optimize the einsum contraction pattern using the simulated annealing on tensor 
 * `sc_weight` is the relative importance factor of space complexity in the loss compared with the time complexity.
 * `rw_weight` is the relative importance factor of memory read and write in the loss compared with the time complexity.
 * `initializer` specifies how to determine the initial configuration, it can be `:greedy` or `:random`. If it is using `:greedy` method to generate the initial configuration, it also uses two extra arguments `greedy_method` and `greedy_nrepeat`.
+* `nslices` is the number of sliced legs, default is 0.
 
 ### References
 * [Recursive Multi-Tensor Contraction for XEB Verification of Quantum Circuits](https://arxiv.org/abs/2108.05665)
@@ -27,6 +28,7 @@ Base.@kwdef struct TreeSA{RT,IT,GM} <: CodeOptimizer
     sc_weight::Float64 = 1.0
     rw_weight::Float64 = 0.2
     initializer::Symbol = :greedy
+    nslices::Int = 0
     # configure greedy method
     greedy_config::GM = GreedyMethod(nrepeat=1)
 end
@@ -69,80 +71,6 @@ function _equal(t1::ExprTree, t2::ExprTree)
 end
 _equal(t1::Vector, t2::Vector) = Set(t1) == Set(t2)
 
-export Slicer, Slicing
-struct Slicer
-    log2_sizes::Vector{Float64}   # the size dict after slicing
-    legs::Dict{Int,Float64}   # sliced leg and its original size
-    max_size::Int       # maximum number of sliced legs
-end
-Slicer(log2_sizes::AbstractVector{Float64}, max_size::Int) = Slicer(collect(log2_sizes), Dict{Int,Float64}(), max_size)
-Base.length(s::Slicer) = length(s.legs)
-function Base.replace!(slicer::Slicer, pair::Pair)
-    worst, best = pair
-    @assert haskey(slicer.legs, worst)
-    @assert !haskey(slicer.legs, best)
-    slicer.log2_sizes[worst] = slicer.legs[worst]       # restore worst size
-    slicer.legs[best] = slicer.log2_sizes[best]  # add best to legs
-    slicer.log2_sizes[best] = 0.0
-    delete!(slicer.legs, worst)                  # remove worst from legs
-    return slicer
-end
-
-function Base.push!(slicer, best)
-    @assert length(slicer) < slicer.max_size
-    @assert !haskey(slicer.legs, best)
-    slicer.legs[best] = slicer.log2_sizes[best]  # add best to legs
-    slicer.log2_sizes[best] = 0.0
-    return slicer
-end
-
-struct Slicing{LT}
-    size_dict::Dict{LT,Int}   # the size dict after slicing
-    legs::Dict{LT,Int}   # sliced leg and its original size
-end
-
-Slicing(s::Slicer, inverse_map) = Slicing(Dict([inverse_map[k]=>round(Int, exp2(v)) for (k, v) in enumerate(s.log2_sizes)]),
-    Dict([inverse_map[l]=>round(Int, exp2(s)) for (l, s) in s.legs]))
-Base.length(s::Slicing) = length(s.legs)
-
-function OMEinsum.timespace_complexity(code::NestedEinsum, s::Slicing)
-    tc, sc = timespace_complexity(code, s.size_dict)
-    tc + sum(log2.(values(s.legs))), sc
-end
-
-function (neinsum::NestedEinsum)(s::Slicing{LT}, @nospecialize(xs::AbstractArray...)) where LT
-    iy = OMEinsum.getiy(neinsum.eins)
-    ixs = OMEinsum.getixs(OMEinsum.flatten(neinsum))
-    res = OMEinsum.get_output_array(xs, getindex.(Ref(s.size_dict), iy))
-
-    sliced_sizes = Int[]
-    sliced_labels = LT[]
-    for (l, v) in s.legs
-        push!(sliced_sizes, v)
-        push!(sliced_labels, l)
-    end
-    for ci in CartesianIndices((sliced_sizes...,))
-        slicemap = Dict(zip(sliced_labels, ci.I))
-        xsi = ntuple(i->take_slice(xs[i], ixs[i], slicemap), length(xs))
-        resi = einsum(neinsum, xsi, s.size_dict)
-        fill_slice!(res, iy, resi, slicemap)
-    end
-    return res
-end
-
-function take_slice(x, ix, slicemap::Dict)
-    slices = map(l->haskey(slicemap, l) ? (slicemap[l]:slicemap[l]) : Colon(), ix)
-    return x[slices...]
-end
-function fill_slice!(x, ix, chunk, slicemap::Dict)
-    if ndims(x) == 0
-        x[] += chunk[]
-    else
-        slices = map(l->haskey(slicemap, l) ? (slicemap[l]:slicemap[l]) : Colon(), ix)
-        x[slices...] .+= chunk
-    end
-end
-
 """
     optimize_tree(code, size_dict; sc_target=20, βs=0.1:0.1:10, ntrials=2, niters=100, sc_weight=1.0, rw_weight=0.2, initializer=:greedy, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=1)
 
@@ -181,7 +109,7 @@ function optimize_tree(code, size_dict; nslices::Int=0, sc_target=20, βs=0.1:0.
     if best_sc > sc_target
         @warn "target space complexity not found, got: $best_sc, with time complexity $best_tc, read-write complexity $best_rw."
     end
-    return NestedEinsum(best_tree, inverse_map), Slicing(best_slicer, inverse_map)
+    return SlicedEinsum(Slicing(best_slicer, inverse_map), NestedEinsum(best_tree, inverse_map))
 end
 
 function _initializetree(code, size_dict, method; greedy_method, greedy_nrepeat)

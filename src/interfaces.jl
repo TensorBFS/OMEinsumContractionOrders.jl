@@ -41,7 +41,7 @@ function _optimize_code(code, size_dict, optimizer::SABipartite)
 end
 function _optimize_code(code, size_dict, optimizer::TreeSA)
     optimize_tree(code, size_dict; sc_target=optimizer.sc_target, βs=optimizer.βs,
-        ntrials=optimizer.ntrials, niters=optimizer.niters,
+        ntrials=optimizer.ntrials, niters=optimizer.niters, nslices=optimizer.nslices,
         sc_weight=optimizer.sc_weight, rw_weight=optimizer.rw_weight, initializer=optimizer.initializer,
         greedy_method=optimizer.greedy_config.method, greedy_nrepeat=optimizer.greedy_config.nrepeat)
 end
