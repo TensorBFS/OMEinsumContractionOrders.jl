@@ -186,8 +186,8 @@ end
     # with open edges
     Random.seed!(2)
     code = EinCode(random_regular_eincode(100, 3).ixs, [3,81,2])
-    codek = optimize_tree(code0, uniformsize(code, 2); initializer=:specified, nslices=0, niters=5)
-    codeg = optimize_tree(code0, uniformsize(code, 2); initializer=:specified, nslices=5, niters=5)
+    codek = optimize_tree(code0, uniformsize(codek, 2); initializer=:specified, nslices=0, niters=5)
+    codeg = optimize_tree(code0, uniformsize(codeg, 2); initializer=:specified, nslices=5, niters=5)
     tc0, sc0 = OMEinsum.timespace_complexity(codek, uniformsize(code, 2))
     tc, sc = OMEinsum.timespace_complexity(codeg, uniformsize(code, 2))
     @show tc, sc, tc0, sc0
