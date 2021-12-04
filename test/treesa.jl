@@ -163,14 +163,36 @@ end
 end
 
 @testset "slicing" begin
+    function random_regular_eincode(n, k)
+        g = Graphs.random_regular_graph(n, k)
+        ixs = [minmax(e.src,e.dst) for e in Graphs.edges(g)]
+        return EinCode((ixs..., [(i,) for i in Graphs.vertices(g)]...), ())
+    end
     # contraction test
+    Random.seed!(2)
     code = random_regular_eincode(100, 3)
-    codek = optimize_greedy(code, uniformsize(code, 2))
-    codeg, slicerg = optimize_tree(codek, uniformsize(code, 2); initializer=:specified, nslices=5, niters=5)
-    tc, sc = OMEinsum.timespace_complexity(codek, slicer)
-    @test sc <= 12
-    xs = [[2*randn(2, 2) for i=1:75]..., [randn(2) for i=1:50]...]
-    resg = codeg(xs...)
+    code0 = optimize_greedy(code, uniformsize(code, 2))
+    codek, slicerk = optimize_tree(code0, uniformsize(code, 2); initializer=:specified, nslices=0, niters=5)
+    codeg, slicerg = optimize_tree(code0, uniformsize(code, 2); initializer=:specified, nslices=5, niters=5)
+    tc0, sc0 = OMEinsum.timespace_complexity(codek, slicerk)
+    tc, sc = OMEinsum.timespace_complexity(codek, slicerg)
+    @test sc <= sc0 - 2
+    xs = [[2*randn(2, 2) for i=1:150]..., [randn(2) for i=1:100]...]
+    resg = codeg(slicerg, xs...)
+    resk = codek(xs...)
+    @test resg ≈ resk
+
+    # with open edges
+    Random.seed!(2)
+    code = EinCode(random_regular_eincode(100, 3).ixs, [3,81,2])
+    codek, slicerk = optimize_tree(code0, uniformsize(code, 2); initializer=:specified, nslices=0, niters=5)
+    codeg, slicerg = optimize_tree(code0, uniformsize(code, 2); initializer=:specified, nslices=5, niters=5)
+    tc0, sc0 = OMEinsum.timespace_complexity(codek, slicerk)
+    tc, sc = OMEinsum.timespace_complexity(codek, slicerg)
+    @test sc <= sc0 - 3
+    @test sc <= 17
+    xs = [[2*randn(2, 2) for i=1:150]..., [randn(2) for i=1:100]...]
+    resg = codeg(slicerg, xs...)
     resk = codek(xs...)
     @test resg ≈ resk
 end

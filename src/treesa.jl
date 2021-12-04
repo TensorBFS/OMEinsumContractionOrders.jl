@@ -69,7 +69,7 @@ function _equal(t1::ExprTree, t2::ExprTree)
 end
 _equal(t1::Vector, t2::Vector) = Set(t1) == Set(t2)
 
-export Slicer, SlicingRes
+export Slicer, Slicing
 struct Slicer
     log2_sizes::Vector{Float64}   # the size dict after slicing
     legs::Dict{Int,Float64}   # sliced leg and its original size
@@ -96,17 +96,51 @@ function Base.push!(slicer, best)
     return slicer
 end
 
-struct SlicingRes{LT}
+struct Slicing{LT}
     size_dict::Dict{LT,Int}   # the size dict after slicing
     legs::Dict{LT,Int}   # sliced leg and its original size
 end
 
-SlicingRes(s::Slicer, inverse_map) = SlicingRes(Dict([inverse_map[k]=>round(Int, exp2(v)) for (k, v) in enumerate(s.log2_sizes)]),
+Slicing(s::Slicer, inverse_map) = Slicing(Dict([inverse_map[k]=>round(Int, exp2(v)) for (k, v) in enumerate(s.log2_sizes)]),
     Dict([inverse_map[l]=>round(Int, exp2(s)) for (l, s) in s.legs]))
+Base.length(s::Slicing) = length(s.legs)
 
-function OMEinsum.timespace_complexity(code::NestedEinsum, s::SlicingRes)
+function OMEinsum.timespace_complexity(code::NestedEinsum, s::Slicing)
     tc, sc = timespace_complexity(code, s.size_dict)
-    tc += sum(log2.(values(s.legs))), sc
+    tc + sum(log2.(values(s.legs))), sc
+end
+
+function (neinsum::NestedEinsum)(s::Slicing{LT}, @nospecialize(xs::AbstractArray...)) where LT
+    iy = OMEinsum.getiy(neinsum.eins)
+    ixs = OMEinsum.getixs(OMEinsum.flatten(neinsum))
+    res = OMEinsum.get_output_array(xs, getindex.(Ref(s.size_dict), iy))
+
+    sliced_sizes = Int[]
+    sliced_labels = LT[]
+    for (l, v) in s.legs
+        push!(sliced_sizes, v)
+        push!(sliced_labels, l)
+    end
+    for ci in CartesianIndices((sliced_sizes...,))
+        slicemap = Dict(zip(sliced_labels, ci.I))
+        xsi = ntuple(i->take_slice(xs[i], ixs[i], slicemap), length(xs))
+        resi = einsum(neinsum, xsi, s.size_dict)
+        fill_slice!(res, iy, resi, slicemap)
+    end
+    return res
+end
+
+function take_slice(x, ix, slicemap::Dict)
+    slices = map(l->haskey(slicemap, l) ? (slicemap[l]:slicemap[l]) : Colon(), ix)
+    return x[slices...]
+end
+function fill_slice!(x, ix, chunk, slicemap::Dict)
+    if ndims(x) == 0
+        x[] += chunk[]
+    else
+        slices = map(l->haskey(slicemap, l) ? (slicemap[l]:slicemap[l]) : Colon(), ix)
+        x[slices...] .+= chunk
+    end
 end
 
 """
@@ -147,7 +181,7 @@ function optimize_tree(code, size_dict; nslices::Int=0, sc_target=20, βs=0.1:0.
     if best_sc > sc_target
         @warn "target space complexity not found, got: $best_sc, with time complexity $best_tc, read-write complexity $best_rw."
     end
-    return NestedEinsum(best_tree, inverse_map), SlicingRes(best_slicer, inverse_map)
+    return NestedEinsum(best_tree, inverse_map), Slicing(best_slicer, inverse_map)
 end
 
 function _initializetree(code, size_dict, method; greedy_method, greedy_nrepeat)
