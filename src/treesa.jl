@@ -69,13 +69,53 @@ function _equal(t1::ExprTree, t2::ExprTree)
 end
 _equal(t1::Vector, t2::Vector) = Set(t1) == Set(t2)
 
+export Slicer, SlicingRes
+struct Slicer
+    log2_sizes::Vector{Float64}   # the size dict after slicing
+    legs::Dict{Int,Float64}   # sliced leg and its original size
+    max_size::Int       # maximum number of sliced legs
+end
+Slicer(log2_sizes::AbstractVector{Float64}, max_size::Int) = Slicer(collect(log2_sizes), Dict{Int,Float64}(), max_size)
+Base.length(s::Slicer) = length(s.legs)
+function Base.replace!(slicer::Slicer, pair::Pair)
+    worst, best = pair
+    @assert haskey(slicer.legs, worst)
+    @assert !haskey(slicer.legs, best)
+    slicer.log2_sizes[worst] = slicer.legs[worst]       # restore worst size
+    slicer.legs[best] = slicer.log2_sizes[best]  # add best to legs
+    slicer.log2_sizes[best] = 0.0
+    delete!(slicer.legs, worst)                  # remove worst from legs
+    return slicer
+end
+
+function Base.push!(slicer, best)
+    @assert length(slicer) < slicer.max_size
+    @assert !haskey(slicer.legs, best)
+    slicer.legs[best] = slicer.log2_sizes[best]  # add best to legs
+    slicer.log2_sizes[best] = 0.0
+    return slicer
+end
+
+struct SlicingRes{LT}
+    size_dict::Dict{LT,Int}   # the size dict after slicing
+    legs::Dict{LT,Int}   # sliced leg and its original size
+end
+
+SlicingRes(s::Slicer, inverse_map) = SlicingRes(Dict([inverse_map[k]=>round(Int, exp2(v)) for (k, v) in enumerate(s.log2_sizes)]),
+    Dict([inverse_map[l]=>round(Int, exp2(s)) for (l, s) in s.legs]))
+
+function OMEinsum.timespace_complexity(code::NestedEinsum, s::SlicingRes)
+    tc, sc = timespace_complexity(code, s.size_dict)
+    tc += sum(log2.(values(s.legs))), sc
+end
+
 """
     optimize_tree(code, size_dict; sc_target=20, βs=0.1:0.1:10, ntrials=2, niters=100, sc_weight=1.0, rw_weight=0.2, initializer=:greedy, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=1)
 
 Optimize the einsum contraction pattern specified by `code`, and edge sizes specified by `size_dict`. Key word arguments are
 Check the docstring of `TreeSA` for detailed explaination of other input arguments.
 """
-function optimize_tree(code, size_dict; sc_target=20, βs=0.1:0.1:10, ntrials=20, niters=100, sc_weight=1.0, rw_weight=0.2, initializer=:greedy, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=1)
+function optimize_tree(code, size_dict; nslices::Int=0, sc_target=20, βs=0.1:0.1:10, ntrials=20, niters=100, sc_weight=1.0, rw_weight=0.2, initializer=:greedy, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=1)
     flatten_code = OMEinsum.flatten(code)
     ninputs = length(OMEinsum.getixs(flatten_code))
     if ninputs <= 2
@@ -88,25 +128,26 @@ function optimize_tree(code, size_dict; sc_target=20, βs=0.1:0.1:10, ntrials=20
         best_tree = _initializetree(code, size_dict, initializer; greedy_method=greedy_method, greedy_nrepeat=greedy_nrepeat)
         return NestedEinsum(best_tree, inverse_map)
     end
-    trees, tcs, scs, rws = Vector{ExprTree}(undef, ntrials), zeros(ntrials), zeros(ntrials), zeros(ntrials)
+    trees, tcs, scs, rws, slicers = Vector{ExprTree}(undef, ntrials), zeros(ntrials), zeros(ntrials), zeros(ntrials), Vector{Slicer}(undef, ntrials)
     @threads for t = 1:ntrials
         tree = _initializetree(code, size_dict, initializer; greedy_method=greedy_method, greedy_nrepeat=greedy_nrepeat)
-        optimize_tree_sa!(tree, log2_sizes; sc_target=sc_target, βs=βs, niters=niters, sc_weight=sc_weight, rw_weight=rw_weight)
+        slicer = Slicer(log2_sizes, nslices)
+        optimize_tree_sa!(tree, log2_sizes, slicer; sc_target=sc_target, βs=βs, niters=niters, sc_weight=sc_weight, rw_weight=rw_weight)
         tc, sc, rw = tree_timespace_complexity(tree, log2_sizes)
         @debug "trial $t, time complexity = $tc, space complexity = $sc, read-write complexity = $rw."
-        trees[t], tcs[t], scs[t], rws[t] = tree, tc, sc, rw
+        trees[t], tcs[t], scs[t], rws[t], slicers[t] = tree, tc, sc, rw, slicer
     end
-    best_tree, best_tc, best_sc, best_rw = first(trees), first(tcs), first(scs), first(rws)
+    best_tree, best_tc, best_sc, best_rw, best_slicer = first(trees), first(tcs), first(scs), first(rws), first(slicers)
     for i=2:ntrials
         if scs[i] < best_sc || (scs[i] == best_sc && exp2(tcs[i]) + rw_weight * exp2(rws[i]) < exp2(best_tc) + rw_weight * exp2(rws[i]))
-            best_tree, best_tc, best_sc, best_rw = trees[i], tcs[i], scs[i], rws[i]
+            best_tree, best_tc, best_sc, best_rw, best_slicer = trees[i], tcs[i], scs[i], rws[i], slicers[i]
         end
     end
     @debug "best space complexities = $best_tc, time complexity = $best_sc, read-write complexity $best_rw."
     if best_sc > sc_target
         @warn "target space complexity not found, got: $best_sc, with time complexity $best_tc, read-write complexity $best_rw."
     end
-    return NestedEinsum(best_tree, inverse_map)
+    return NestedEinsum(best_tree, inverse_map), SlicingRes(best_slicer, inverse_map)
 end
 
 function _initializetree(code, size_dict, method; greedy_method, greedy_nrepeat)
@@ -124,18 +165,58 @@ function _initializetree(code, size_dict, method; greedy_method, greedy_nrepeat)
     end
 end
 
-function optimize_tree_sa!(tree::ExprTree, log2_sizes; βs, niters, sc_target, sc_weight, rw_weight)
+function optimize_tree_sa!(tree::ExprTree, log2_sizes, slicer::Slicer; βs, niters, sc_target, sc_weight, rw_weight)
     @assert rw_weight >= 0
     @assert sc_weight >= 0
     log2rw_weight = log2(rw_weight)
     for β in βs
-        global_tc, sc, rw = tree_timespace_complexity(tree, log2_sizes)  # recompute the time complexity
-        @debug "β = $β, tc = $global_tc, sc = $sc, rw = $rw"
+        @debug begin
+            tc, sc, rw = tree_timespace_complexity(tree, log2_sizes)
+            "β = $β, tc = $tc, sc = $sc, rw = $rw"
+        end
+        if slicer.max_size > 0
+            # find legs that reduce the dimension the most
+            scs, lbs = Float64[], Vector{Int}[]
+            tensor_sizes!(tree, slicer.log2_sizes, scs, lbs)
+            best_labels = _best_labels(scs, lbs)
+
+            best_not_sliced_labels = filter(x->!haskey(slicer.legs, x), best_labels)
+            @debug "length of `best_labels` = $(length(best_labels))"
+            if !isempty(best_not_sliced_labels)
+                best_not_sliced_label = rand(best_not_sliced_labels)
+                if length(slicer) < slicer.max_size
+                    push!(slicer, best_not_sliced_label)
+                else
+                    #worst_sliced_labels = filter(x->haskey(slicer.legs, x), setdiff(log2_sizes, best_labels))
+                    legs = collect(keys(slicer.legs))
+                    score = [count(==(l), best_labels) for l in legs]
+                    replace!(slicer, legs[argmin(score)]=>best_not_sliced_label)
+                end
+            end
+            @debug begin
+                tc, sc, rw = tree_timespace_complexity(tree, log2_sizes)
+                "after slicing: β = $β, tc = $tc, sc = $sc, rw = $rw"
+            end
+        end
         for _ = 1:niters
-            optimize_subtree!(tree, global_tc, β, log2_sizes, sc_target, sc_weight, log2rw_weight)  # single sweep
+            optimize_subtree!(tree, β, slicer.log2_sizes, sc_target, sc_weight, log2rw_weight)  # single sweep
         end
     end
-    return tree
+    return tree, slicer
+end
+
+function _best_labels(scs, lbs)
+    max_sc = maximum(scs)
+    return vcat(lbs[scs .> max_sc-0.99]...)
+end
+
+function tensor_sizes!(tree::ExprTree, log2_sizes, scs, lbs)
+    sc = isempty(labels(tree)) ? 0.0 : sum(i->log2_sizes[i], labels(tree))
+    push!(scs, sc)
+    push!(lbs, labels(tree))
+    isleaf(tree) && return
+    tensor_sizes!(tree.left, log2_sizes, scs, lbs)
+    tensor_sizes!(tree.right, log2_sizes, scs, lbs)
 end
 
 function tree_timespace_complexity(tree::ExprTree, log2_sizes)
@@ -201,13 +282,12 @@ function _random_exprtree(ixs::Vector{Vector{Int}}, xindices, outercount::Vector
     return ExprTree(_random_exprtree(ixs[mask], xindices[mask], outercount1, allcount), _random_exprtree(ixs[(!).(mask)], xindices[(!).(mask)], outercount2, allcount), info)
 end
 
-function optimize_subtree!(tree, global_tc, β, log2_sizes, sc_target, sc_weight, log2rw_weight)
+function optimize_subtree!(tree, β, log2_sizes, sc_target, sc_weight, log2rw_weight)
     rst = ruleset(tree)
     if !isempty(rst)
         rule = rand(rst)
         optimize_rw = log2rw_weight != -Inf
         tc0, tc1, dsc, rw0, rw1, subout = tcsc_diff(tree, rule, log2_sizes, optimize_rw)
-        #dtc = (exp2(tc1) - exp2(tc0)) / exp2(global_tc)  # note: contribution to total tc, seems not good.
         dtc = optimize_rw ? fast_log2sumexp2(tc1, log2rw_weight + rw1) - fast_log2sumexp2(tc0, log2rw_weight + rw0) : tc1 - tc0
         sc = _sc(tree, rule, log2_sizes)
         dE = (max(sc, sc+dsc) > sc_target ? sc_weight : 0) * dsc + dtc
@@ -215,7 +295,7 @@ function optimize_subtree!(tree, global_tc, β, log2_sizes, sc_target, sc_weight
             update_tree!(tree, rule, subout)
         end
         for subtree in siblings(tree)
-            optimize_subtree!(subtree, global_tc, β, log2_sizes, sc_target, sc_weight, log2rw_weight)
+            optimize_subtree!(subtree, β, log2_sizes, sc_target, sc_weight, log2rw_weight)
         end
     end
 end

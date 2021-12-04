@@ -67,7 +67,7 @@ end
     tc0_, sc0_ = OMEinsum.timespace_complexity(NestedEinsum(tree), size_dict)
     @test tc0 ≈ tc0_ && sc0 ≈ sc0_
     opt_tree = copy(tree)
-    optimize_subtree!(opt_tree, tc0, 100.0, log2_sizes, 5, 2.0, 1.0)
+    optimize_subtree!(opt_tree, 100.0, log2_sizes, 5, 2.0, 1.0)
     tc1, sc1, rw0 = tree_timespace_complexity(opt_tree, log2_sizes)
     @test sc1 < sc0 || (sc1 == sc0 && tc1 < tc0)
 end
@@ -87,8 +87,17 @@ end
     tree = ExprTree(optcode)
     tc0, sc0, rw0 = tree_timespace_complexity(tree, log2_sizes)
     opttree = copy(tree)
-    optimize_tree_sa!(opttree, log2_sizes; sc_target=sc0-2.0, βs=0.1:0.1:10.0, niters=100, sc_weight=1.0, rw_weight=1.0)
+    optimize_tree_sa!(opttree, log2_sizes, Slicer(log2_sizes, 0); sc_target=sc0-2.0, βs=0.1:0.1:10.0, niters=100, sc_weight=1.0, rw_weight=1.0)
     tc1, sc1, rw1 = tree_timespace_complexity(opttree, log2_sizes)
+    @test sc1 < sc0 || (sc1 == sc0 && tc1 < tc0)
+
+    slicer = Slicer(log2_sizes, 5)
+    optimize_tree_sa!(opttree, log2_sizes, slicer; sc_target=sc0-2.0, βs=0.1:0.1:10.0, niters=100, sc_weight=1.0, rw_weight=1.0)
+    tc2, sc2, rw2 = tree_timespace_complexity(opttree, slicer.log2_sizes)
+    @test tc2 <= tc1 + 3
+    @test sc2 <= sc1 + 3
+    @test length(slicer) == 5
+    @test all(l->(slicer.log2_sizes[l]==1 && !haskey(slicer.legs, l)) || (slicer.log2_sizes[l]==0 && haskey(slicer.legs, l)), 1:length(log2_sizes))
     @test sc1 < sc0 || (sc1 == sc0 && tc1 < tc0)
 end
 
@@ -105,14 +114,15 @@ end
     tc, sc = OMEinsum.timespace_complexity(res, uniformsize(code, 2))
 
     @test optimize_tree(res,uniformsize(code, 2); sc_target=32, βs=0.1:0.05:10.0, ntrials=0, niters=100, sc_weight=1.0, rw_weight=1.0) isa NestedEinsum
-    optcode = optimize_tree(res,uniformsize(code, 2); sc_target=32, βs=0.1:0.05:10.0, ntrials=2, niters=100, sc_weight=1.0, rw_weight=1.0)
+    optcode, optslicer = optimize_tree(res,uniformsize(code, 2); sc_target=32, βs=0.1:0.05:10.0, ntrials=2, niters=100, sc_weight=1.0, rw_weight=1.0)
     tc, sc = OMEinsum.timespace_complexity(optcode, uniformsize(code, 2))
     @test sc <= 32
+    @test length(optslicer) == 0
 
     # contraction test
     code = random_regular_eincode(50, 3)
     codek = optimize_greedy(code, uniformsize(code, 2))
-    codeg = optimize_tree(code, uniformsize(code, 2); initializer=:random)
+    codeg, slicerg = optimize_tree(code, uniformsize(code, 2); initializer=:random)
     tc, sc = OMEinsum.timespace_complexity(codek, uniformsize(code, 2))
     @test sc <= 12
     xs = [[2*randn(2, 2) for i=1:75]..., [randn(2) for i=1:50]...]
@@ -123,7 +133,7 @@ end
     # contraction test
     code = random_regular_eincode(50, 3)
     codek = optimize_greedy(code, uniformsize(code, 2))
-    codeg = optimize_tree(codek, uniformsize(code, 2); initializer=:specified)
+    codeg, slicerg = optimize_tree(codek, uniformsize(code, 2); initializer=:specified)
     tc, sc = OMEinsum.timespace_complexity(codek, uniformsize(code, 2))
     @test sc <= 12
     xs = [[2*randn(2, 2) for i=1:75]..., [randn(2) for i=1:50]...]
@@ -136,4 +146,31 @@ end
     a, b, c = randn(3)
     @test fast_log2sumexp2(a, b) ≈ log2(sum(exp2.([a,b])))
     @test fast_log2sumexp2(a, b, c) ≈ log2(sum(exp2.([a,b,c])))
+end
+
+@testset "slicer" begin
+    log2_sizes = [1, 2,3 ,4.0]
+    s = Slicer(log2_sizes, 3)
+    push!(s, 1)
+    @test_throws AssertionError push!(s, 1)
+    push!(s, 2)
+    push!(s, 3)
+    @test_throws AssertionError push!(s, 4)
+    replace!(s, 1=>4)
+    @test s.log2_sizes == [1, 0.0, 0.0, 0.0]
+    @test s.legs == Dict(2=>2.0, 3=>3.0, 4=>4.0)
+    @test_throws AssertionError replace!(s, 1=>4)
+end
+
+@testset "slicing" begin
+    # contraction test
+    code = random_regular_eincode(100, 3)
+    codek = optimize_greedy(code, uniformsize(code, 2))
+    codeg, slicerg = optimize_tree(codek, uniformsize(code, 2); initializer=:specified, nslices=5, niters=5)
+    tc, sc = OMEinsum.timespace_complexity(codek, slicer)
+    @test sc <= 12
+    xs = [[2*randn(2, 2) for i=1:75]..., [randn(2) for i=1:50]...]
+    resg = codeg(xs...)
+    resk = codek(xs...)
+    @test resg ≈ resk
 end
