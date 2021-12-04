@@ -49,7 +49,7 @@ function (se::SlicedEinsum{LT,ET})(@nospecialize(xs::AbstractArray...); size_inf
 
     # TODO: fix this interface, do not assume `eins` being NestedEinsum
     iy = OMEinsum.getiy(se.eins.eins)
-    ixs = collect_ixs(se.eins)
+    ixs = OMEinsum.collect_ixs(se.eins)
     res = OMEinsum.get_output_array(xs, getindex.(Ref(size_dict), iy))
 
     sliced_sizes = Int[]
