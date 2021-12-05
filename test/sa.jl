@@ -1,5 +1,5 @@
 using Test, OMEinsumContractionOrders, OMEinsum
-using LightGraphs, Random
+using Graphs, Random
 using SparseArrays
 
 @testset "sa bipartition" begin
@@ -16,9 +16,9 @@ end
 @testset "sa" begin
     Random.seed!(2)
     function random_regular_eincode(n, k)
-        g = LightGraphs.random_regular_graph(n, k)
-        ixs = [minmax(e.src,e.dst) for e in LightGraphs.edges(g)]
-        return EinCode((ixs..., [(i,) for i in LightGraphs.vertices(g)]...), ())
+        g = Graphs.random_regular_graph(n, k)
+        ixs = [minmax(e.src,e.dst) for e in Graphs.edges(g)]
+        return EinCode((ixs..., [(i,) for i in Graphs.vertices(g)]...), ())
     end
 
     g = random_regular_graph(220, 3)

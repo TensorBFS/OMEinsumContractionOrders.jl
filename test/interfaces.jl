@@ -1,13 +1,13 @@
 using OMEinsum, OMEinsumContractionOrders
-using Test, Random, LightGraphs
+using Test, Random, Graphs
 using KaHyPar
 using OMEinsum: NestedEinsum, DynamicEinCode
 
 @testset "interface" begin
     function random_regular_eincode(n, k)
-        g = LightGraphs.random_regular_graph(n, k)
-        ixs = [minmax(e.src,e.dst) for e in LightGraphs.edges(g)]
-        return EinCode((ixs..., [(i,) for i in LightGraphs.vertices(g)]...), ())
+        g = Graphs.random_regular_graph(n, k)
+        ixs = [minmax(e.src,e.dst) for e in Graphs.edges(g)]
+        return EinCode((ixs..., [(i,) for i in Graphs.vertices(g)]...), ())
     end
     Random.seed!(2)
     g = random_regular_graph(100, 3)
@@ -15,7 +15,7 @@ using OMEinsum: NestedEinsum, DynamicEinCode
     xs = [[randn(2,2) for i=1:150]..., [randn(2) for i=1:100]...]
 
     results = Float64[]
-    for optimizer in [TreeSA(ntrials=1), GreedyMethod(), KaHyParBipartite(sc_target=18), SABipartite(sc_target=18, ntrials=1)]
+    for optimizer in [TreeSA(ntrials=1), TreeSA(ntrials=1, nslices=5), GreedyMethod(), KaHyParBipartite(sc_target=18), SABipartite(sc_target=18, ntrials=1)]
         for simplifier in (nothing, MergeVectors(), MergeGreedy())
             @info "optimizer = $(optimizer), simplifier = $(simplifier)"
             res = optimize_code(code,uniformsize(code, 2), optimizer, simplifier)
@@ -36,6 +36,7 @@ end
     dne = NestedEinsum((1,), DynamicEinCode(code))
     @test optimize_code(code, sizes, GreedyMethod()) == ne
     @test optimize_code(code, sizes, TreeSA()) == dne
+    @test optimize_code(code, sizes, TreeSA(nslices=2)) == dne
     @test optimize_code(code, sizes, KaHyParBipartite(sc_target=25)) == dne
     @test optimize_code(code, sizes, SABipartite(sc_target=25)) == dne
 end

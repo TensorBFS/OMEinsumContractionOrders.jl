@@ -21,12 +21,12 @@ The `KaHyPar` package (used in `KaHyParBipartite` optimizer) is optional because
 ## Example
 Contract a tensor network
 ```julia
-julia> using OMEinsum, OMEinsumContractionOrders, LightGraphs, KaHyPar
+julia> using OMEinsum, OMEinsumContractionOrders, Graphs, KaHyPar
 
 julia> function random_regular_eincode(n, k; optimize=nothing)
-	    g = LightGraphs.random_regular_graph(n, k)
-	    ixs = [minmax(e.src,e.dst) for e in LightGraphs.edges(g)]
-	    return EinCode((ixs..., [(i,) for i in     LightGraphs.vertices(g)]...), ())
+	    g = Graphs.random_regular_graph(n, k)
+	    ixs = [minmax(e.src,e.dst) for e in Graphs.edges(g)]
+	    return EinCode((ixs..., [(i,) for i in     Graphs.vertices(g)]...), ())
     end
     
 julia> code = random_regular_eincode(200, 3);

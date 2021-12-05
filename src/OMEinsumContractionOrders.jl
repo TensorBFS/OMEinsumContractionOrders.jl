@@ -32,6 +32,7 @@ Base.@kwdef struct GreedyMethod{MT} <: CodeOptimizer
     nrepeat::Int = 10
 end
 
+include("slicing.jl")
 include("kahypar.jl")
 include("sa.jl")
 include("treesa.jl")

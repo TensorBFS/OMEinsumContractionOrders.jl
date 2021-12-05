@@ -31,6 +31,7 @@ function uniformsize(code::EinCode, size::Int)
     Dict([c=>size for c in [Iterators.flatten(getixsv(code))..., getiyv(code)...]])
 end
 uniformsize(ne::NestedEinsum, size::Int) = uniformsize(OMEinsum.flatten(ne), size)
+uniformsize(ne::SlicedEinsum, size::Int) = uniformsize(ne.eins, size)
 
 function induced_subhypergraph(s::SparseMatrixCSC, group)
     s0 = s[group,:]

@@ -1,7 +1,7 @@
 name = "OMEinsumContractionOrders"
 uuid = "6f22d1fd-8eed-4bb7-9776-e7d684900715"
 authors = ["Jin-Guo Liu", "Pan Zhang"]
-version = "0.5.3"
+version = "0.6.0"
 
 [deps]
 BetterExp = "7cffe744-45fd-4178-b173-cf893948b8b7"
@@ -12,16 +12,16 @@ Suppressor = "fd094767-a336-5f1f-9728-57cf17d0bbfb"
 
 [compat]
 BetterExp = "0.1"
-OMEinsum = "0.6"
-Suppressor = "0.2"
+OMEinsum = "0.6.4"
 Requires = "1"
+Suppressor = "0.2"
 julia = "1"
 
 [extras]
-LightGraphs = "093fc24a-ae57-5d10-9952-331d41423f4d"
-Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 KaHyPar = "2a6221f6-aa48-11e9-3542-2d9e0ef01880"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+Graphs = "86223c79-3864-5bf0-83f7-82e725a168b6"
 
 [targets]
-test = ["Test", "LightGraphs", "Random", "KaHyPar"]
+test = ["Test", "Random", "KaHyPar", "Graphs"]

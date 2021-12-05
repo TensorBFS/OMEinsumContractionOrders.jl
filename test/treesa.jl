@@ -1,12 +1,12 @@
 using OMEinsumContractionOrders, Test, Random
 using OMEinsumContractionOrders: random_exprtree, ExprTree, ExprInfo, ruleset, update_tree!, tcscrw, optimize_subtree!, optimize_tree_sa!, labels, tree_timespace_complexity, fast_log2sumexp2
-using OMEinsum, LightGraphs
+using OMEinsum, Graphs
 
 @testset "random expr tree" begin
     function random_regular_eincode(n, k)
-        g = LightGraphs.random_regular_graph(n, k)
-        ixs = [minmax(e.src,e.dst) for e in LightGraphs.edges(g)]
-        return EinCode((ixs..., [(i,) for i in LightGraphs.vertices(g)]...), ())
+        g = Graphs.random_regular_graph(n, k)
+        ixs = [minmax(e.src,e.dst) for e in Graphs.edges(g)]
+        return EinCode((ixs..., [(i,) for i in Graphs.vertices(g)]...), ())
     end
     Random.seed!(2)
     tree = random_exprtree([[1,2,5], [2,3], [2,4]], [5], 5)
@@ -52,9 +52,9 @@ end
 
 @testset "optimization" begin
     function random_regular_eincode(n, k)
-        g = LightGraphs.random_regular_graph(n, k)
-        ixs = [minmax(e.src,e.dst) for e in LightGraphs.edges(g)]
-        return EinCode((ixs..., [(i,) for i in LightGraphs.vertices(g)]...), ())
+        g = Graphs.random_regular_graph(n, k)
+        ixs = [minmax(e.src,e.dst) for e in Graphs.edges(g)]
+        return EinCode((ixs..., [(i,) for i in Graphs.vertices(g)]...), ())
     end
     Random.seed!(2)
     n = 40
@@ -67,16 +67,16 @@ end
     tc0_, sc0_ = OMEinsum.timespace_complexity(NestedEinsum(tree), size_dict)
     @test tc0 ≈ tc0_ && sc0 ≈ sc0_
     opt_tree = copy(tree)
-    optimize_subtree!(opt_tree, tc0, 100.0, log2_sizes, 5, 2.0, 1.0)
+    optimize_subtree!(opt_tree, 100.0, log2_sizes, 5, 2.0, 1.0)
     tc1, sc1, rw0 = tree_timespace_complexity(opt_tree, log2_sizes)
     @test sc1 < sc0 || (sc1 == sc0 && tc1 < tc0)
 end
 
 @testset "optimize tree sa" begin
     function random_regular_eincode(n, k)
-        g = LightGraphs.random_regular_graph(n, k)
-        ixs = [minmax(e.src,e.dst) for e in LightGraphs.edges(g)]
-        return EinCode((ixs..., [(i,) for i in LightGraphs.vertices(g)]...), ())
+        g = Graphs.random_regular_graph(n, k)
+        ixs = [minmax(e.src,e.dst) for e in Graphs.edges(g)]
+        return EinCode((ixs..., [(i,) for i in Graphs.vertices(g)]...), ())
     end
     Random.seed!(3)
     n = 60
@@ -87,16 +87,25 @@ end
     tree = ExprTree(optcode)
     tc0, sc0, rw0 = tree_timespace_complexity(tree, log2_sizes)
     opttree = copy(tree)
-    optimize_tree_sa!(opttree, log2_sizes; sc_target=sc0-2.0, βs=0.1:0.1:10.0, niters=100, sc_weight=1.0, rw_weight=1.0)
+    optimize_tree_sa!(opttree, log2_sizes, Slicer(log2_sizes, 0); sc_target=sc0-2.0, βs=0.1:0.1:10.0, niters=100, sc_weight=1.0, rw_weight=1.0)
     tc1, sc1, rw1 = tree_timespace_complexity(opttree, log2_sizes)
+    @test sc1 < sc0 || (sc1 == sc0 && tc1 < tc0)
+
+    slicer = Slicer(log2_sizes, 5)
+    optimize_tree_sa!(opttree, log2_sizes, slicer; sc_target=sc0-2.0, βs=0.1:0.1:10.0, niters=100, sc_weight=1.0, rw_weight=1.0)
+    tc2, sc2, rw2 = tree_timespace_complexity(opttree, slicer.log2_sizes)
+    @test tc2 <= tc1 + 3
+    @test sc2 <= sc1 + 3
+    @test length(slicer) == 5
+    @test all(l->(slicer.log2_sizes[l]==1 && !haskey(slicer.legs, l)) || (slicer.log2_sizes[l]==0 && haskey(slicer.legs, l)), 1:length(log2_sizes))
     @test sc1 < sc0 || (sc1 == sc0 && tc1 < tc0)
 end
 
 @testset "sa tree" begin
     function random_regular_eincode(n, k)
-        g = LightGraphs.random_regular_graph(n, k)
-        ixs = [minmax(e.src,e.dst) for e in LightGraphs.edges(g)]
-        return EinCode((ixs..., [(i,) for i in LightGraphs.vertices(g)]...), ())
+        g = Graphs.random_regular_graph(n, k)
+        ixs = [minmax(e.src,e.dst) for e in Graphs.edges(g)]
+        return EinCode((ixs..., [(i,) for i in Graphs.vertices(g)]...), ())
     end
     Random.seed!(2)
     g = random_regular_graph(220, 3)
@@ -104,10 +113,11 @@ end
     res = optimize_greedy(code,uniformsize(code, 2))
     tc, sc = OMEinsum.timespace_complexity(res, uniformsize(code, 2))
 
-    @test optimize_tree(res,uniformsize(code, 2); sc_target=32, βs=0.1:0.05:10.0, ntrials=0, niters=100, sc_weight=1.0, rw_weight=1.0) isa NestedEinsum
-    optcode = optimize_tree(res,uniformsize(code, 2); sc_target=32, βs=0.1:0.05:10.0, ntrials=2, niters=100, sc_weight=1.0, rw_weight=1.0)
+    @test optimize_tree(res,uniformsize(code, 2); sc_target=32, βs=0.1:0.05:20.0, ntrials=0, niters=10, sc_weight=1.0, rw_weight=1.0) isa NestedEinsum
+    optcode = optimize_tree(res,uniformsize(code, 2); sc_target=32, βs=0.1:0.05:20.0, ntrials=2, niters=10, sc_weight=1.0, rw_weight=1.0)
     tc, sc = OMEinsum.timespace_complexity(optcode, uniformsize(code, 2))
     @test sc <= 32
+    @test length(optcode.slicing) == 0
 
     # contraction test
     code = random_regular_eincode(50, 3)
@@ -136,4 +146,41 @@ end
     a, b, c = randn(3)
     @test fast_log2sumexp2(a, b) ≈ log2(sum(exp2.([a,b])))
     @test fast_log2sumexp2(a, b, c) ≈ log2(sum(exp2.([a,b,c])))
+end
+
+@testset "slicing" begin
+    function random_regular_eincode(n, k)
+        g = Graphs.random_regular_graph(n, k)
+        ixs = [minmax(e.src,e.dst) for e in Graphs.edges(g)]
+        return EinCode((ixs..., [(i,) for i in Graphs.vertices(g)]...), ())
+    end
+    # contraction test
+    Random.seed!(2)
+    code = random_regular_eincode(100, 3)
+    code0 = optimize_greedy(code, uniformsize(code, 2))
+    codek = optimize_tree(code0, uniformsize(code, 2); initializer=:specified, nslices=0, niters=5)
+    codeg = optimize_tree(code0, uniformsize(code, 2); initializer=:specified, nslices=5, niters=5)
+    tc0, sc0 = OMEinsum.timespace_complexity(codek, uniformsize(code, 2))
+    tc, sc = OMEinsum.timespace_complexity(codeg, uniformsize(code, 2))
+    @show tc, sc, tc0, sc0
+    @test sc <= sc0 - 4
+    xs = [[2*randn(2, 2) for i=1:150]..., [randn(2) for i=1:100]...]
+    resg = codeg(xs...)
+    resk = codek(xs...)
+    @test resg ≈ resk
+
+    # with open edges
+    Random.seed!(2)
+    code = EinCode(random_regular_eincode(100, 3).ixs, [3,81,2])
+    codek = optimize_tree(code0, uniformsize(codek, 2); initializer=:specified, nslices=0, niters=5)
+    codeg = optimize_tree(code0, uniformsize(codeg, 2); initializer=:specified, nslices=5, niters=5)
+    tc0, sc0 = OMEinsum.timespace_complexity(codek, uniformsize(code, 2))
+    tc, sc = OMEinsum.timespace_complexity(codeg, uniformsize(code, 2))
+    @show tc, sc, tc0, sc0
+    @test sc <= sc0 - 4
+    @test sc <= 17
+    xs = [[2*randn(2, 2) for i=1:150]..., [randn(2) for i=1:100]...]
+    resg = codeg(xs...)
+    resk = codek(xs...)
+    @test resg ≈ resk
 end
