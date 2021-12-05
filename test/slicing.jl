@@ -15,6 +15,14 @@ using Test, Random
     @test_throws AssertionError replace!(s, 1=>4)
 end
 
+@testset "slice iterator" begin
+    se = SlicedEinsum(Slicing(['i', 'l']), ein"(ij,jk),(kl,lm)->im")
+    it = OMEinsumContractionOrders.SliceIterator(se, uniformsize(se, 2))
+    @test length(it) == 4
+    for (i, v) in enumerate(it)
+        @test v == it[i]
+    end
+end
 
 @testset "SlicedEinsum" begin
     se = SlicedEinsum(Slicing(['i', 'l']), ein"(ij,jk),(kl,lm)->im")

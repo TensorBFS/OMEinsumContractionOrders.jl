@@ -38,33 +38,60 @@ struct SlicedEinsum{LT, Ein}
     eins::Ein
 end
 
-function (se::SlicedEinsum{LT,ET})(@nospecialize(xs::AbstractArray...); size_info = nothing) where {LT, ET}
-    length(se.slicing) == 0 && return se.eins(xs...; size_info=size_info)
-    size_dict = size_info===nothing ? Dict{OMEinsum.labeltype(se),Int}() : copy(size_info)
-    OMEinsum.get_size_dict!(se, xs, size_dict)
+# Iterate over tensor network slices, its iterator interface returns `slicemap` as a Dict
+# slice and fill tensors with
+# * take_slice(x, label_of_x, slicemap)
+# * fill_slice!(x, label_of_x, x_slice, slicemap)
+struct SliceIterator{LT,IT<:CartesianIndices}
+    ixsv::Vector{Vector{LT}}
+    iyv::Vector{LT}
+    sliced_labels::Vector{LT}
+    indices::IT
+    size_dict_sliced::Dict{LT,Int}
+end
+
+function SliceIterator(se::SlicedEinsum, size_dict::Dict{LT}) where LT
+    iyv = OMEinsum.getiyv(se.eins.eins)
+    ixsv = OMEinsum.getixsv(se.eins)
+    n = length(se.slicing)
+
     size_dict_sliced = copy(size_dict)
-    for l in se.slicing.legs
+    sliced_sizes = Vector{Int}(undef, n)
+    sliced_labels = Vector{LT}(undef, n)
+    for i = 1:n
+        l = se.slicing.legs[i]
+        sliced_sizes[i] = size_dict[l]
+        sliced_labels[i] = l
         size_dict_sliced[l] = 1
     end
+    indices = CartesianIndices((sliced_sizes...,))
+    SliceIterator(ixsv, iyv, sliced_labels, indices, size_dict_sliced)
+end
+Base.length(si::SliceIterator) = length(si.indices)
+Base.eltype(::Type{SliceIterator{LT,IT}}) where {LT,IT} = Dict{LT,Int}
 
-    # TODO: fix this interface, do not assume `eins` being NestedEinsum
-    iy = OMEinsum.getiy(se.eins.eins)
-    ixs = OMEinsum.collect_ixs(se.eins)
-    res = OMEinsum.get_output_array(xs, getindex.(Ref(size_dict), iy))
-
-    sliced_sizes = Int[]
-    sliced_labels = LT[]
-    for l in se.slicing.legs
-        push!(sliced_sizes, size_dict[l])
-        push!(sliced_labels, l)
+# returns `slicemap` as a Dict
+function Base.iterate(si::SliceIterator)
+    ci, cistate = iterate(si.indices)
+    slicemap = Dict(zip(si.sliced_labels, ones(Int,length(si.sliced_labels))))
+    slicemap, (1,(ci,cistate),slicemap)
+end
+function Base.iterate(si::SliceIterator, state)
+    i, (ci,cistate), slicemap = state
+    if i >= length(si.indices)
+        return nothing  # NOTE: ci is same as cistate
+    else
+        ci, cistate = iterate(si.indices, cistate)
+        for (l, v) in zip(si.sliced_labels, ci.I)
+            slicemap[l] = v
+        end
+        return slicemap, (i+1, (ci,cistate), slicemap)
     end
-    for ci in CartesianIndices((sliced_sizes...,))
-        slicemap = Dict(zip(sliced_labels, ci.I))
-        xsi = ntuple(i->take_slice(xs[i], ixs[i], slicemap), length(xs))
-        resi = einsum(se.eins, xsi, size_dict_sliced)
-        fill_slice!(res, iy, resi, slicemap)
-    end
-    return res
+end
+function Base.getindex(si::SliceIterator, indices...)
+    ci = si.indices[indices...]
+    slicemap = Dict(zip(si.sliced_labels, ci.I))
+    return slicemap
 end
 
 function take_slice(x, ix, slicemap::Dict)
@@ -78,6 +105,21 @@ function fill_slice!(x, ix, chunk, slicemap::Dict)
         slices = map(l->haskey(slicemap, l) ? (slicemap[l]:slicemap[l]) : Colon(), ix)
         x[slices...] .+= chunk
     end
+end
+
+function (se::SlicedEinsum{LT,ET})(@nospecialize(xs::AbstractArray...); size_info = nothing) where {LT, ET}
+    length(se.slicing) == 0 && return se.eins(xs...; size_info=size_info)
+    size_dict = size_info===nothing ? Dict{OMEinsum.labeltype(se),Int}() : copy(size_info)
+    OMEinsum.get_size_dict!(se, xs, size_dict)
+
+    it = SliceIterator(se, size_dict)
+    res = OMEinsum.get_output_array(xs, getindex.(Ref(size_dict), it.iyv))
+    for slicemap in it
+        xsi = ntuple(i->take_slice(xs[i], it.ixsv[i], slicemap), length(xs))
+        resi = einsum(se.eins, xsi, it.size_dict_sliced)
+        fill_slice!(res, it.iyv, resi, slicemap)
+    end
+    return res
 end
 
 # forward some interfaces
