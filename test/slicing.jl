@@ -33,5 +33,8 @@ end
     @test OMEinsum.get_size_dict!(se, xs, size_info) == Dict('i'=>2, 'j'=>3, 'k'=>4, 'l'=>5, 'm'=>6)
     @test OMEinsum.getixsv(se) == [['i','j'],['j','k'],['k','l'],['l','m']]
     @test OMEinsum.getiyv(se) == ['i','m']
+    @test OMEinsum.label_elimination_order(se) == ['j','l', 'k']
     @test se(xs...) ≈ se.eins(xs...)
+    @test uniquelabels(se) == ['i', 'j', 'k', 'l', 'm']
+    @test uniformsize(se, 2) == Dict(zip(['i', 'j', 'k', 'l', 'm'], ones(Int, 5).*2))
 end

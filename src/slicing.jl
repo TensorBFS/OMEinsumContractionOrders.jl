@@ -33,7 +33,7 @@ end
 Slicing(s::Slicer, inverse_map) = Slicing([inverse_map[l] for (l, s) in s.legs])
 Base.length(s::Slicing) = length(s.legs)
 
-struct SlicedEinsum{LT, Ein}
+struct SlicedEinsum{LT, Ein} <: AbstractEinsum
     slicing::Slicing{LT}
     eins::Ein
 end
@@ -131,9 +131,18 @@ function OMEinsum.timespace_complexity(code::SlicedEinsum, size_dict)
     tc, sc = timespace_complexity(code.eins, size_dict_sliced)
     tc + sum(log2.(getindex.(Ref(size_dict), code.slicing.legs))), sc
 end
+function OMEinsum.flop(code::SlicedEinsum, size_dict)
+    size_dict_sliced = copy(size_dict)
+    for l in code.slicing.legs
+        size_dict_sliced[l] = 1
+    end
+    fl = flop(code.eins, size_dict_sliced)
+    fl * prod(getindex.(Ref(size_dict), code.slicing.legs))
+end
 
 OMEinsum.flatten(se::SlicedEinsum) = OMEinsum.flatten(se.eins)
 OMEinsum.labeltype(::SlicedEinsum{LT}) where LT = LT
 OMEinsum.get_size_dict!(se::SlicedEinsum, xs, size_info::Dict) = OMEinsum.get_size_dict!(se.eins, xs, size_info)
 OMEinsum.getixsv(se::SlicedEinsum) = OMEinsum.getixsv(se.eins)
 OMEinsum.getiyv(se::SlicedEinsum) = OMEinsum.getiyv(se.eins)
+OMEinsum.label_elimination_order(code::SlicedEinsum) = OMEinsum.label_elimination_order(code.eins)

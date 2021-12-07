@@ -1,4 +1,4 @@
-export simplify_code, optimize_code, GreedyMethod, KaHyParBipartite, SABipartite, TreeSA, MergeGreedy, MergeVectors
+export simplify_code, optimize_code, GreedyMethod, KaHyParBipartite, SABipartite, TreeSA, MergeGreedy, MergeVectors, uniformsize
 
 abstract type CodeSimplifier end
 Base.@kwdef struct MergeGreedy <: CodeSimplifier
@@ -45,3 +45,5 @@ function _optimize_code(code, size_dict, optimizer::TreeSA)
         sc_weight=optimizer.sc_weight, rw_weight=optimizer.rw_weight, initializer=optimizer.initializer,
         greedy_method=optimizer.greedy_config.method, greedy_nrepeat=optimizer.greedy_config.nrepeat)
 end
+
+uniformsize(code::AbstractEinsum, size) = Dict([l=>size for l in uniquelabels(code)])

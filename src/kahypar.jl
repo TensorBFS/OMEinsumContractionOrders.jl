@@ -1,4 +1,4 @@
-export uniformsize, optimize_kahypar, optimize_kahypar_auto
+export optimize_kahypar, optimize_kahypar_auto
 export KaHyParBipartite
 
 """
@@ -26,12 +26,6 @@ Base.@kwdef struct KaHyParBipartite{RT,IT,GM} <: CodeOptimizer
     max_group_size::Int = 40
     greedy_config::GM = GreedyMethod()
 end
-
-function uniformsize(code::EinCode, size::Int)
-    Dict([c=>size for c in [Iterators.flatten(getixsv(code))..., getiyv(code)...]])
-end
-uniformsize(ne::NestedEinsum, size::Int) = uniformsize(OMEinsum.flatten(ne), size)
-uniformsize(ne::SlicedEinsum, size::Int) = uniformsize(ne.eins, size)
 
 function induced_subhypergraph(s::SparseMatrixCSC, group)
     s0 = s[group,:]

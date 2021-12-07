@@ -176,6 +176,8 @@ end
     codeg = optimize_tree(code0, uniformsize(codeg, 2); initializer=:specified, nslices=5, niters=5)
     tc0, sc0 = OMEinsum.timespace_complexity(codek, uniformsize(code, 2))
     tc, sc = OMEinsum.timespace_complexity(codeg, uniformsize(code, 2))
+    fl = OMEinsum.flop(codeg, uniformsize(code, 2))
+    @test tc ≈ log2(fl)
     @show tc, sc, tc0, sc0
     @test sc <= sc0 - 4
     @test sc <= 17
