@@ -31,7 +31,11 @@ julia> function random_regular_eincode(n, k; optimize=nothing)
     
 julia> code = random_regular_eincode(200, 3);
 
-julia> optcode_tree = optimize_code(code, uniformsize(code, 2), TreeSA(sc_target=28, βs=0.1:0.1:10, ntrials=2, niters=100, sc_weight=3.0));
+julia> optcode_tree = optimize_code(code, uniformsize(code, 2), TreeSA(sc_target=28, βs=0.1:0.1:10,
+								ntrials=2, niters=100, sc_weight=3.0));
+
+julia> optcode_tree_with_slice = optimize_code(code, uniformsize(code, 2), TreeSA(sc_target=28, βs=0.1:0.1:10, 
+							ntrials=2, niters=100, sc_weight=3.0, nslices=5));
 
 julia> optcode_kahypar = optimize_code(code, uniformsize(code, 2), KaHyParBipartite(sc_target=30, max_group_size=50));
 
@@ -41,14 +45,21 @@ julia> OMEinsum.timespace_complexity(code, uniformsize(code, 2))
 (200.0, 0.0)
 
 julia> OMEinsum.timespace_complexity(optcode_kahypar, uniformsize(code, 2))
-(38.0290167456887, 26.0)
+(39.00774639886569, 28.0)
 
 julia> OMEinsum.timespace_complexity(optcode_sa, uniformsize(code, 2))
-(34.86528023060411, 27.0)
+(39.09524927371961, 28.0)
 
 julia> tc, sc = OMEinsum.timespace_complexity(optcode_tree, uniformsize(code, 2))
-(30.541894421918297, 26.0)
+(31.13883492534964, 27.0)
+
+julia> tc, sc = OMEinsum.timespace_complexity(optcode_tree_with_slice, uniformsize(code, 2))
+(31.292828948918775, 22.0)
 ```
+
+## Acknowledge OMEinsum/OMEinsumContractionOrders
+Since we do not have a paper to cite, we wish anyone who finds this package useful in his research can post a comment under this issue:
+https://github.com/TensorBFS/OMEinsumContractionOrders.jl/issues/21
 
 ## References
 
