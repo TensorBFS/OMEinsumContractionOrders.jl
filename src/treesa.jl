@@ -81,7 +81,7 @@ function optimize_tree(code, size_dict; nslices::Int=0, sc_target=20, βs=0.1:0.
     flatten_code = OMEinsum.flatten(code)
     ninputs = length(OMEinsum.getixs(flatten_code))
     if ninputs <= 2
-        return NestedEinsum(ntuple(i->i, ninputs), DynamicEinCode(flatten_code))
+        return NestedEinsum(ntuple(i->i, ninputs), flatten_code isa DynamicEinCode ? flatten_code : DynamicEinCode(flatten_code))
     end
     labels = _label_dict(flatten_code)  # label to int
     inverse_map = Dict([v=>k for (k,v) in labels])
