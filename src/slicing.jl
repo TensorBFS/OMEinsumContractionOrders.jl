@@ -100,7 +100,7 @@ function take_slice(x, ix, slicemap::Dict)
 end
 function fill_slice!(x, ix, chunk, slicemap::Dict)
     if ndims(x) == 0
-        x[] += chunk[]
+        x .+= chunk  # to avoid CUDA `getindex!`.
     else
         slices = map(l->haskey(slicemap, l) ? (slicemap[l]:slicemap[l]) : Colon(), ix)
         x[slices...] .+= chunk
