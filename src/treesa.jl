@@ -95,7 +95,7 @@ function optimize_tree(code, size_dict; nslices::Int=0, sc_target=20, βs=0.1:0.
         tree = _initializetree(code, size_dict, initializer; greedy_method=greedy_method, greedy_nrepeat=greedy_nrepeat)
         slicer = Slicer(log2_sizes, nslices)
         optimize_tree_sa!(tree, log2_sizes, slicer; sc_target=sc_target, βs=βs, niters=niters, sc_weight=sc_weight, rw_weight=rw_weight)
-        tc, sc, rw = tree_timespace_complexity(tree, log2_sizes)
+        tc, sc, rw = tree_timespace_complexity(tree, slicer.log2_sizes)
         @debug "trial $t, time complexity = $tc, space complexity = $sc, read-write complexity = $rw."
         trees[t], tcs[t], scs[t], rws[t], slicers[t] = tree, tc, sc, rw, slicer
     end
