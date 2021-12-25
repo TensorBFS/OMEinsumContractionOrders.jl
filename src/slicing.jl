@@ -95,15 +95,15 @@ function Base.getindex(si::SliceIterator, indices...)
 end
 
 function take_slice(x, ix, slicemap::Dict)
-    slices = map(l->haskey(slicemap, l) ? (slicemap[l]:slicemap[l]) : Colon(), ix)
-    return x[slices...]
+    slices = map(l->haskey(slicemap, l) ? slicemap[l] : Colon(), ix)
+    return view(x,slices...)
 end
 function fill_slice!(x, ix, chunk, slicemap::Dict)
     if ndims(x) == 0
         x .+= chunk  # to avoid CUDA `getindex!`.
     else
-        slices = map(l->haskey(slicemap, l) ? (slicemap[l]:slicemap[l]) : Colon(), ix)
-        x[slices...] .+= chunk
+        slices = map(l->haskey(slicemap, l) ? slicemap[l] : Colon(), ix)
+        view(x, slices...) .+= chunk
     end
 end
 
@@ -114,13 +114,23 @@ function (se::SlicedEinsum{LT,ET})(@nospecialize(xs::AbstractArray...); size_inf
 
     it = SliceIterator(se, size_dict)
     res = OMEinsum.get_output_array(xs, getindex.(Ref(size_dict), it.iyv))
+    eins_sliced = drop_slicedim(se.eins, se.slicing)
     for slicemap in it
         xsi = ntuple(i->take_slice(xs[i], it.ixsv[i], slicemap), length(xs))
-        resi = einsum(se.eins, xsi, it.size_dict_sliced)
+        resi = einsum(eins_sliced, xsi, it.size_dict_sliced)
         fill_slice!(res, it.iyv, resi, slicemap)
     end
     return res
 end
+
+function drop_slicedim(ne::NestedEinsum, slicing::Slicing)
+    isleaf(ne) && return ne
+    ixs = map(ix->filter(∉(slicing.legs), ix), getixsv(ne.eins))
+    iy = filter(∉(slicing.legs), getiyv(ne.eins))
+    NestedEinsum(map(arg->drop_slicedim(arg, slicing), ne.args), similar_eincode(ne.eins, ixs, iy))
+end
+similar_eincode(::DynamicEinCode, ixs, iy) = DynamicEinCode(ixs, iy)
+similar_eincode(::StaticEinCode, ixs, iy) = StaticEinCode{(Tuple.(ixs)...,), (iy...,)}()
 
 # forward some interfaces
 function OMEinsum.timespace_complexity(code::SlicedEinsum, size_dict)
