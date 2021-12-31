@@ -35,8 +35,8 @@ end
     ne = NestedEinsum((1,), code)
     dne = NestedEinsum((1,), DynamicEinCode(code))
     @test optimize_code(code, sizes, GreedyMethod()) == ne
-    @test optimize_code(code, sizes, TreeSA()) == dne
-    @test optimize_code(code, sizes, TreeSA(nslices=2)) == dne
+    @test optimize_code(code, sizes, TreeSA()) == SlicedEinsum(Slicing(Char[]), dne)
+    @test optimize_code(code, sizes, TreeSA(nslices=2)) == SlicedEinsum(Slicing(Char[]), dne)
     @test optimize_code(code, sizes, KaHyParBipartite(sc_target=25)) == dne
     @test optimize_code(code, sizes, SABipartite(sc_target=25)) == dne
 end

@@ -29,6 +29,7 @@ end
 struct Slicing{LT}
     legs::Vector{LT}   # sliced leg and its original size
 end
+Base.:(==)(se::Slicing, se2::Slicing) = se.legs == se2.legs
 
 Slicing(s::Slicer, inverse_map) = Slicing([inverse_map[l] for (l, s) in s.legs])
 Base.length(s::Slicing) = length(s.legs)
@@ -37,6 +38,7 @@ struct SlicedEinsum{LT, Ein} <: AbstractEinsum
     slicing::Slicing{LT}
     eins::Ein
 end
+Base.:(==)(se::SlicedEinsum, se2::SlicedEinsum) = se.slicing == se2.slicing && se.eins == se2.eins
 
 # Iterate over tensor network slices, its iterator interface returns `slicemap` as a Dict
 # slice and fill tensors with

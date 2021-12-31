@@ -113,7 +113,7 @@ end
     res = optimize_greedy(code,uniformsize(code, 2))
     tc, sc = OMEinsum.timespace_complexity(res, uniformsize(code, 2))
 
-    @test optimize_tree(res,uniformsize(code, 2); sc_target=32, βs=0.1:0.05:20.0, ntrials=0, niters=10, sc_weight=1.0, rw_weight=1.0) isa NestedEinsum
+    @test optimize_tree(res,uniformsize(code, 2); sc_target=32, βs=0.1:0.05:20.0, ntrials=0, niters=10, sc_weight=1.0, rw_weight=1.0) isa SlicedEinsum
     optcode = optimize_tree(res,uniformsize(code, 2); sc_target=32, βs=0.1:0.05:20.0, ntrials=2, niters=10, sc_weight=1.0, rw_weight=1.0)
     tc, sc = OMEinsum.timespace_complexity(optcode, uniformsize(code, 2))
     @test sc <= 32
