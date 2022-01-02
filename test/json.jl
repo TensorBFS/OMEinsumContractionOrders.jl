@@ -1,0 +1,16 @@
+using Test, OMEinsumContractionOrders, OMEinsum
+
+@testset "save load" begin
+    for code in [
+        EinCode([[1,2], [2,3], [3,4]], [1,4]),
+        EinCode([['a','b'], ['b','c'], ['c','d']], ['a','d'])
+    ]
+        for optcode in [optimize_code(code, uniformsize(code, 2), GreedyMethod()),
+            optimize_code(code, uniformsize(code, 2), TreeSA(nslices=1))]
+            filename = tempname()
+            dumptofile(filename, optcode)
+            code2 = loadfromfile(filename)
+            @test optcode == code2
+        end
+    end
+end

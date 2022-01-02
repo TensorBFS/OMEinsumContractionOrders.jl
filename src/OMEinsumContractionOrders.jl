@@ -5,6 +5,7 @@ using SparseArrays, Suppressor
 using OMEinsum
 using OMEinsum: NestedEinsum, getixsv, getiyv, DynamicEinCode, StaticEinCode, isleaf, MinSpaceDiff, MinSpaceOut
 export MinSpaceDiff, MinSpaceOut
+using JSON
 
 using Requires
 function __init__()
@@ -38,5 +39,6 @@ include("sa.jl")
 include("treesa.jl")
 include("simplify.jl")
 include("interfaces.jl")
+include("json.jl")
 
 end
