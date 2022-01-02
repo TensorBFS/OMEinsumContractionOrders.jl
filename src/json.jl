@@ -1,8 +1,8 @@
 using JSON
 
-export dumptofile, loadfromfile
+export writejson, readjson
 
-function dumptofile(filename::AbstractString, ne::Union{NestedEinsum, SlicedEinsum})
+function writejson(filename::AbstractString, ne::Union{NestedEinsum, SlicedEinsum})
     if ne isa NestedEinsum
         dict = _todict(ne)
     else
@@ -19,7 +19,7 @@ function _todict(ne::NestedEinsum)
     dict["tree"] = todict(ne)
     return dict
 end
-function loadfromfile(filename::AbstractString)
+function readjson(filename::AbstractString)
     dict = JSON.parsefile(filename)
     lt = dict["label-type"]
     LT = if lt == "Char"
@@ -64,7 +64,7 @@ function fromdict(::Type{LT}, dict::Dict) where LT
 end
 
 function einsfromdict(::Type{LT}, dict::Dict) where LT
-    return EinCode([_convert.(LT, ix) for ix in dict["ixs"]], _convert.(LT, dict["iy"]))
+    return EinCode([collect(LT, _convert.(LT, ix)) for ix in dict["ixs"]], collect(LT, _convert.(LT, dict["iy"])))
 end
 
 _convert(::Type{LT}, x) where LT = convert(LT, x)

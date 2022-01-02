@@ -8,8 +8,8 @@ using Test, OMEinsumContractionOrders, OMEinsum
         for optcode in [optimize_code(code, uniformsize(code, 2), GreedyMethod()),
             optimize_code(code, uniformsize(code, 2), TreeSA(nslices=1))]
             filename = tempname()
-            dumptofile(filename, optcode)
-            code2 = loadfromfile(filename)
+            writejson(filename, optcode)
+            code2 = readjson(filename)
             @test optcode == code2
         end
     end
