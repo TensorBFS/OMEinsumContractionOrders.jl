@@ -171,7 +171,8 @@ function optimize_tree_sa!(tree::ExprTree, log2_sizes, slicer::Slicer; βs, nite
             # 2). slice the best not sliced label (it must appear in largest tensors)
             best_not_sliced_labels = filter(x->!haskey(slicer.legs, x), best_labels)
             if !isempty(best_not_sliced_labels)
-                best_not_sliced_label = rand(best_not_sliced_labels)  # TODO: can we have a selection rule than random selection?
+                #best_not_sliced_label = rand(best_not_sliced_labels)  # random or best
+                best_not_sliced_label = best_not_sliced_labels[findmax(l->count(==(l), best_not_sliced_labels), best_not_sliced_labels)[2]]
                 if length(slicer) < slicer.max_size  # if has not reached maximum number of slices, add one slice
                     push!(slicer, best_not_sliced_label)
                 else                                 # otherwise replace one slice
