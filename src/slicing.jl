@@ -98,7 +98,11 @@ end
 
 function take_slice(x, ix, slicemap::Dict)
     slices = map(l->haskey(slicemap, l) ? slicemap[l] : Colon(), ix)
-    return view(x,slices...)
+    if all(x->x isa Integer, slices)
+        return copy(view(x,slices...))
+    else
+        return x[slices...]
+    end
 end
 function fill_slice!(x, ix, chunk, slicemap::Dict)
     if ndims(x) == 0
