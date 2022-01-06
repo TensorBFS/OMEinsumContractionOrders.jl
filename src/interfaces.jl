@@ -7,7 +7,7 @@ end
 struct MergeVectors <: CodeSimplifier end
 
 """
-    optimize_code(eincode, size_dict, optimizer = GreedyMethod(), simplifier=nothing)
+    optimize_code(eincode, size_dict, optimizer = GreedyMethod(), simplifier=nothing, permute=true)
 
 Optimize the einsum contraction code and reduce the time/space complexity of tensor network contraction.
 Returns a `NestedEinsum` instance. Input arguments are
@@ -16,14 +16,18 @@ Returns a `NestedEinsum` instance. Input arguments are
 * `size` is a dictionary of "edge label=>edge size" that contains the size information, one can use `uniformsize(eincode, 2)` to create a uniform size.
 * `optimizer` is a `CodeOptimizer` instance, should be one of `GreedyMethod`, `KaHyParBipartite`, `SABipartite` or `TreeSA`. Check their docstrings for details.
 * `simplifier` is one of `MergeVectors` or `MergeGreedy`.
+* optimize the permutation if `permute` is true.
 """
-function optimize_code(code::Union{EinCode, NestedEinsum}, size_dict::Dict, optimizer::CodeOptimizer, simplifier=nothing)
+function optimize_code(code::Union{EinCode, NestedEinsum}, size_dict::Dict, optimizer::CodeOptimizer, simplifier=nothing, permute::Bool=true)
     if simplifier === nothing
-        return _optimize_code(code, size_dict, optimizer)
+        optcode = _optimize_code(code, size_dict, optimizer)
     else
         simpl, code = simplify_code(code, size_dict, simplifier)
-        optcode = _optimize_code(code, size_dict, optimizer)
-        return embed_simplifier(optcode, simpl)
+        optcode0 = _optimize_code(code, size_dict, optimizer)
+        optcode = embed_simplifier(optcode0, simpl)
+    end
+    if permute
+        optimize_permute(optcode, 0)
     end
 end
 
