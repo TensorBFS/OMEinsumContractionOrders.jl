@@ -136,13 +136,14 @@ similar_eincode(::DynamicEinCode, ixs, iy) = DynamicEinCode(ixs, iy)
 similar_eincode(::StaticEinCode, ixs, iy) = StaticEinCode{(Tuple.(ixs)...,), (iy...,)}()
 
 # forward some interfaces
-function OMEinsum.timespace_complexity(code::SlicedEinsum, size_dict)
+function OMEinsum.timespacereadwrite_complexity(code::SlicedEinsum, size_dict)
     size_dict_sliced = copy(size_dict)
     for l in code.slicing.legs
         size_dict_sliced[l] = 1
     end
-    tc, sc = timespace_complexity(code.eins, size_dict_sliced)
-    tc + sum(log2.(getindex.(Ref(size_dict), code.slicing.legs))), sc
+    tc, sc, rw = timespacereadwrite_complexity(code.eins, size_dict_sliced)
+    sliceoverhead = sum(log2.(getindex.(Ref(size_dict), code.slicing.legs)))
+    tc + sliceoverhead, sc, rw+sliceoverhead
 end
 function OMEinsum.flop(code::SlicedEinsum, size_dict)
     size_dict_sliced = copy(size_dict)

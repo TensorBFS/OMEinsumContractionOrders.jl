@@ -10,7 +10,7 @@ function writejson(filename::AbstractString, ne::Union{NestedEinsum, SlicedEinsu
         dict["slices"] = ne.slicing.legs
     end
     open(filename, "w") do f
-        JSON.print(f, dict, 4)
+        JSON.print(f, dict, 0)
     end
 end
 function _todict(ne::NestedEinsum)
