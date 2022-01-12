@@ -89,3 +89,49 @@ function embed_simplifier(code::NestedEinsum, simplifier)
 end
 
 embed_simplifier(code::SlicedEinsum, simplifier) = SlicedEinsum(code.slicing, embed_simplifier(code.eins, simplifier))
+
+export optimize_permute
+optimize_permute(se::SlicedEinsum, level=0) = SlicedEinsum(se.slicing, se.eins isa EinCode ? se.eins : optimize_permute(se.eins, level))
+function optimize_permute(ne::NestedEinsum, level=0)
+    if isleaf(ne)
+        return ne
+    else
+        args = optimize_permute.(ne.args, level+1)
+        ixs0 = getixsv(ne.eins)
+        ixs = [isleaf(x) ? ixs0[i] : getiyv(x.eins) for (i, x) in enumerate(args)]
+        iy = level == 0 ? getiyv(ne.eins) : optimize_output_permute(ixs, getiyv(ne.eins))
+        return NestedEinsum(args, _similar(ne.eins, ixs, iy))
+    end
+end
+
+function optimize_output_permute(ixs::AbstractVector{<:AbstractVector{LT}}, iy::AbstractVector{LT}) where LT
+    if length(ixs) != 2
+        return iy
+    else
+        iA, iB = ixs
+        batchdim = LT[]
+        outerA = LT[]
+        outerB = LT[]
+        bcastdim = LT[]
+        for l in iy
+            if l ∈ iA
+                if l ∈ iB
+                    push!(batchdim, l)
+                else
+                    push!(outerA, l)
+                end
+            else
+                if l ∈ iB
+                    push!(outerB, l)
+                else
+                    push!(bcastdim, l)
+                end
+            end
+        end
+        return vcat(
+            sort!(outerA, by=l->findfirst(==(l), iA)),
+            sort!(outerB, by=l->findfirst(==(l), iB)),
+            sort!(batchdim, by=l->findfirst(==(l), iA)),
+            bcastdim)
+    end
+end

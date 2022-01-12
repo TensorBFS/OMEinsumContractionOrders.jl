@@ -98,7 +98,11 @@ end
 
 function take_slice(x, ix, slicemap::Dict)
     slices = map(l->haskey(slicemap, l) ? slicemap[l] : Colon(), ix)
-    return view(x,slices...)
+    if all(x->x isa Integer, slices)
+        return copy(view(x,slices...))
+    else
+        return x[slices...]
+    end
 end
 function fill_slice!(x, ix, chunk, slicemap::Dict)
     if ndims(x) == 0
@@ -109,8 +113,8 @@ function fill_slice!(x, ix, chunk, slicemap::Dict)
     end
 end
 
-function (se::SlicedEinsum{LT,ET})(@nospecialize(xs::AbstractArray...); size_info = nothing) where {LT, ET}
-    length(se.slicing) == 0 && return se.eins(xs...; size_info=size_info)
+function (se::SlicedEinsum{LT,ET})(@nospecialize(xs::AbstractArray...); size_info = nothing, kwargs...) where {LT, ET}
+    length(se.slicing) == 0 && return se.eins(xs...; size_info=size_info, kwargs...)
     size_dict = size_info===nothing ? Dict{OMEinsum.labeltype(se),Int}() : copy(size_info)
     OMEinsum.get_size_dict!(se, xs, size_dict)
 
@@ -120,7 +124,7 @@ function (se::SlicedEinsum{LT,ET})(@nospecialize(xs::AbstractArray...); size_inf
     for (k, slicemap) in enumerate(it)
         @debug "computing slice $k/$(length(it))"
         xsi = ntuple(i->take_slice(xs[i], it.ixsv[i], slicemap), length(xs))
-        resi = einsum(eins_sliced, xsi, it.size_dict_sliced)
+        resi = einsum(eins_sliced, xsi, it.size_dict_sliced; kwargs...)
         fill_slice!(res, it.iyv, resi, slicemap)
     end
     return res
