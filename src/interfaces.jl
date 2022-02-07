@@ -1,9 +1,24 @@
 export simplify_code, optimize_code, GreedyMethod, KaHyParBipartite, SABipartite, TreeSA, MergeGreedy, MergeVectors, uniformsize
 
 abstract type CodeSimplifier end
+
+"""
+    MergeGreedy <: CodeSimplifier
+    MergeGreedy(; threshhold=-1e-12)
+
+Contraction code simplifier (in order to reduce the time of calling optimizers) that
+merges tensors greedily if the space complexity of merged tensors is reduced (difference smaller than the `threshhold`).
+"""
 Base.@kwdef struct MergeGreedy <: CodeSimplifier
     threshhold::Float64=-1e-12
 end
+
+"""
+    MergeVectors <: CodeSimplifier
+    MergeVectors()
+
+Contraction code simplifier (in order to reduce the time of calling optimizers) that merges vectors to closest tensors.
+"""
 struct MergeVectors <: CodeSimplifier end
 
 """
