@@ -66,3 +66,44 @@ function _optimize_code(code, size_dict, optimizer::TreeSA)
 end
 
 uniformsize(code::AbstractEinsum, size) = Dict([l=>size for l in uniquelabels(code)])
+
+export peak_memory
+"""
+    peak_memory(code, size_dict::Dict)
+
+Estimate peak memory usage in number of elements.
+"""
+function peak_memory(code::NestedEinsum, size_dict::Dict)
+    ixs = getixsv(code.eins)
+    iy = getiyv(code.eins)
+    # `largest_size` is the largest size during contraction
+    largest_size = 0
+    # `tempsize` is the memory to store contraction results from previous branches
+    tempsize = 0
+    for (i, arg) in enumerate(code.args)
+        if isleaf(arg)
+            largest_size_i = _mem(ixs[i], size_dict) + tempsize
+        else
+            largest_size_i = peak_memory(arg, size_dict) + tempsize
+        end
+        tempsize += _mem(ixs[i], size_dict)
+        largest_size = max(largest_size, largest_size_i)
+    end
+    # compare with currect contraction
+    return max(largest_size, tempsize + _mem(iy, size_dict))
+end
+_mem(iy, size_dict::Dict{LT,VT}) where {LT,VT} = isempty(iy) ? zero(VT) : prod(l->size_dict[l], iy)
+
+function peak_memory(code::EinCode, size_dict::Dict)
+    ixs = getixsv(code)
+    iy = getiyv(code)
+    return sum(ix->_mem(ix, size_dict), ixs) + _mem(iy, size_dict)
+end
+
+function peak_memory(code::SlicedEinsum, size_dict::Dict)
+    size_dict_sliced = copy(size_dict)
+    for l in code.slicing.legs
+        size_dict_sliced[l] = 1
+    end
+    return peak_memory(code.eins, size_dict_sliced) + _mem(getiyv(code.eins), size_dict)
+end
