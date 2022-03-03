@@ -56,3 +56,20 @@ end
     @test !have_identity(tn4)
     @test tn(xs...) ≈ tn4(xs...)
 end
+
+@testset "optimize permute" begin
+    code = ein"lcij,lcjk->kcli"
+    @test OMEinsumContractionOrders.optimize_output_permute(getixsv(code), getiyv(code)) == collect("iklc")
+    code = ein"lcij,lcjk,c->kcli"
+    @test OMEinsumContractionOrders.optimize_output_permute(getixsv(code), getiyv(code)) == collect("kcli")
+    code = ein"lcij,lcjk->"
+    @test OMEinsumContractionOrders.optimize_output_permute(getixsv(code), getiyv(code)) == Char[]
+end
+
+@testset "optimize permute" begin
+    code = ein"(lcij,lcjk),lcik->"
+    res = NestedEinsum((NestedEinsum((NestedEinsum{StaticEinCode}(1),NestedEinsum{StaticEinCode}(2)), ein"lcij,lcjk->iklc"), NestedEinsum{StaticEinCode}(3)), ein"iklc,lcik->")
+    @test optimize_permute(code) == res
+    code = SlicedEinsum(Slicing(['c']), ein"(lcij,lcjk),lcik->")
+    @test optimize_permute(code) == SlicedEinsum(Slicing(['c']), res)
+end

@@ -24,3 +24,7 @@ end
 @testset "interfaces" begin
     include("interfaces.jl")
 end
+
+@testset "json" begin
+    include("json.jl")
+end
