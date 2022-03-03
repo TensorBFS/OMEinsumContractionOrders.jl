@@ -80,6 +80,7 @@ function Base.iterate(si::SliceIterator)
 end
 function Base.iterate(si::SliceIterator, state)
     i, (ci,cistate), slicemap = state
+    slicemap = copy(slicemap)
     if i >= length(si.indices)
         return nothing  # NOTE: ci is same as cistate
     else
@@ -117,7 +118,9 @@ function (se::SlicedEinsum{LT,ET})(@nospecialize(xs::AbstractArray...); size_inf
     it = SliceIterator(se, size_dict)
     res = OMEinsum.get_output_array(xs, getindex.(Ref(size_dict), it.iyv))
     eins_sliced = drop_slicedim(se.eins, se.slicing)
-    for (k, slicemap) in enumerate(it)
+    slices = collect(it)
+    Threads.@threads for k=1:length(slices)
+        slicemap = slices[k]
         @debug "computing slice $k/$(length(it))"
         xsi = ntuple(i->take_slice(xs[i], it.ixsv[i], slicemap), length(xs))
         resi = einsum(eins_sliced, xsi, it.size_dict_sliced)
