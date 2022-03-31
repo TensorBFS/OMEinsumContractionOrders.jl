@@ -41,6 +41,9 @@ end
 function bipartite_sc(bipartiter::KaHyParBipartite, adj::SparseMatrixCSC, vertices, log2_sizes)
     n_v = length(vertices)
     subgraph, remaining_edges = induced_subhypergraph(adj, vertices)
+    if !isdefined(@__MODULE__, :KaHyPar)
+        error("Module `KaHyPar` not found, please type `using KaHyPar` before using the `KaHyParBipartite` optimizer!")
+    end
     hypergraph = KaHyPar.HyperGraph(subgraph, ones(n_v), convert2int(log2_sizes[remaining_edges]))
     local parts
     min_sc = 999999
