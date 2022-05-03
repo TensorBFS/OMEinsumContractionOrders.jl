@@ -201,4 +201,13 @@ end
     @test length(code4.slicing) == 5 && code4.slicing.legs == [5,1,4,3,2]
     @test code1(xs...) ≈ code2(xs...)
     @test code1(xs...) ≈ code3(xs...)
+
+    function random_regular_eincode_char(n, k)
+        g = Graphs.random_regular_graph(n, k)
+        ixs = [minmax('0' + e.src, '0'+e.dst) for e in Graphs.edges(g)]
+        return EinCode((ixs..., [('0'+i,) for i in Graphs.vertices(g)]...), ())
+    end
+    code = EinCode(random_regular_eincode_char(20, 3).ixs, ['3','8','2'])
+    code1 = optimize_tree(code, uniformsize(code, 2); ntrials=1, fixed_slices=['7'])
+    @test OMEinsum.labeltype(code1) == Char
 end
