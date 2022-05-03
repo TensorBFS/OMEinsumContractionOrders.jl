@@ -27,7 +27,7 @@ julia> using OMEinsum, OMEinsumContractionOrders, Graphs, KaHyPar
 julia> function random_regular_eincode(n, k; optimize=nothing)
 	    g = Graphs.random_regular_graph(n, k)
 	    ixs = [minmax(e.src,e.dst) for e in Graphs.edges(g)]
-	    return EinCode((ixs..., [(i,) for i in     Graphs.vertices(g)]...), ())
+	    return EinCode((ixs..., [(i,) for i in Graphs.vertices(g)]...), ())
     end
     
 julia> code = random_regular_eincode(200, 3);
@@ -121,6 +121,11 @@ To credit the `TreeSA` method,
       primaryClass={quant-ph}
 }
 ```
+
+## Multi-GPU computation
+Check this Gist:
+
+https://gist.github.com/GiggleLiu/d5b66c9883f0c5df41a440589983ab99
 
 ## Authors
 Jin-Guo Liu and Pan Zhang
