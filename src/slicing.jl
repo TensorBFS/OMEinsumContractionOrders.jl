@@ -39,9 +39,9 @@ struct Slicing{LT}
 end
 Base.:(==)(se::Slicing, se2::Slicing) = se.legs == se2.legs
 
-function Slicing(s::Slicer, inverse_map)
+function Slicing(s::Slicer, inverse_map::Dict{Int,LT}) where LT
     # we want to keep the order of input fixed slices!
-    Slicing([[inverse_map[l] for l in s.fixed_slices]..., [inverse_map[l] for (l, sz) in s.legs if l ∉ s.fixed_slices]...])
+    Slicing(LT[[inverse_map[l] for l in s.fixed_slices]..., [inverse_map[l] for (l, sz) in s.legs if l ∉ s.fixed_slices]...])
 end
 Base.length(s::Slicing) = length(s.legs)
 
