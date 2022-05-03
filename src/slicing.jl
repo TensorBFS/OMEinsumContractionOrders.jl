@@ -66,13 +66,16 @@ end
 function SliceIterator(se::SlicedEinsum, size_dict::Dict{LT}) where LT
     iyv = OMEinsum.getiyv(se.eins.eins)
     ixsv = OMEinsum.getixsv(se.eins)
-    n = length(se.slicing)
+    return SliceIterator(ixsv, iyv, se.slicing.legs, size_dict)
+end
 
+function SliceIterator(ixsv, iyv, legs, size_dict::Dict{LT}) where LT
+    n = length(legs)
     size_dict_sliced = copy(size_dict)
     sliced_sizes = Vector{Int}(undef, n)
     sliced_labels = Vector{LT}(undef, n)
     for i = 1:n
-        l = se.slicing.legs[i]
+        l = legs[i]
         sliced_sizes[i] = size_dict[l]
         sliced_labels[i] = l
         size_dict_sliced[l] = 1

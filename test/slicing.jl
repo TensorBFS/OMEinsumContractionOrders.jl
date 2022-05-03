@@ -3,7 +3,7 @@ using Test, Random
 
 @testset "slicer" begin
     log2_sizes = [1, 2,3 ,4.0]
-    s = Slicer(log2_sizes, 3)
+    s = Slicer(log2_sizes, 3, [])
     push!(s, 1)
     @test_throws AssertionError push!(s, 1)
     push!(s, 2)
