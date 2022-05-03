@@ -30,7 +30,7 @@ Base.@kwdef struct TreeSA{RT,IT,GM,LT} <: CodeOptimizer
     rw_weight::Float64 = 0.2
     initializer::Symbol = :greedy
     nslices::Int = 0
-    fixed_slices::Vector{LT} = LT[]
+    fixed_slices::Vector{LT} = []
     # configure greedy method
     greedy_config::GM = GreedyMethod(nrepeat=1)
 end
