@@ -189,13 +189,16 @@ end
     # slice with fixed slices
     Random.seed!(2)
     code = EinCode(random_regular_eincode(20, 3).ixs, [3,10,2])
-    @test_throws ErrorException optimize_tree(code, uniformsize(code, 2); nslices=5, fixed_slices=[5,3,8,1,2,4,11])
+    code0 = optimize_tree(code, uniformsize(code, 2); nslices=5, fixed_slices=[5,3,8,1,2,4,11])
     code1 = optimize_tree(code, uniformsize(code, 2); ntrials=1, nslices=5)
     code2 = optimize_tree(code, uniformsize(code, 2); ntrials=1, nslices=5, fixed_slices=[5,3])
     code3 = optimize_tree(code, uniformsize(code, 2); ntrials=1, nslices=5, fixed_slices=[5,1,4,3,2])
+    code4 = optimize_tree(code, uniformsize(code, 2); ntrials=1, fixed_slices=[5,1,4,3,2])
     xs = [[2*randn(2, 2) for i=1:30]..., [randn(2) for i=1:20]...]
+    @test length(code0.slicing) == 7 && code0.slicing.legs == [5,3,8,1,2,4,11]
     @test length(code2.slicing) == 5 && code2.slicing.legs[1:2] == [5,3]
     @test length(code3.slicing) == 5 && code3.slicing.legs == [5,1,4,3,2]
+    @test length(code4.slicing) == 5 && code4.slicing.legs == [5,1,4,3,2]
     @test code1(xs...) ≈ code2(xs...)
     @test code1(xs...) ≈ code3(xs...)
 end

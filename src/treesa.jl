@@ -93,7 +93,8 @@ Check the docstring of [`TreeSA`](@ref) for detailed explaination of other input
 """
 function optimize_tree(code, size_dict; nslices::Int=0, sc_target=20, βs=0.1:0.1:10, ntrials=20, niters=100, sc_weight=1.0, rw_weight=0.2, initializer=:greedy, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=1, fixed_slices=[])
     if nslices < length(fixed_slices)
-        error("Number of slices: $(nslices) is smaller than the number of fixed slices: $(length(fixed_slices)), please check the input!")
+        @warn("Number of slices: $(nslices) is smaller than the number of fixed slices, setting it to: $(length(fixed_slices)).")
+        nslices = length(fixed_slices)
     end
     # get input labels (`getixsv`) and output labels (`getiyv`) in the einsum code.
     ixs, iy = getixsv(code), getiyv(code)
