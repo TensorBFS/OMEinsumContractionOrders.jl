@@ -4,11 +4,19 @@ struct Slicer
     log2_sizes::Vector{Float64}   # the size dict after slicing
     legs::Dict{Int,Float64}   # sliced leg and its original size
     max_size::Int       # maximum number of sliced legs
+    fixed_slices::Vector{Int}     # number of fixed legs
 end
-Slicer(log2_sizes::AbstractVector{Float64}, max_size::Int) = Slicer(collect(log2_sizes), Dict{Int,Float64}(), max_size)
+function Slicer(log2_sizes::AbstractVector{Float64}, max_size::Int, fixed_slices::AbstractVector)
+    slicer = Slicer(collect(log2_sizes), Dict{Int,Float64}(), max_size, collect(Int,fixed_slices))
+    for l in fixed_slices
+        push!(slicer, l)
+    end
+    return slicer
+end
 Base.length(s::Slicer) = length(s.legs)
 function Base.replace!(slicer::Slicer, pair::Pair)
     worst, best = pair
+    @assert worst ∉ slicer.fixed_slices
     @assert haskey(slicer.legs, worst)
     @assert !haskey(slicer.legs, best)
     slicer.log2_sizes[worst] = slicer.legs[worst]       # restore worst size
@@ -31,7 +39,10 @@ struct Slicing{LT}
 end
 Base.:(==)(se::Slicing, se2::Slicing) = se.legs == se2.legs
 
-Slicing(s::Slicer, inverse_map) = Slicing([inverse_map[l] for (l, s) in s.legs])
+function Slicing(s::Slicer, inverse_map)
+    # we want to keep the order of input fixed slices!
+    Slicing([[inverse_map[l] for l in s.fixed_slices]..., [inverse_map[l] for (l, sz) in s.legs if l ∉ s.fixed_slices]...])
+end
 Base.length(s::Slicing) = length(s.legs)
 
 struct SlicedEinsum{LT, Ein} <: AbstractEinsum

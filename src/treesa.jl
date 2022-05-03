@@ -16,11 +16,12 @@ Optimize the einsum contraction pattern using the simulated annealing on tensor 
 * `rw_weight` is the relative importance factor of memory read and write in the loss compared with the time complexity.
 * `initializer` specifies how to determine the initial configuration, it can be `:greedy` or `:random`. If it is using `:greedy` method to generate the initial configuration, it also uses two extra arguments `greedy_method` and `greedy_nrepeat`.
 * `nslices` is the number of sliced legs, default is 0.
+* `fixed_slices` is a vector of sliced legs, default is `[]`.
 
 ### References
 * [Recursive Multi-Tensor Contraction for XEB Verification of Quantum Circuits](https://arxiv.org/abs/2108.05665)
 """
-Base.@kwdef struct TreeSA{RT,IT,GM} <: CodeOptimizer
+Base.@kwdef struct TreeSA{RT,IT,GM,LT} <: CodeOptimizer
     sc_target::RT = 20
     βs::IT = 0.01:0.05:15
     ntrials::Int = 10
@@ -29,6 +30,7 @@ Base.@kwdef struct TreeSA{RT,IT,GM} <: CodeOptimizer
     rw_weight::Float64 = 0.2
     initializer::Symbol = :greedy
     nslices::Int = 0
+    fixed_slices::Vector{LT} = LT[]
     # configure greedy method
     greedy_config::GM = GreedyMethod(nrepeat=1)
 end
@@ -84,12 +86,15 @@ _equal(t1::Vector, t2::Vector) = Set(t1) == Set(t2)
 
 # this is the main function
 """
-    optimize_tree(code, size_dict; sc_target=20, βs=0.1:0.1:10, ntrials=2, niters=100, sc_weight=1.0, rw_weight=0.2, initializer=:greedy, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=1)
+    optimize_tree(code, size_dict; sc_target=20, βs=0.1:0.1:10, ntrials=2, niters=100, sc_weight=1.0, rw_weight=0.2, initializer=:greedy, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=1, fixed_slices=[])
 
 Optimize the einsum contraction pattern specified by `code`, and edge sizes specified by `size_dict`.
-Check the docstring of `TreeSA` for detailed explaination of other input arguments.
+Check the docstring of [`TreeSA`](@ref) for detailed explaination of other input arguments.
 """
-function optimize_tree(code, size_dict; nslices::Int=0, sc_target=20, βs=0.1:0.1:10, ntrials=20, niters=100, sc_weight=1.0, rw_weight=0.2, initializer=:greedy, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=1)
+function optimize_tree(code, size_dict; nslices::Int=0, sc_target=20, βs=0.1:0.1:10, ntrials=20, niters=100, sc_weight=1.0, rw_weight=0.2, initializer=:greedy, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=1, fixed_slices=[])
+    if nslices < length(fixed_slices)
+        error("Number of slices: $(nslices) is smaller than the number of fixed slices: $(length(fixed_slices)), please check the input!")
+    end
     # get input labels (`getixsv`) and output labels (`getiyv`) in the einsum code.
     ixs, iy = getixsv(code), getiyv(code)
     ninputs = length(ixs)  # number of input tensors
@@ -110,8 +115,8 @@ function optimize_tree(code, size_dict; nslices::Int=0, sc_target=20, βs=0.1:0.
     @threads for t = 1:ntrials  # multi-threading on different trials, use `JULIA_NUM_THREADS=5 julia xxx.jl` for setting number of threads.
         # 1). random/greedy initialize a contraction tree.
         tree = _initializetree(code, size_dict, initializer; greedy_method=greedy_method, greedy_nrepeat=greedy_nrepeat)
-        # 2). optimize the `tree`` and `slicer` in a inplace manner.
-        slicer = Slicer(log2_sizes, nslices)
+        # 2). optimize the `tree` and `slicer` in a inplace manner.
+        slicer = Slicer(log2_sizes, nslices, Int[labels[l] for l in fixed_slices])
         optimize_tree_sa!(tree, log2_sizes, slicer; sc_target=sc_target, βs=βs, niters=niters, sc_weight=sc_weight, rw_weight=rw_weight)
         # 3). evaluate time-space-readwrite complexities.
         tc, sc, rw = tree_timespace_complexity(tree, slicer.log2_sizes)
@@ -160,7 +165,7 @@ function optimize_tree_sa!(tree::ExprTree, log2_sizes, slicer::Slicer; βs, nite
             "β = $β, tc = $tc, sc = $sc, rw = $rw"
         end
         ###### Stage 1: add one slice at each temperature  ######
-        if slicer.max_size > 0  # `max_size` specifies the maximum number of sliced dimensions.
+        if slicer.max_size > length(slicer.fixed_slices)  # `max_size` specifies the maximum number of sliced dimensions.
             # 1). find legs that reduce the dimension the most
             scs, lbs = Float64[], Vector{Int}[]
             # space complexities and labels of all intermediate tensors
@@ -176,7 +181,7 @@ function optimize_tree_sa!(tree::ExprTree, log2_sizes, slicer::Slicer; βs, nite
                 if length(slicer) < slicer.max_size  # if has not reached maximum number of slices, add one slice
                     push!(slicer, best_not_sliced_label)
                 else                                 # otherwise replace one slice
-                    legs = collect(keys(slicer.legs))
+                    legs = [l for l in keys(slicer.legs) if l ∉ slicer.fixed_slices]  # only slice over not fixed legs
                     score = [count(==(l), best_labels) for l in legs]
                     replace!(slicer, legs[argmin(score)]=>best_not_sliced_label)
                 end

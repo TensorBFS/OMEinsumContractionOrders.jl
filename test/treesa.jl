@@ -87,11 +87,11 @@ end
     tree = ExprTree(optcode)
     tc0, sc0, rw0 = tree_timespace_complexity(tree, log2_sizes)
     opttree = copy(tree)
-    optimize_tree_sa!(opttree, log2_sizes, Slicer(log2_sizes, 0); sc_target=sc0-2.0, βs=0.1:0.1:10.0, niters=100, sc_weight=1.0, rw_weight=1.0)
+    optimize_tree_sa!(opttree, log2_sizes, Slicer(log2_sizes, 0, []); sc_target=sc0-2.0, βs=0.1:0.1:10.0, niters=100, sc_weight=1.0, rw_weight=1.0)
     tc1, sc1, rw1 = tree_timespace_complexity(opttree, log2_sizes)
     @test sc1 < sc0 || (sc1 == sc0 && tc1 < tc0)
 
-    slicer = Slicer(log2_sizes, 5)
+    slicer = Slicer(log2_sizes, 5, [])
     optimize_tree_sa!(opttree, log2_sizes, slicer; sc_target=sc0-2.0, βs=0.1:0.1:10.0, niters=100, sc_weight=1.0, rw_weight=1.0)
     tc2, sc2, rw2 = tree_timespace_complexity(opttree, slicer.log2_sizes)
     @test tc2 <= tc1 + 3
@@ -185,4 +185,17 @@ end
     resg = codeg(xs...)
     resk = codek(xs...)
     @test resg ≈ resk
+
+    # slice with fixed slices
+    Random.seed!(2)
+    code = EinCode(random_regular_eincode(20, 3).ixs, [3,10,2])
+    @test_throws ErrorException optimize_tree(code, uniformsize(code, 2); nslices=5, fixed_slices=[5,3,8,1,2,4,11])
+    code1 = optimize_tree(code, uniformsize(code, 2); ntrials=1, nslices=5)
+    code2 = optimize_tree(code, uniformsize(code, 2); ntrials=1, nslices=5, fixed_slices=[5,3])
+    code3 = optimize_tree(code, uniformsize(code, 2); ntrials=1, nslices=5, fixed_slices=[5,1,4,3,2])
+    xs = [[2*randn(2, 2) for i=1:30]..., [randn(2) for i=1:20]...]
+    @test length(code2.slicing) == 5 && code2.slicing.legs[1:2] == [5,3]
+    @test length(code3.slicing) == 5 && code3.slicing.legs == [5,1,4,3,2]
+    @test code1(xs...) ≈ code2(xs...)
+    @test code1(xs...) ≈ code3(xs...)
 end
