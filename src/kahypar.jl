@@ -197,7 +197,7 @@ function recursive_construct_nestedeinsum(ixs::AbstractVector{<:AbstractVector},
         error("got empty group!")
     end
     inset, outset = ixs[parts], ixs[setdiff(1:length(ixs), parts)]
-    iy1 = Iterators.flatten(inset) ∩  (Iterators.flatten(outset) ∪ iy)
+    iy1 = level == 0 ? iy : Iterators.flatten(inset) ∩  (Iterators.flatten(outset) ∪ iy)
     res = optimize_greedy(DynamicEinCode{L}, inset, iy1, size_dict; method=greedy_config.method, nrepeat=greedy_config.nrepeat)
     return maplocs(res, parts)
 end
