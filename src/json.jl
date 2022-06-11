@@ -3,15 +3,15 @@ using JSON
 export writejson, readjson
 
 function writejson(filename::AbstractString, ne::Union{NestedEinsum, SlicedEinsum})
-    if ne isa NestedEinsum
-        dict = _todict(ne)
-    else
-        dict = _todict(ne.eins)
-        dict["slices"] = ne.slicing.legs
-    end
+    dict = _todict(ne)
     open(filename, "w") do f
         JSON.print(f, dict, 0)
     end
+end
+function _todict(ne::SlicedEinsum)
+    dict = _todict(ne.eins)
+    dict["slices"] = ne.slicing.legs
+    return dict
 end
 function _todict(ne::NestedEinsum)
     LT = labeltype(ne)
@@ -21,6 +21,9 @@ function _todict(ne::NestedEinsum)
 end
 function readjson(filename::AbstractString)
     dict = JSON.parsefile(filename)
+    return _fromdict(dict)
+end
+function _fromdict(dict)
     lt = dict["label-type"]
     LT = if lt == "Char"
         Char
