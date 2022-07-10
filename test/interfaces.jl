@@ -1,7 +1,7 @@
 using OMEinsum, OMEinsumContractionOrders
 using Test, Random, Graphs
 using KaHyPar
-using OMEinsum: NestedEinsum, DynamicEinCode
+using OMEinsum
 
 @testset "interface" begin
     function random_regular_eincode(n, k)
@@ -35,8 +35,8 @@ end
     ne = NestedEinsum((1,), code)
     dne = NestedEinsum((1,), DynamicEinCode(code))
     @test optimize_code(code, sizes, GreedyMethod()) == ne
-    @test optimize_code(code, sizes, TreeSA()) == SlicedEinsum(Slicing(Char[]), dne)
-    @test optimize_code(code, sizes, TreeSA(nslices=2)) == SlicedEinsum(Slicing(Char[]), dne)
+    @test optimize_code(code, sizes, TreeSA()) == SlicedEinsum(Char[], dne)
+    @test optimize_code(code, sizes, TreeSA(nslices=2)) == SlicedEinsum(Char[], dne)
     @test optimize_code(code, sizes, KaHyParBipartite(sc_target=25)) == dne
     @test optimize_code(code, sizes, SABipartite(sc_target=25)) == dne
 end
@@ -61,4 +61,32 @@ end
     tc2, sc2, rw2 = timespacereadwrite_complexity(code2, uniformsize(code, 5))
     @test 5 * 2^sc1 > pm1 > 2^sc1
     @test 5 * 2^sc2 > pm2 > 2^sc2
+end
+
+
+@testset "kahypar regression test" begin
+    code = ein"i->"
+    optcode = optimize_code(code, Dict('i'=>4), KaHyParBipartite(; sc_target=10, max_group_size=10))
+    @test optcode isa NestedEinsum
+    x = randn(4)
+    @test optcode(x) ≈ code(x)
+
+    code = ein"i,j->"
+    optcode = optimize_code(code, Dict('i'=>4, 'j'=>4), KaHyParBipartite(; sc_target=10, max_group_size=10))
+    @test optcode isa NestedEinsum
+    x = randn(4)
+    y = randn(4)
+    @test optcode(x, y) ≈ code(x, y)
+
+    code = ein"ij,jk,kl->ijl"
+    optcode = optimize_code(code, Dict('i'=>4, 'j'=>4, 'k'=>4, 'l'=>4), KaHyParBipartite(; sc_target=4, max_group_size=2))
+    @test optcode isa NestedEinsum
+    a, b, c = [rand(4,4) for i=1:4]
+    @test optcode(a, b, c) ≈ code(a, b, c)
+
+    code = ein"ij,jk,kl->ijl"
+    optcode = optimize_code(code, Dict('i'=>3, 'j'=>3, 'k'=>3, 'l'=>3), KaHyParBipartite(; sc_target=4, max_group_size=2))
+    @test optcode isa NestedEinsum
+    a, b, c = [rand(3,3) for i=1:4]
+    @test optcode(a, b, c) ≈ code(a, b, c)
 end

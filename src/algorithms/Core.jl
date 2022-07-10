@@ -50,6 +50,7 @@ Base.:(==)(a::SlicedEinsum, b::SlicedEinsum) = a.slicing == b.slicing && a.eins 
 getixsv(ne::SlicedEinsum) = getixsv(ne.eins)
 getiyv(ne::SlicedEinsum) = getiyv(ne.eins)
 uniquelabels(code::AbstractEinsum) = unique!(vcat(getixsv(code)..., getiyv(code)))
+labeltype(code::AbstractEinsum) = eltype(getiyv(code))
 
 ############### Simplifier and optimizer types #################
 abstract type CodeSimplifier end

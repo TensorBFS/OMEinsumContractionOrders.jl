@@ -2,9 +2,10 @@ using Graphs
 using Test, Random
 using SparseArrays
 using OMEinsumContractionOrders.ContractionOrderAlgorithms
-using OMEinsumContractionOrders.ContractionOrderAlgorithms: get_coarse_grained_graph, _connected_components, bipartite_sc, group_sc, coarse_graphed_optimize,
-    map_tree_to_parts
+using OMEinsumContractionOrders.ContractionOrderAlgorithms: get_coarse_grained_graph, _connected_components, bipartite_sc, group_sc, coarse_grained_optimize,
+    map_tree_to_parts, MinSpaceOut, ContractionTree, optimize_greedy, optimize_kahypar
 using KaHyPar
+using OMEinsumContractionOrders: decorate
 
 @testset "graph coarse graining" begin
     Random.seed!(2)
@@ -21,8 +22,8 @@ using KaHyPar
 
     @test length(_connected_components(adj, parts[1])) == 2
 
-    res = coarse_grained_optimize(adj, parts, ones(6), GreedyMethod(OMEinsum.MinSpaceOut(), 10))
-    @test res == OMEinsum.ContractionTree(OMEinsum.ContractionTree(1,2), 3)
+    res = coarse_grained_optimize(adj, parts, ones(6), GreedyMethod(MinSpaceOut(), 10))
+    @test res == ContractionTree(ContractionTree(1,2), 3)
     @test map_tree_to_parts(res, [[[1,2], 3], [7,6], [9, [4,1]]]) == [[[[1,2], 3], [7,6]], [9, [4,1]]]
 end
 
@@ -30,8 +31,8 @@ end
     Random.seed!(2)
     function random_regular_eincode(n, k)
         g = Graphs.random_regular_graph(n, k)
-        ixs = [minmax(e.src,e.dst) for e in Graphs.edges(g)]
-        return EinCode((ixs..., [(i,) for i in Graphs.vertices(g)]...), ())
+        ixs = [[minmax(e.src,e.dst)...] for e in Graphs.edges(g)]
+        return ContractionOrderAlgorithms.EinCode([ixs..., [[i] for i in Graphs.vertices(g)]...], Int[])
     end
 
     g = random_regular_graph(220, 3)
@@ -54,51 +55,24 @@ end
     @test group_sc(graph, group12, log2_sizes) <= sc_target
 
     code = random_regular_eincode(220, 3)
-    res = optimize_kahypar(code,uniformsize(code, 2); max_group_size=50, sc_target=30)
-    tc, sc = OMEinsum.timespace_complexity(res, uniformsize(code, 2))
+    res = optimize_kahypar(code,ContractionOrderAlgorithms.uniformsize(code, 2); max_group_size=50, sc_target=30)
+    tc, sc = ContractionOrderAlgorithms.timespace_complexity(res, ContractionOrderAlgorithms.uniformsize(code, 2))
     @test sc <= 30
 
     # contraction test
     code = random_regular_eincode(50, 3)
-    codeg = optimize_kahypar(code, uniformsize(code, 2); max_group_size=10, sc_target=12)
-    codek = optimize_greedy(code, uniformsize(code, 2))
-    tc, sc = OMEinsum.timespace_complexity(codek, uniformsize(code, 2))
+    codeg = optimize_kahypar(code, ContractionOrderAlgorithms.uniformsize(code, 2); max_group_size=10, sc_target=12)
+    codek = optimize_greedy(code, ContractionOrderAlgorithms.uniformsize(code, 2))
+    tc, sc = ContractionOrderAlgorithms.timespace_complexity(codek, ContractionOrderAlgorithms.uniformsize(code, 2))
     @test sc <= 12
     xs = [[2*randn(2, 2) for i=1:75]..., [randn(2) for i=1:50]...]
-    resg = codeg(xs...)
-    resk = codek(xs...)
+    resg = decorate(codeg)(xs...)
+    resk = decorate(codek)(xs...)
     @test resg ≈ resk
 
     Random.seed!(2)
     code = random_regular_eincode(220, 3)
-    codeg_auto = optimize_kahypar_auto(code, uniformsize(code, 2), greedy_method=OMEinsum.MinSpaceOut())
-    tc, sc = OMEinsum.timespace_complexity(codeg_auto, uniformsize(code, 2))
+    codeg_auto = optimize_kahypar_auto(code, ContractionOrderAlgorithms.uniformsize(code, 2), greedy_method=MinSpaceOut())
+    tc, sc = ContractionOrderAlgorithms.timespace_complexity(codeg_auto, ContractionOrderAlgorithms.uniformsize(code, 2))
     @test sc <= 30
-end
-
-@testset "regression test" begin
-    code = ein"i->"
-    optcode = optimize_kahypar(code, Dict('i'=>4), sc_target=10, max_group_size=10)
-    @test optcode isa NestedEinsum
-    x = randn(4)
-    @test optcode(x) ≈ code(x)
-
-    code = ein"i,j->"
-    optcode = optimize_kahypar(code, Dict('i'=>4, 'j'=>4), sc_target=10, max_group_size=10)
-    @test optcode isa NestedEinsum
-    x = randn(4)
-    y = randn(4)
-    @test optcode(x, y) ≈ code(x, y)
-
-    code = ein"ij,jk,kl->ijl"
-    optcode = optimize_kahypar(code, Dict('i'=>4, 'j'=>4, 'k'=>4, 'l'=>4), sc_target=4, max_group_size=2)
-    @test optcode isa NestedEinsum
-    a, b, c = [rand(4,4) for i=1:4]
-    @test optcode(a, b, c) ≈ code(a, b, c)
-
-    code = ein"ij,jk,kl->ijl"
-    optcode = optimize_kahypar(code, Dict('i'=>3, 'j'=>3, 'k'=>3, 'l'=>3), sc_target=4, max_group_size=2)
-    @test optcode isa NestedEinsum
-    a, b, c = [rand(3,3) for i=1:4]
-    @test optcode(a, b, c) ≈ code(a, b, c)
 end

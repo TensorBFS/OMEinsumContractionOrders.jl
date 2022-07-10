@@ -1,5 +1,3 @@
-export peak_memory
-
 function decorate(code::ContractionOrderAlgorithms.EinCode)
     DynamicEinCode(code.ixs, code.iy)
 end
@@ -15,7 +13,7 @@ function decorate(code::ContractionOrderAlgorithms.SlicedEinsum)
 end
 
 function rawcode(code::EinCode)
-    ContractionOrderAlgorithms.DynamicEinCode(getixsv(code), getiyv(code))
+    ContractionOrderAlgorithms.EinCode(getixsv(code), getiyv(code))
 end
 function rawcode(code::NestedEinsum)
     if isleaf(code)

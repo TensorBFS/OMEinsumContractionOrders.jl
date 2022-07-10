@@ -265,7 +265,7 @@ function optimize_greedy(code::EinCode{L}, size_dict::Dict; method=MinSpaceOut()
 end
 function optimize_greedy(ixs::AbstractVector{<:AbstractVector}, iy::AbstractVector, size_dict::Dict{L,TI}; method=MinSpaceOut(), nrepeat=10) where {L, TI}
     if length(ixs) <= 2
-        return NestedEinsum((1:length(ixs)...,), EinCode(ixs, iy))
+        return NestedEinsum(NestedEinsum{L}.(1:length(ixs)), EinCode(ixs, iy))
     end
     log2_edge_sizes = Dict{L,Float64}()
     for (k, v) in size_dict

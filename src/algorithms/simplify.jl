@@ -18,7 +18,7 @@ function merge_vectors(code::EinCode{LT}) where LT
             end
         end
     end
-    newcode = EinCode(ixs[mask], getiy(code))
+    newcode = EinCode(ixs[mask], getiyv(code))
     return NetworkSimplifier(ops[mask]), newcode
 end
 
@@ -29,26 +29,26 @@ function merge_greedy(code::EinCode{LT}, size_dict; threshhold=-1e-12) where LT
         log2_edge_sizes[k] = log2(v)
     end
     incidence_list = IncidenceList(Dict([i=>ixs[i] for i=1:length(ixs)]); openedges=iy)
-    n = ContractionOrder.nv(incidence_list)
+    n = nv(incidence_list)
     if n == 0
         return nothing
     elseif n == 1
-        return collect(ContractionOrder.vertices(incidence_list))[1]
+        return collect(vertices(incidence_list))[1]
     end
-    tree = Dict{Int,NestedEinsum}([v=>NestedEinsum{LT}(v) for v in ContractionOrder.vertices(incidence_list)])
-    cost_values = ContractionOrder.evaluate_costs(MinSpaceDiff(), incidence_list, log2_edge_sizes)
+    tree = Dict{Int,NestedEinsum}([v=>NestedEinsum{LT}(v) for v in vertices(incidence_list)])
+    cost_values = evaluate_costs(MinSpaceDiff(), incidence_list, log2_edge_sizes)
     while true
         if length(cost_values) == 0
             return _buildsimplifier(tree, incidence_list)
         end
         v, pair = findmin(cost_values)
         if v <= threshhold
-            _, _, c = ContractionOrder.contract_pair!(incidence_list, pair..., log2_edge_sizes)
-            tree[pair[1]] = NestedEinsum((tree[pair[1]], tree[pair[2]]), EinCode(c.first, c.second))
-            if ContractionOrder.nv(incidence_list) <= 1
+            _, _, c = contract_pair!(incidence_list, pair..., log2_edge_sizes)
+            tree[pair[1]] = NestedEinsum([tree[pair[1]], tree[pair[2]]], EinCode([c.first...], c.second))
+            if nv(incidence_list) <= 1
                 return _buildsimplifier(tree, incidence_list)
             end
-            ContractionOrder.update_costs!(cost_values, pair..., MinSpaceDiff(), incidence_list, log2_edge_sizes)
+            update_costs!(cost_values, pair..., MinSpaceDiff(), incidence_list, log2_edge_sizes)
         else
             return _buildsimplifier(tree, incidence_list)
         end

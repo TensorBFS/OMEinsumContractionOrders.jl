@@ -3,19 +3,29 @@ module OMEinsumContractionOrders
 using Requires
 using SparseArrays, Suppressor
 using OMEinsum
-using OMEinsum: NestedEinsum, getixsv, getiyv, DynamicEinCode, StaticEinCode, isleaf, MinSpaceDiff, MinSpaceOut
+using OMEinsum: NestedEinsum, getixsv, getiyv, DynamicEinCode, StaticEinCode, isleaf
 export MinSpaceDiff, MinSpaceOut
+export peak_memory
+
+import .ContractionOrderAlgorithms
+using .ContractionOrderAlgorithms: CodeOptimizer, CodeSimplifier,
+    KaHyParBipartite, GreedyMethod, TreeSA, SABipartite,
+    MinSpaceDiff, MinSpaceOut,
+    MergeGreedy, MergeVectors,
+    uniformsize,
+    simplify_code, optimize_code,
+    peak_memory
+
+export CodeOptimizer, CodeSimplifier,
+    KaHyParBipartite, GreedyMethod, TreeSA, SABipartite,
+    MinSpaceDiff, MinSpaceOut,
+    MergeGreedy, MergeVectors,
+    uniformsize,
+    simplify_code, optimize_code,
+    peak_memory, timespace_complexity, timespacereadwrite_complexity
+
 using JSON
 
-using Requires
-function __init__()
-    @require KaHyPar="2a6221f6-aa48-11e9-3542-2d9e0ef01880" begin
-        using .KaHyPar
-        @info "`OMEinsumContractionOrders` loads `KaHyPar` module successfully."
-    end
-end
-
-include("slicing.jl")
 include("algorithms/algorithms.jl")
 include("omeinsum.jl")
 include("interfaces.jl")

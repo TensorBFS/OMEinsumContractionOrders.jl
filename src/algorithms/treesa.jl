@@ -183,6 +183,7 @@ Optimize the einsum contraction pattern specified by `code`, and edge sizes spec
 Check the docstring of [`TreeSA`](@ref) for detailed explaination of other input arguments.
 """
 function optimize_tree(code::AbstractEinsum, size_dict; nslices::Int=0, sc_target=20, βs=0.1:0.1:10, ntrials=20, niters=100, sc_weight=1.0, rw_weight=0.2, initializer=:greedy, greedy_method=MinSpaceOut(), greedy_nrepeat=1, fixed_slices=[])
+    LT = labeltype(code)
     if nslices < length(fixed_slices)
         @warn("Number of slices: $(nslices) is smaller than the number of fixed slices, setting it to: $(length(fixed_slices)).")
         nslices = length(fixed_slices)
@@ -191,7 +192,7 @@ function optimize_tree(code::AbstractEinsum, size_dict; nslices::Int=0, sc_targe
     ixs, iy = getixsv(code), getiyv(code)
     ninputs = length(ixs)  # number of input tensors
     if ninputs <= 2  # number of input tensors ≤ 2, can not be optimized
-        return SlicedEinsum(eltype(iy)[], NestedEinsum(ntuple(i->i, ninputs), EinCode(ixs, iy)))
+        return SlicedEinsum(LT[], NestedEinsum(NestedEinsum{LT}.(1:ninputs), EinCode(ixs, iy)))
     end
     ###### Stage 1: preprocessing ######
     labels = _label_dict(ixs, iy)  # map labels to integers
@@ -199,7 +200,7 @@ function optimize_tree(code::AbstractEinsum, size_dict; nslices::Int=0, sc_targe
     log2_sizes = [log2.(size_dict[inverse_map[i]]) for i=1:length(labels)]   # use `log2` sizes in computing time
     if ntrials <= 0  # no optimization at all, then 1). initialize an expression tree and 2). convert back to nested einsum.
         best_tree = _initializetree(code, size_dict, initializer; greedy_method=greedy_method, greedy_nrepeat=greedy_nrepeat)
-        return SlicedEinsum(eltype(iy)[], NestedEinsum(best_tree, inverse_map))
+        return SlicedEinsum(LT[], NestedEinsum(best_tree, inverse_map))
     end
     ###### Stage 2: computing ######
     # create vectors to store optimized 1). expression tree, 2). time complexities, 3). space complexities, 4). read-write complexities and 5). slicing information.
