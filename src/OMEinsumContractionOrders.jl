@@ -17,6 +17,7 @@ end
 
 include("slicing.jl")
 include("algorithms/algorithms.jl")
+include("omeinsum.jl")
 include("interfaces.jl")
 include("json.jl")
 

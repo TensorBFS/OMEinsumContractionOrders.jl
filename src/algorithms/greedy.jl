@@ -218,12 +218,12 @@ function contract_tree!(incidence_list::IncidenceList, tree::ContractionTree, lo
 end
 
 #################### parse to code ####################
-function parse_eincode!(::IncidenceList{LT}, tree, vertices_order, level=0) where LT
+function parse_eincode!(::IncidenceList{IT,LT}, tree, vertices_order, level=0) where {IT,LT}
     ti = findfirst(==(tree), vertices_order)
     ti, NestedEinsum{LT}(ti)
 end
 
-function parse_eincode!(incidence_list::IncidenceList{LT}, tree::ContractionTree, vertices_order, level=0) where LT
+function parse_eincode!(incidence_list::IncidenceList{IT,LT}, tree::ContractionTree, vertices_order, level=0) where {IT,LT}
     ti, codei = parse_eincode!(incidence_list, tree.left, vertices_order, level+1)
     tj, codej = parse_eincode!(incidence_list, tree.right, vertices_order, level+1)
     dummy = Dict([e=>0 for e in keys(incidence_list.e2v)])
@@ -231,7 +231,7 @@ function parse_eincode!(incidence_list::IncidenceList{LT}, tree::ContractionTree
     ti, NestedEinsum([codei, codej], EinCode([code.first...], level==0 ? incidence_list.openedges : code.second))
 end
 
-function parse_eincode(incidence_list::IncidenceList{VT,ET}, tree::ContractionTree; vertices = collect(keys(incidence_list.v2e))) where {VT,ET}
+function parse_eincode(incidence_list::IncidenceList, tree::ContractionTree; vertices = collect(keys(incidence_list.v2e)))
     parse_eincode!(copy(incidence_list), tree, vertices)[2]
 end
 

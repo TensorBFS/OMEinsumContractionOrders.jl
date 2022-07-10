@@ -456,7 +456,7 @@ function _exprtree(code::NestedEinsum, labels)
     @assert length(code.args) == 2
     ExprTree(map(enumerate(code.args)) do (i,arg)
         if isleaf(arg)  # leaf nodes
-            ExprTree(ExprInfo(getixsv(code.eins)[i], arg.tensorindex))
+            ExprTree(ExprInfo(getindex.(Ref(labels), getixsv(code.eins)[i]), arg.tensorindex))
         else
             res = _exprtree(arg, labels)
         end

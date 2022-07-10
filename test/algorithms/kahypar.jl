@@ -1,8 +1,9 @@
-using OMEinsum
 using Graphs
 using Test, Random
 using SparseArrays
-using OMEinsumContractionOrders
+using OMEinsumContractionOrders.ContractionOrderAlgorithms
+using OMEinsumContractionOrders.ContractionOrderAlgorithms: get_coarse_grained_graph, _connected_components, bipartite_sc, group_sc, coarse_graphed_optimize,
+    map_tree_to_parts
 using KaHyPar
 
 @testset "graph coarse graining" begin
@@ -12,17 +13,17 @@ using KaHyPar
         adj[ind...] = 1
     end
     parts = [[1,3], [2], [4]]
-    incidence_list = OMEinsumContractionOrders.get_coarse_grained_graph(sparse(adj), parts)
+    incidence_list = get_coarse_grained_graph(sparse(adj), parts)
     @test incidence_list.v2e[1] == [1,2,3]
     @test incidence_list.v2e[2] == [2]
     @test incidence_list.v2e[3] == [3,4,5]
     @test incidence_list.openedges == [4]
 
-    @test length(OMEinsumContractionOrders._connected_components(adj, parts[1])) == 2
+    @test length(_connected_components(adj, parts[1])) == 2
 
-    res = OMEinsumContractionOrders.coarse_grained_optimize(adj, parts, ones(6), GreedyMethod(OMEinsum.MinSpaceOut(), 10))
+    res = coarse_grained_optimize(adj, parts, ones(6), GreedyMethod(OMEinsum.MinSpaceOut(), 10))
     @test res == OMEinsum.ContractionTree(OMEinsum.ContractionTree(1,2), 3)
-    @test OMEinsumContractionOrders.map_tree_to_parts(res, [[[1,2], 3], [7,6], [9, [4,1]]]) == [[[[1,2], 3], [7,6]], [9, [4,1]]]
+    @test map_tree_to_parts(res, [[[1,2], 3], [7,6], [9, [4,1]]]) == [[[[1,2], 3], [7,6]], [9, [4,1]]]
 end
 
 @testset "kahypar" begin
@@ -44,13 +45,13 @@ end
     sc_target = 28.0
     log2_sizes = fill(1, size(graph, 2))
     b = KaHyParBipartite(sc_target=sc_target, imbalances=[0.0:0.02:0.8...])
-    group1, group2 = OMEinsumContractionOrders.bipartite_sc(b, graph, collect(1:size(graph, 1)), log2_sizes)
-    @test OMEinsumContractionOrders.group_sc(graph, group1, log2_sizes) <= sc_target
-    @test OMEinsumContractionOrders.group_sc(graph, group2, log2_sizes) <= sc_target
+    group1, group2 = bipartite_sc(b, graph, collect(1:size(graph, 1)), log2_sizes)
+    @test group_sc(graph, group1, log2_sizes) <= sc_target
+    @test group_sc(graph, group2, log2_sizes) <= sc_target
     sc_target = 27.0
-    group11, group12 = OMEinsumContractionOrders.bipartite_sc(b, graph, group1, log2_sizes)
-    @test OMEinsumContractionOrders.group_sc(graph, group11, log2_sizes) <= sc_target
-    @test OMEinsumContractionOrders.group_sc(graph, group12, log2_sizes) <= sc_target
+    group11, group12 = bipartite_sc(b, graph, group1, log2_sizes)
+    @test group_sc(graph, group11, log2_sizes) <= sc_target
+    @test group_sc(graph, group12, log2_sizes) <= sc_target
 
     code = random_regular_eincode(220, 3)
     res = optimize_kahypar(code,uniformsize(code, 2); max_group_size=50, sc_target=30)

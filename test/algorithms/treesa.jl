@@ -3,6 +3,7 @@ using OMEinsumContractionOrders.ContractionOrderAlgorithms: random_exprtree, Exp
     ruleset, update_tree!, tcscrw, optimize_subtree!, optimize_tree_sa!, labels, tree_timespace_complexity, fast_log2sumexp2,
     ExprTree, optimize_greedy, _label_dict, Slicer, optimize_tree
 using Graphs
+using OMEinsumContractionOrders: decorate
 
 @testset "random expr tree" begin
     function random_regular_eincode(n, k)
@@ -128,8 +129,8 @@ end
     tc, sc = ContractionOrderAlgorithms.timespace_complexity(codek, ContractionOrderAlgorithms.uniformsize(code, 2))
     @test sc <= 12
     xs = [[2*randn(2, 2) for i=1:75]..., [randn(2) for i=1:50]...]
-    resg = codeg(xs...)
-    resk = codek(xs...)
+    resg = decorate(codeg)(xs...)
+    resk = decorate(codek)(xs...)
     @test resg ≈ resk
 
     # contraction test
@@ -139,8 +140,8 @@ end
     tc, sc = ContractionOrderAlgorithms.timespace_complexity(codek, ContractionOrderAlgorithms.uniformsize(code, 2))
     @test sc <= 12
     xs = [[2*randn(2, 2) for i=1:75]..., [randn(2) for i=1:50]...]
-    resg = codeg(xs...)
-    resk = codek(xs...)
+    resg = decorate(codeg)(xs...)
+    resk = decorate(codek)(xs...)
     @test resg ≈ resk
 end
 
@@ -167,8 +168,8 @@ end
     @show tc, sc, tc0, sc0
     @test sc <= sc0 - 4
     xs = [[2*randn(2, 2) for i=1:150]..., [randn(2) for i=1:100]...]
-    resg = codeg(xs...)
-    resk = codek(xs...)
+    resg = decorate(codeg)(xs...)
+    resk = decorate(codek)(xs...)
     @test resg ≈ resk
 
     # with open edges
@@ -184,8 +185,8 @@ end
     @test sc <= sc0 - 4
     @test sc <= 17
     xs = [[2*randn(2, 2) for i=1:150]..., [randn(2) for i=1:100]...]
-    resg = codeg(xs...)
-    resk = codek(xs...)
+    resg = decorate(codeg)(xs...)
+    resk = decorate(codek)(xs...)
     @test resg ≈ resk
 
     # slice with fixed slices
@@ -197,12 +198,12 @@ end
     code3 = optimize_tree(code, ContractionOrderAlgorithms.uniformsize(code, 2); ntrials=1, nslices=5, fixed_slices=[5,1,4,3,2])
     code4 = optimize_tree(code, ContractionOrderAlgorithms.uniformsize(code, 2); ntrials=1, fixed_slices=[5,1,4,3,2])
     xs = [[2*randn(2, 2) for i=1:30]..., [randn(2) for i=1:20]...]
-    @test length(code0.slicing) == 7 && code0.slicing.legs == [5,3,8,1,2,4,11]
-    @test length(code2.slicing) == 5 && code2.slicing.legs[1:2] == [5,3]
-    @test length(code3.slicing) == 5 && code3.slicing.legs == [5,1,4,3,2]
-    @test length(code4.slicing) == 5 && code4.slicing.legs == [5,1,4,3,2]
-    @test code1(xs...) ≈ code2(xs...)
-    @test code1(xs...) ≈ code3(xs...)
+    @test length(code0.slicing) == 7 && code0.slicing == [5,3,8,1,2,4,11]
+    @test length(code2.slicing) == 5 && code2.slicing[1:2] == [5,3]
+    @test length(code3.slicing) == 5 && code3.slicing == [5,1,4,3,2]
+    @test length(code4.slicing) == 5 && code4.slicing == [5,1,4,3,2]
+    @test decorate(code1)(xs...) ≈ decorate(code2)(xs...)
+    @test decorate(code1)(xs...) ≈ decorate(code3)(xs...)
 
     function random_regular_eincode_char(n, k)
         g = Graphs.random_regular_graph(n, k)
@@ -211,5 +212,5 @@ end
     end
     code = ContractionOrderAlgorithms.EinCode(random_regular_eincode_char(20, 3).ixs, ['3','8','2'])
     code1 = optimize_tree(code, ContractionOrderAlgorithms.uniformsize(code, 2); ntrials=1, fixed_slices=['7'])
-    @test eltype(code1.eins.iy) == Char
+    @test eltype(code1.eins.eins.iy) == Char
 end

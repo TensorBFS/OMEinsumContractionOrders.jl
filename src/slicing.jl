@@ -1,14 +1,7 @@
-export Slicing, Slicer, SlicedEinsum
-
-struct Slicing{LT}
-    legs::Vector{LT}   # sliced leg and its original size
-end
-Base.:(==)(se::Slicing, se2::Slicing) = se.legs == se2.legs
-
-Base.length(s::Slicing) = length(s.legs)
+export Slicer, SlicedEinsum
 
 struct SlicedEinsum{LT, Ein} <: AbstractEinsum
-    slicing::Slicing{LT}
+    slicing::Vector{LT}
     eins::Ein
 end
 Base.:(==)(se::SlicedEinsum, se2::SlicedEinsum) = se.slicing == se2.slicing && se.eins == se2.eins
@@ -28,7 +21,7 @@ end
 function SliceIterator(se::SlicedEinsum, size_dict::Dict{LT}) where LT
     iyv = OMEinsum.getiyv(se.eins.eins)
     ixsv = OMEinsum.getixsv(se.eins)
-    return SliceIterator(ixsv, iyv, se.slicing.legs, size_dict)
+    return SliceIterator(ixsv, iyv, se.slicing, size_dict)
 end
 
 function SliceIterator(ixsv, iyv, legs, size_dict::Dict{LT}) where LT
@@ -112,11 +105,11 @@ function OMEinsum.einsum(se::SlicedEinsum, @nospecialize(xs::NTuple{N,AbstractAr
     return res
 end
 
-function drop_slicedim(ne::NestedEinsum, slicing::Slicing)
+function drop_slicedim(ne::NestedEinsum, slices::Vector)
     isleaf(ne) && return ne
-    ixs = map(ix->filter(∉(slicing.legs), ix), getixsv(ne.eins))
-    iy = filter(∉(slicing.legs), getiyv(ne.eins))
-    NestedEinsum(map(arg->drop_slicedim(arg, slicing), ne.args), similar_eincode(ne.eins, ixs, iy))
+    ixs = map(ix->filter(∉(slices), ix), getixsv(ne.eins))
+    iy = filter(∉(slices), getiyv(ne.eins))
+    NestedEinsum(map(arg->drop_slicedim(arg, slices), ne.args), similar_eincode(ne.eins, ixs, iy))
 end
 similar_eincode(::DynamicEinCode, ixs, iy) = DynamicEinCode(ixs, iy)
 similar_eincode(::StaticEinCode, ixs, iy) = StaticEinCode{(Tuple.(ixs)...,), (iy...,)}()
@@ -124,20 +117,20 @@ similar_eincode(::StaticEinCode, ixs, iy) = StaticEinCode{(Tuple.(ixs)...,), (iy
 # forward some interfaces
 function OMEinsum.timespacereadwrite_complexity(code::SlicedEinsum, size_dict)
     size_dict_sliced = copy(size_dict)
-    for l in code.slicing.legs
+    for l in code.slicing
         size_dict_sliced[l] = 1
     end
     tc, sc, rw = timespacereadwrite_complexity(code.eins, size_dict_sliced)
-    sliceoverhead = sum(log2.(getindex.(Ref(size_dict), code.slicing.legs)))
+    sliceoverhead = sum(log2.(getindex.(Ref(size_dict), code.slicing)))
     tc + sliceoverhead, sc, rw+sliceoverhead
 end
 function OMEinsum.flop(code::SlicedEinsum, size_dict)
     size_dict_sliced = copy(size_dict)
-    for l in code.slicing.legs
+    for l in code.slicing
         size_dict_sliced[l] = 1
     end
     fl = flop(code.eins, size_dict_sliced)
-    fl * prod(getindex.(Ref(size_dict), code.slicing.legs))
+    fl * prod(getindex.(Ref(size_dict), code.slicing))
 end
 
 OMEinsum.flatten(se::SlicedEinsum) = OMEinsum.flatten(se.eins)

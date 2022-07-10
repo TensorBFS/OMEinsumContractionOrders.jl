@@ -34,7 +34,7 @@ function _fromdict(dict)
     end
     ne = fromdict(LT, dict["tree"])
     if haskey(dict, "slices")
-        return SlicedEinsum(Slicing(_convert.(LT, dict["slices"])), ne)
+        return SlicedEinsum(_convert.(LT, dict["slices"]), ne)
     else
         return ne
     end

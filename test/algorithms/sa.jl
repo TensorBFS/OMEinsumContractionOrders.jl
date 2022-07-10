@@ -1,6 +1,7 @@
 using Test, OMEinsumContractionOrders, OMEinsum
 using Graphs, Random
 using SparseArrays
+using OMEinsumContractionOrderstr.ContractionOrderAlgorithms: bipartite_sc, adjacency_matrix
 
 @testset "sa bipartition" begin
     Random.seed!(3)

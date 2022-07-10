@@ -42,11 +42,13 @@ function collect_ixs!(ne::NestedEinsum, d::Dict{Int,Vector{LT}}) where LT
 end
 getiyv(ne::NestedEinsum) = getiyv(ne.eins)
 
-struct SlicedEinsum{LT,ET<:Union{EinCode{LT},NestedEinsum{LT}}}
+struct SlicedEinsum{LT,ET<:Union{EinCode{LT},NestedEinsum{LT}}} <: AbstractEinsum
     slicing::Vector{LT}
     eins::ET
 end
 Base.:(==)(a::SlicedEinsum, b::SlicedEinsum) = a.slicing == b.slicing && a.eins == b.eins
+getixsv(ne::SlicedEinsum) = getixsv(ne.eins)
+getiyv(ne::SlicedEinsum) = getiyv(ne.eins)
 uniquelabels(code::AbstractEinsum) = unique!(vcat(getixsv(code)..., getiyv(code)))
 
 ############### Simplifier and optimizer types #################
