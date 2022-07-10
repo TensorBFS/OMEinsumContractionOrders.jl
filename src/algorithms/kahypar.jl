@@ -117,7 +117,7 @@ end
 function coarse_grained_optimize(adj, parts, log2_sizes, greedy_config)
     incidence_list = get_coarse_grained_graph(adj, parts)
     log2_edge_sizes = Dict([i=>log2_sizes[i] for i=1:length(log2_sizes)])
-    tree, _, _ = OMEinsum.tree_greedy(incidence_list, log2_edge_sizes; method=greedy_config.method, nrepeat=greedy_config.nrepeat)
+    tree, _, _ = tree_greedy(incidence_list, log2_edge_sizes; method=greedy_config.method, nrepeat=greedy_config.nrepeat)
     return tree
 end
 
@@ -130,12 +130,12 @@ function get_coarse_grained_graph(adj, parts)
     for v=1:size(ADJ, 1)
         v2e[v] = findall(!iszero, view(ADJ,v,:))
     end
-    incidence_list = OMEinsum.IncidenceList(v2e; openedges=openedges)
+    incidence_list = IncidenceList(v2e; openedges=openedges)
     return incidence_list
 end
 
 function map_tree_to_parts(tree, parts)
-    if tree isa OMEinsum.ContractionTree
+    if tree isa ContractionTree
         [map_tree_to_parts(tree.left, parts), map_tree_to_parts(tree.right, parts)]
     else
         parts[tree]
@@ -156,12 +156,12 @@ end
 
 # legacy interface
 """
-    optimize_kahypar(code, size_dict; sc_target, max_group_size=40, imbalances=0.0:0.01:0.2, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=10)
+    optimize_kahypar(code, size_dict; sc_target, max_group_size=40, imbalances=0.0:0.01:0.2, greedy_method=MinSpaceOut(), greedy_nrepeat=10)
 
 Optimize the einsum `code` contraction order using the KaHyPar + Greedy approach. `size_dict` is a dictionary that specifies leg dimensions. 
 Check the docstring of `KaHyParBipartite` for detailed explaination of other input arguments.
 """
-function optimize_kahypar(code::EinCode, size_dict; sc_target, max_group_size=40, imbalances=0.0:0.01:0.2, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=10)
+function optimize_kahypar(code::EinCode, size_dict; sc_target, max_group_size=40, imbalances=0.0:0.01:0.2, greedy_method=MinSpaceOut(), greedy_nrepeat=10)
     bipartiter = KaHyParBipartite(; sc_target=sc_target, max_group_size=max_group_size, imbalances=imbalances, greedy_config=GreedyMethod(method=greedy_method, nrepeat=greedy_nrepeat))
     recursive_bipartite_optimize(bipartiter, code, size_dict)
 end
@@ -173,6 +173,48 @@ function recursive_bipartite_optimize(bipartiter, code::EinCode, size_dict)
     vertices=collect(1:length(ixs))
     parts = bipartition_recursive(bipartiter, adj, vertices, [log2(size_dict[e]) for e in edges])
     recursive_construct_nestedeinsum(ixv, iy, parts, size_dict, 0, bipartiter.greedy_config)
+end
+
+maplocs(ne::NestedEinsum{ET}, parts) where ET = isleaf(ne) ? NestedEinsum{ET}(parts[ne.tensorindex]) : NestedEinsum(maplocs.(ne.args, Ref(parts)), ne.eins)
+
+function kahypar_recursive(ne::NestedEinsum; log2_size_dict, sc_target, min_size, imbalances=0.0:0.04:0.8)
+    if length(ne.args >= min_size) && all(isleaf, ne.args)
+        bipartite_eincode(adj, ne.args, ne.eins; log2_size_dict=log2_size_dict, sc_target=sc_target, min_size=min_size, imbalances=imbalances)
+    end
+    kahypar_recursive(ne.args; log2_size_dict, sc_target=sc_target, min_size=min_size, imbalances=imbalances)
+end
+
+recursive_flatten(obj::Tuple) = vcat(recursive_flatten.(obj)...)
+recursive_flatten(obj::AbstractVector) = vcat(recursive_flatten.(obj)...)
+recursive_flatten(obj) = obj
+
+"""
+    optimize_kahypar_auto(code, size_dict; max_group_size=40, greedy_method=MinSpaceOut(), greedy_nrepeat=10)
+
+Find the optimal contraction order automatically by determining the `sc_target` with bisection.
+It can fail if the tree width of your graph is larger than `100`.
+"""
+function optimize_kahypar_auto(code::EinCode, size_dict; max_group_size=40, effort=500, greedy_method=MinSpaceOut(), greedy_nrepeat=10)
+    sc_high = 100
+    sc_low = 1
+    order_high = optimize_kahypar(code, size_dict; sc_target=sc_high, max_group_size=max_group_size, imbalances=0.0:0.6/effort*(sc_high-sc_low):0.6)
+    _optimize_kahypar_auto(code, size_dict, sc_high, order_high, sc_low, max_group_size, effort, greedy_method, greedy_nrepeat)
+end
+function _optimize_kahypar_auto(code::EinCode, size_dict, sc_high, order_high, sc_low, max_group_size, effort, greedy_method, greedy_nrepeat)
+    if sc_high <= sc_low + 1
+        order_high
+    else
+        sc_mid = (sc_high + sc_low) ÷ 2
+        try
+            order_mid = optimize_kahypar(code, size_dict; sc_target=sc_mid, max_group_size=max_group_size, imbalances=0.0:0.6/effort*(sc_high-sc_low):0.6)
+            order_high, sc_high = order_mid, sc_mid
+            # `sc_target` too high
+        catch
+            # `sc_target` too low
+            sc_low = sc_mid
+        end
+        _optimize_kahypar_auto(code, size_dict, sc_high, order_high, sc_low, max_group_size, effort, greedy_method, greedy_nrepeat)
+    end
 end
 
 function recursive_construct_nestedeinsum(ixs::AbstractVector{<:AbstractVector}, iy::AbstractVector{L}, parts::AbstractVector, size_dict, level, greedy_config) where L
@@ -200,46 +242,4 @@ function recursive_construct_nestedeinsum(ixs::AbstractVector{<:AbstractVector},
     iy1 = level == 0 ? iy : Iterators.flatten(inset) ∩  (Iterators.flatten(outset) ∪ iy)
     res = optimize_greedy(DynamicEinCode{L}, inset, iy1, size_dict; method=greedy_config.method, nrepeat=greedy_config.nrepeat)
     return maplocs(res, parts)
-end
-
-maplocs(ne::NestedEinsum{ET}, parts) where ET = isleaf(ne) ? NestedEinsum{ET}(parts[ne.tensorindex]) : NestedEinsum(maplocs.(ne.args, Ref(parts)), ne.eins)
-
-function kahypar_recursive(ne::NestedEinsum; log2_size_dict, sc_target, min_size, imbalances=0.0:0.04:0.8)
-    if length(ne.args >= min_size) && all(isleaf, ne.args)
-        bipartite_eincode(adj, ne.args, ne.eins; log2_size_dict=log2_size_dict, sc_target=sc_target, min_size=min_size, imbalances=imbalances)
-    end
-    kahypar_recursive(ne.args; log2_size_dict, sc_target=sc_target, min_size=min_size, imbalances=imbalances)
-end
-
-recursive_flatten(obj::Tuple) = vcat(recursive_flatten.(obj)...)
-recursive_flatten(obj::AbstractVector) = vcat(recursive_flatten.(obj)...)
-recursive_flatten(obj) = obj
-
-"""
-    optimize_kahypar_auto(code, size_dict; max_group_size=40, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=10)
-
-Find the optimal contraction order automatically by determining the `sc_target` with bisection.
-It can fail if the tree width of your graph is larger than `100`.
-"""
-function optimize_kahypar_auto(code::EinCode, size_dict; max_group_size=40, effort=500, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=10)
-    sc_high = 100
-    sc_low = 1
-    order_high = optimize_kahypar(code, size_dict; sc_target=sc_high, max_group_size=max_group_size, imbalances=0.0:0.6/effort*(sc_high-sc_low):0.6)
-    _optimize_kahypar_auto(code, size_dict, sc_high, order_high, sc_low, max_group_size, effort, greedy_method, greedy_nrepeat)
-end
-function _optimize_kahypar_auto(code::EinCode, size_dict, sc_high, order_high, sc_low, max_group_size, effort, greedy_method, greedy_nrepeat)
-    if sc_high <= sc_low + 1
-        order_high
-    else
-        sc_mid = (sc_high + sc_low) ÷ 2
-        try
-            order_mid = optimize_kahypar(code, size_dict; sc_target=sc_mid, max_group_size=max_group_size, imbalances=0.0:0.6/effort*(sc_high-sc_low):0.6)
-            order_high, sc_high = order_mid, sc_mid
-            # `sc_target` too high
-        catch
-            # `sc_target` too low
-            sc_low = sc_mid
-        end
-        _optimize_kahypar_auto(code, size_dict, sc_high, order_high, sc_low, max_group_size, effort, greedy_method, greedy_nrepeat)
-    end
 end

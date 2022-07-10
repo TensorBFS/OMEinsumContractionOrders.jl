@@ -1,48 +1,10 @@
 export Slicing, Slicer, SlicedEinsum
 
-struct Slicer
-    log2_sizes::Vector{Float64}   # the size dict after slicing
-    legs::Dict{Int,Float64}   # sliced leg and its original size
-    max_size::Int       # maximum number of sliced legs
-    fixed_slices::Vector{Int}     # number of fixed legs
-end
-function Slicer(log2_sizes::AbstractVector{Float64}, max_size::Int, fixed_slices::AbstractVector)
-    slicer = Slicer(collect(log2_sizes), Dict{Int,Float64}(), max_size, collect(Int,fixed_slices))
-    for l in fixed_slices
-        push!(slicer, l)
-    end
-    return slicer
-end
-Base.length(s::Slicer) = length(s.legs)
-function Base.replace!(slicer::Slicer, pair::Pair)
-    worst, best = pair
-    @assert worst ∉ slicer.fixed_slices
-    @assert haskey(slicer.legs, worst)
-    @assert !haskey(slicer.legs, best)
-    slicer.log2_sizes[worst] = slicer.legs[worst]       # restore worst size
-    slicer.legs[best] = slicer.log2_sizes[best]  # add best to legs
-    slicer.log2_sizes[best] = 0.0
-    delete!(slicer.legs, worst)                  # remove worst from legs
-    return slicer
-end
-
-function Base.push!(slicer, best)
-    @assert length(slicer) < slicer.max_size
-    @assert !haskey(slicer.legs, best)
-    slicer.legs[best] = slicer.log2_sizes[best]  # add best to legs
-    slicer.log2_sizes[best] = 0.0
-    return slicer
-end
-
 struct Slicing{LT}
     legs::Vector{LT}   # sliced leg and its original size
 end
 Base.:(==)(se::Slicing, se2::Slicing) = se.legs == se2.legs
 
-function Slicing(s::Slicer, inverse_map::Dict{Int,LT}) where LT
-    # we want to keep the order of input fixed slices!
-    Slicing(LT[[inverse_map[l] for l in s.fixed_slices]..., [inverse_map[l] for (l, sz) in s.legs if l ∉ s.fixed_slices]...])
-end
 Base.length(s::Slicing) = length(s.legs)
 
 struct SlicedEinsum{LT, Ein} <: AbstractEinsum

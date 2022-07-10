@@ -1,8 +1,148 @@
-using OMEinsum.ContractionOrder: ContractionTree, log2sumexp2
-using Base.Threads
+################### expression tree ###################
+# `ExprInfo` stores the node information.
+# * `out_dims` is the output dimensions of this tree/subtree.
+# * `tensorid` specifies the tensor index for leaf nodes. It is `-1` is for non-leaf node.
+struct ExprInfo
+    out_dims::Vector{Int}
+    tensorid::Int
+end
+ExprInfo(out_dims::Vector{Int}) = ExprInfo(out_dims, -1)
 
-export optimize_tree
+# `ExprTree` is the expression tree for tensor contraction (or contraction tree), it is a binary tree (including leaf nodes without siblings).
+# `left` and `right` are left and right branches, they are either both specified (non-leaf) or both unspecified (leaf), see [`isleaf`](@ref) function.
+# `ExprTree()` for constructing a leaf node,
+# `ExprTree(left, right, info)` for constructing a non-leaf node.
+mutable struct ExprTree
+    left::ExprTree
+    right::ExprTree
+    info::ExprInfo
+    ExprTree(info) = (res = new(); res.info=info; res)
+    ExprTree(left, right, info) = new(left, right, info)
+end
+function print_expr(io::IO, expr::ExprTree, level=0)
+    isleaf(expr) && return print(io, " "^(2*level), labels(expr), " ($(expr.info.tensorid))")
+    print(io, " "^(2*level), "(\n")
+    print_expr(io, expr.left, level+1)
+    print("\n")
+    print_expr(io, expr.right, level+1)
+    print("\n")
+    print(io, " "^(2*level), ") := ", labels(expr))
+end
+# if `expr` is a leaf, it should have `left` and `right` fields both unspecified.
+isleaf(expr::ExprTree) = !isdefined(expr, :left)
+Base.show(io::IO, expr::ExprTree) = print_expr(io, expr, 0)
+Base.show(io::IO, ::MIME"text/plain", expr::ExprTree) = show(io, expr)
+siblings(t::ExprTree) = isleaf(t) ? ExprTree[] : ExprTree[t.left, t.right]
+Base.copy(t::ExprTree) = isleaf(t) ? ExprTree(t.info) : ExprTree(copy(t.left), copy(t.right), copy(t.info))
+Base.copy(info::ExprInfo) = ExprInfo(copy(info.out_dims), info.tensorid)
+# output tensor labels
+labels(t::ExprTree) = t.info.out_dims
+# find the maximum label recursively, this is a helper function for converting an expression tree back to einsum.
+maxlabel(t::ExprTree) = isleaf(t) ? maximum(isempty(labels(t)) ? 0 : labels(t)) : max(isempty(labels(t)) ? 0 : maximum(labels(t)), maxlabel(t.left), maxlabel(t.right))
+# comparison between `ExprTree`s, mainly for testing
+Base.:(==)(t1::ExprTree, t2::ExprTree) = _equal(t1, t2)
+Base.:(==)(t1::ExprInfo, t2::ExprInfo) = _equal(t1.out_dims, t2.out_dims) && t1.tensorid == t2.tensorid
+function _equal(t1::ExprTree, t2::ExprTree)
+    isleaf(t1) != isleaf(t2) && return false
+    isleaf(t1) ? t1.info == t2.info : _equal(t1.left, t2.left) && _equal(t1.right, t2.right) && t1.info == t2.info
+end
+_equal(t1::Vector, t2::Vector) = Set(t1) == Set(t2)
 
+############# Slicer ######################
+struct Slicer
+    log2_sizes::Vector{Float64}   # the size dict after slicing
+    legs::Dict{Int,Float64}   # sliced leg and its original size
+    max_size::Int       # maximum number of sliced legs
+    fixed_slices::Vector{Int}     # number of fixed legs
+end
+function Slicer(log2_sizes::AbstractVector{Float64}, max_size::Int, fixed_slices::AbstractVector)
+    slicer = Slicer(collect(log2_sizes), Dict{Int,Float64}(), max_size, collect(Int,fixed_slices))
+    for l in fixed_slices
+        push!(slicer, l)
+    end
+    return slicer
+end
+Base.length(s::Slicer) = length(s.legs)
+function Base.replace!(slicer::Slicer, pair::Pair)
+    worst, best = pair
+    @assert worst ∉ slicer.fixed_slices
+    @assert haskey(slicer.legs, worst)
+    @assert !haskey(slicer.legs, best)
+    slicer.log2_sizes[worst] = slicer.legs[worst]       # restore worst size
+    slicer.legs[best] = slicer.log2_sizes[best]  # add best to legs
+    slicer.log2_sizes[best] = 0.0
+    delete!(slicer.legs, worst)                  # remove worst from legs
+    return slicer
+end
+
+function Base.push!(slicer, best)
+    @assert length(slicer) < slicer.max_size
+    @assert !haskey(slicer.legs, best)
+    slicer.legs[best] = slicer.log2_sizes[best]  # add best to legs
+    slicer.log2_sizes[best] = 0.0
+    return slicer
+end
+
+# convert the slicer to a vector of sliced labels
+function get_slices(s::Slicer, inverse_map::Dict{Int,LT}) where LT
+    # we want to keep the order of input fixed slices!
+    LT[[inverse_map[l] for l in s.fixed_slices]..., [inverse_map[l] for (l, sz) in s.legs if l ∉ s.fixed_slices]...]
+end
+
+############# random expression tree ###############
+function random_exprtree(code::EinCode)
+    ixs, iy = getixsv(code), getiyv(code)
+    labels = _label_dict(ixs, iy)
+    return random_exprtree([Int[labels[l] for l in ix] for ix in ixs], Int[labels[l] for l in iy], length(labels))
+end
+
+function random_exprtree(ixs::Vector{Vector{Int}}, iy::Vector{Int}, nedge::Int)
+    outercount = zeros(Int, nedge)
+    allcount = zeros(Int, nedge)
+    for l in iy
+        outercount[l] += 1
+        allcount[l] += 1
+    end
+    for ix in ixs
+        for l in ix
+            allcount[l] += 1
+        end
+    end
+    _random_exprtree(ixs, collect(1:length(ixs)), outercount, allcount)
+end
+function _random_exprtree(ixs::Vector{Vector{Int}}, xindices, outercount::Vector{Int}, allcount::Vector{Int})
+    n = length(ixs)
+    if n == 1
+        return ExprTree(ExprInfo(ixs[1], xindices[1]))
+    end
+    mask = rand(Bool, n)
+    if all(mask) || !any(mask)  # prevent invalid partition
+        i = rand(1:n)
+        mask[i] = ~(mask[i])
+    end
+    info = ExprInfo(Int[i for i=1:length(outercount) if outercount[i]!=allcount[i] && outercount[i]!=0])
+    outercount1, outercount2 = copy(outercount), copy(outercount)
+    for i=1:n
+        counter = mask[i] ? outercount2 : outercount1
+        for l in ixs[i]
+            counter[l] += 1
+        end
+    end
+    return ExprTree(_random_exprtree(ixs[mask], xindices[mask], outercount1, allcount), _random_exprtree(ixs[(!).(mask)], xindices[(!).(mask)], outercount2, allcount), info)
+end
+
+
+##################### convert a contraction tree back to a nested einsum ####################
+NestedEinsum(expr::ExprTree) = _nestedeinsum(expr, 1:maxlabel(expr))
+NestedEinsum(expr::ExprTree, labelmap) = _nestedeinsum(expr, labelmap)
+function _nestedeinsum(tree::ExprTree, lbs::Union{AbstractVector{LT}, Dict{Int,LT}}) where LT
+    isleaf(tree) && return NestedEinsum{LT}(tree.info.tensorid)
+    eins = EinCode([getindex.(Ref(lbs), labels(tree.left)), getindex.(Ref(lbs), labels(tree.right))], getindex.(Ref(lbs), labels(tree)))
+    NestedEinsum([_nestedeinsum(tree.left, lbs), _nestedeinsum(tree.right, lbs)], eins)
+end
+
+
+##################### The main program ##############################
 """
     TreeSA{RT,IT,GM}
     TreeSA(; sc_target=20, βs=collect(0.01:0.05:15), ntrials=10, niters=50,
@@ -35,63 +175,14 @@ Base.@kwdef struct TreeSA{RT,IT,GM,LT} <: CodeOptimizer
     greedy_config::GM = GreedyMethod(nrepeat=1)
 end
 
-# `ExprInfo` stores the node information.
-# * `out_dims` is the output dimensions of this tree/subtree.
-# * `tensorid` specifies the tensor index for leaf nodes. It is `-1` is for non-leaf node.
-struct ExprInfo
-    out_dims::Vector{Int}
-    tensorid::Int
-end
-ExprInfo(out_dims::Vector{Int}) = ExprInfo(out_dims, -1)
-
-# `ExprTree` is the expression tree for tensor contraction (or contraction tree), it is a binary tree (including leaf nodes without siblings).
-# `left` and `right` are left and right branches, they are either both specified (non-leaf) or both unspecified (leaf), see [`isleaf`](@ref) function.
-# `ExprTree()` for constructing a leaf node,
-# `ExprTree(left, right, info)` for constructing a non-leaf node.
-mutable struct ExprTree
-    left::ExprTree
-    right::ExprTree
-    info::ExprInfo
-    ExprTree(info) = (res = new(); res.info=info; res)
-    ExprTree(left, right, info) = new(left, right, info)
-end
-function print_expr(io::IO, expr::ExprTree, level=0)
-    isleaf(expr) && return print(io, " "^(2*level), labels(expr), " ($(expr.info.tensorid))")
-    print(io, " "^(2*level), "(\n")
-    print_expr(io, expr.left, level+1)
-    print("\n")
-    print_expr(io, expr.right, level+1)
-    print("\n")
-    print(io, " "^(2*level), ") := ", labels(expr))
-end
-# if `expr` is a leaf, it should have `left` and `right` fields both unspecified.
-OMEinsum.isleaf(expr::ExprTree) = !isdefined(expr, :left)
-Base.show(io::IO, expr::ExprTree) = print_expr(io, expr, 0)
-Base.show(io::IO, ::MIME"text/plain", expr::ExprTree) = show(io, expr)
-siblings(t::ExprTree) = isleaf(t) ? ExprTree[] : ExprTree[t.left, t.right]
-Base.copy(t::ExprTree) = isleaf(t) ? ExprTree(t.info) : ExprTree(copy(t.left), copy(t.right), copy(t.info))
-Base.copy(info::ExprInfo) = ExprInfo(copy(info.out_dims), info.tensorid)
-# output tensor labels
-labels(t::ExprTree) = t.info.out_dims
-# find the maximum label recursively, this is a helper function for converting an expression tree back to einsum.
-maxlabel(t::ExprTree) = isleaf(t) ? maximum(isempty(labels(t)) ? 0 : labels(t)) : max(isempty(labels(t)) ? 0 : maximum(labels(t)), maxlabel(t.left), maxlabel(t.right))
-# comparison between `ExprTree`s, mainly for testing
-Base.:(==)(t1::ExprTree, t2::ExprTree) = _equal(t1, t2)
-Base.:(==)(t1::ExprInfo, t2::ExprInfo) = _equal(t1.out_dims, t2.out_dims) && t1.tensorid == t2.tensorid
-function _equal(t1::ExprTree, t2::ExprTree)
-    isleaf(t1) != isleaf(t2) && return false
-    isleaf(t1) ? t1.info == t2.info : _equal(t1.left, t2.left) && _equal(t1.right, t2.right) && t1.info == t2.info
-end
-_equal(t1::Vector, t2::Vector) = Set(t1) == Set(t2)
-
 # this is the main function
 """
-    optimize_tree(code, size_dict; sc_target=20, βs=0.1:0.1:10, ntrials=2, niters=100, sc_weight=1.0, rw_weight=0.2, initializer=:greedy, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=1, fixed_slices=[])
+    optimize_tree(code, size_dict; sc_target=20, βs=0.1:0.1:10, ntrials=2, niters=100, sc_weight=1.0, rw_weight=0.2, initializer=:greedy, greedy_method=MinSpaceOut(), greedy_nrepeat=1, fixed_slices=[])
 
 Optimize the einsum contraction pattern specified by `code`, and edge sizes specified by `size_dict`.
 Check the docstring of [`TreeSA`](@ref) for detailed explaination of other input arguments.
 """
-function optimize_tree(code, size_dict; nslices::Int=0, sc_target=20, βs=0.1:0.1:10, ntrials=20, niters=100, sc_weight=1.0, rw_weight=0.2, initializer=:greedy, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=1, fixed_slices=[])
+function optimize_tree(code::AbstractEinsum, size_dict; nslices::Int=0, sc_target=20, βs=0.1:0.1:10, ntrials=20, niters=100, sc_weight=1.0, rw_weight=0.2, initializer=:greedy, greedy_method=MinSpaceOut(), greedy_nrepeat=1, fixed_slices=[])
     if nslices < length(fixed_slices)
         @warn("Number of slices: $(nslices) is smaller than the number of fixed slices, setting it to: $(length(fixed_slices)).")
         nslices = length(fixed_slices)
@@ -100,7 +191,7 @@ function optimize_tree(code, size_dict; nslices::Int=0, sc_target=20, βs=0.1:0.
     ixs, iy = getixsv(code), getiyv(code)
     ninputs = length(ixs)  # number of input tensors
     if ninputs <= 2  # number of input tensors ≤ 2, can not be optimized
-        return SlicedEinsum(Slicing(eltype(iy)[]), NestedEinsum(ntuple(i->i, ninputs), DynamicEinCode(ixs, iy)))
+        return SlicedEinsum(eltype(iy)[], NestedEinsum(ntuple(i->i, ninputs), EinCode(ixs, iy)))
     end
     ###### Stage 1: preprocessing ######
     labels = _label_dict(ixs, iy)  # map labels to integers
@@ -108,7 +199,7 @@ function optimize_tree(code, size_dict; nslices::Int=0, sc_target=20, βs=0.1:0.
     log2_sizes = [log2.(size_dict[inverse_map[i]]) for i=1:length(labels)]   # use `log2` sizes in computing time
     if ntrials <= 0  # no optimization at all, then 1). initialize an expression tree and 2). convert back to nested einsum.
         best_tree = _initializetree(code, size_dict, initializer; greedy_method=greedy_method, greedy_nrepeat=greedy_nrepeat)
-        return SlicedEinsum(Slicing(eltype(iy)[]), NestedEinsum(best_tree, inverse_map))
+        return SlicedEinsum(eltype(iy)[], NestedEinsum(best_tree, inverse_map))
     end
     ###### Stage 2: computing ######
     # create vectors to store optimized 1). expression tree, 2). time complexities, 3). space complexities, 4). read-write complexities and 5). slicing information.
@@ -137,7 +228,7 @@ function optimize_tree(code, size_dict; nslices::Int=0, sc_target=20, βs=0.1:0.
         @warn "target space complexity not found, got: $best_sc, with time complexity $best_tc, read-write complexity $best_rw."
     end
     # returns a sliced einsum we need to map the sliced dimensions back from integers to labels.
-    return SlicedEinsum(Slicing(best_slicer, inverse_map), NestedEinsum(best_tree, inverse_map))
+    return SlicedEinsum(get_slices(best_slicer, inverse_map), NestedEinsum(best_tree, inverse_map))
 end
 
 # initialize a contraction tree
@@ -243,48 +334,6 @@ end
     end
     rw = compute_rw ? fast_log2sumexp2(sc, sc1, sc2) : 0.0
     return tc, sc, rw
-end
-
-# random contraction tree
-function random_exprtree(code::EinCode)
-    ixs, iy = getixsv(code), getiyv(code)
-    labels = _label_dict(ixs, iy)
-    return random_exprtree([Int[labels[l] for l in ix] for ix in ixs], Int[labels[l] for l in iy], length(labels))
-end
-
-function random_exprtree(ixs::Vector{Vector{Int}}, iy::Vector{Int}, nedge::Int)
-    outercount = zeros(Int, nedge)
-    allcount = zeros(Int, nedge)
-    for l in iy
-        outercount[l] += 1
-        allcount[l] += 1
-    end
-    for ix in ixs
-        for l in ix
-            allcount[l] += 1
-        end
-    end
-    _random_exprtree(ixs, collect(1:length(ixs)), outercount, allcount)
-end
-function _random_exprtree(ixs::Vector{Vector{Int}}, xindices, outercount::Vector{Int}, allcount::Vector{Int})
-    n = length(ixs)
-    if n == 1
-        return ExprTree(ExprInfo(ixs[1], xindices[1]))
-    end
-    mask = rand(Bool, n)
-    if all(mask) || !any(mask)  # prevent invalid partition
-        i = rand(1:n)
-        mask[i] = ~(mask[i])
-    end
-    info = ExprInfo(Int[i for i=1:length(outercount) if outercount[i]!=allcount[i] && outercount[i]!=0])
-    outercount1, outercount2 = copy(outercount), copy(outercount)
-    for i=1:n
-        counter = mask[i] ? outercount2 : outercount1
-        for l in ixs[i]
-            counter[l] += 1
-        end
-    end
-    return ExprTree(_random_exprtree(ixs[mask], xindices[mask], outercount1, allcount), _random_exprtree(ixs[(!).(mask)], xindices[(!).(mask)], outercount2, allcount), info)
 end
 
 # optimize a contraction tree recursively
@@ -407,20 +456,11 @@ function _exprtree(code::NestedEinsum, labels)
     @assert length(code.args) == 2
     ExprTree(map(enumerate(code.args)) do (i,arg)
         if isleaf(arg)  # leaf nodes
-            ExprTree(ExprInfo(Int[labels[i] for i=OMEinsum.getixs(code.eins)[i]], arg.tensorindex))
+            ExprTree(ExprInfo(getixsv(code.eins)[i], arg.tensorindex))
         else
             res = _exprtree(arg, labels)
         end
-    end..., ExprInfo(Int[labels[i] for i=OMEinsum.getiy(code.eins)]))
-end
-
-# convert a contraction tree back to a nested einsum
-OMEinsum.NestedEinsum(expr::ExprTree) = _nestedeinsum(expr, 1:maxlabel(expr))
-OMEinsum.NestedEinsum(expr::ExprTree, labelmap) = _nestedeinsum(expr, labelmap)
-function _nestedeinsum(tree::ExprTree, lbs)
-    isleaf(tree) && return tree.info.tensorid
-    eins = EinCode([getindex.(Ref(lbs), labels(tree.left)), getindex.(Ref(lbs), labels(tree.right))], getindex.(Ref(lbs), labels(tree)))
-    NestedEinsum((_nestedeinsum(tree.left, lbs), _nestedeinsum(tree.right, lbs)), eins)
+    end..., ExprInfo(Int[labels[i] for i=getiyv(code.eins)]))
 end
 
 @inline function fast_log2sumexp2(a, b)

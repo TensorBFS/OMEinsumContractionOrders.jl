@@ -1,9 +1,3 @@
-using SparseArrays
-using Base: RefValue
-using BetterExp
-
-export SABipartite, optimize_sa
-
 """
     SABipartite{RT,BT}
     SABipartite(; sc_target=25, ntrials=50, βs=0.1:0.2:15.0, niters=1000
@@ -184,10 +178,10 @@ function initialize_greedy(adj, vertices, log2_sizes)
     for v=1:size(adj, 1)
         v2e[v] = adjt.rowval[nzrange(adjt, v)]
     end
-    incidence_list = OMEinsum.IncidenceList(v2e; openedges=openedges)
+    incidence_list = IncidenceList(v2e; openedges=openedges)
     log2_edge_sizes = Dict([i=>log2_sizes[i] for i=1:length(log2_sizes)])
     # nrepeat=3 because there are overheads
-    tree, _, _ = OMEinsum.tree_greedy(incidence_list, log2_edge_sizes; method=OMEinsum.MinSpaceOut(), nrepeat=3)
+    tree, _, _ = tree_greedy(incidence_list, log2_edge_sizes; method=MinSpaceOut(), nrepeat=3)
 
     # build configuration from the tree
     res = ones(Int, size(adj, 1))
@@ -209,7 +203,7 @@ end
 # legacy interface
 """
     optimize_sa(code, size_dict; sc_target, max_group_size=40, βs=0.1:0.2:15.0, niters=1000, ntrials=50,
-            greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=10, initializer=:random)
+            greedy_method=MinSpaceOut(), greedy_nrepeat=10, initializer=:random)
 
 Optimize the einsum `code` contraction order using the Simulated Annealing bipartition + Greedy approach.
 `size_dict` is a dictionary that specifies leg dimensions. 
@@ -219,7 +213,7 @@ Check the docstring of `SABipartite` for detailed explaination of other input ar
 * [Hyper-optimized tensor network contraction](https://arxiv.org/abs/2002.01935)
 """
 function optimize_sa(code::EinCode, size_dict; sc_target, max_group_size=40,
-             βs=0.01:0.02:15.0, niters=1000, ntrials=50, greedy_method=OMEinsum.MinSpaceOut(), greedy_nrepeat=10,
+             βs=0.01:0.02:15.0, niters=1000, ntrials=50, greedy_method=MinSpaceOut(), greedy_nrepeat=10,
              initializer=:random)
     bipartiter = SABipartite(; sc_target=sc_target, βs=βs, niters=niters, ntrials=ntrials,
         greedy_config=GreedyMethod(method=greedy_method, nrepeat=greedy_nrepeat),
