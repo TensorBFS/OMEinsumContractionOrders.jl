@@ -32,15 +32,17 @@ julia> function random_regular_eincode(n, k; optimize=nothing)
     
 julia> code = random_regular_eincode(200, 3);
 
-julia> optcode_tree = optimize_code(code, uniformsize(code, 2), TreeSA(sc_target=28, βs=0.1:0.1:10,
-								ntrials=2, niters=100, sc_weight=3.0));
+julia> optcode_tree = optimize_code(code, uniformsize(code, 2),
+	TreeSA(sc_target=28, βs=0.1:0.1:10, ntrials=2, niters=100, sc_weight=3.0));
 
-julia> optcode_tree_with_slice = optimize_code(code, uniformsize(code, 2), TreeSA(sc_target=28, βs=0.1:0.1:10, 
-							ntrials=2, niters=100, sc_weight=3.0, nslices=5));
+julia> optcode_tree_with_slice = optimize_code(code, uniformsize(code, 2),
+	TreeSA(sc_target=28, βs=0.1:0.1:10, ntrials=2, niters=100, sc_weight=3.0, nslices=5));
 
-julia> optcode_kahypar = optimize_code(code, uniformsize(code, 2), KaHyParBipartite(sc_target=30, max_group_size=50));
+julia> optcode_kahypar = optimize_code(code, uniformsize(code, 2), 
+	KaHyParBipartite(sc_target=30, max_group_size=50));
 
-julia> optcode_sa = optimize_code(code, uniformsize(code, 2), SABipartite(sc_target=30, max_group_size=50));
+julia> optcode_sa = optimize_code(code, uniformsize(code, 2),
+	SABipartite(sc_target=30, max_group_size=50));
 
 julia> timespace_complexity(code, uniformsize(code, 2))
 (200.0, 0.0)
