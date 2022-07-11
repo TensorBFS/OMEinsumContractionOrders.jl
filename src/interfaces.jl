@@ -9,6 +9,27 @@ Returns a `NestedEinsum` instance. Input arguments are
 * `optimizer` is a `CodeOptimizer` instance, should be one of `GreedyMethod`, `KaHyParBipartite`, `SABipartite` or `TreeSA`. Check their docstrings for details.
 * `simplifier` is one of `MergeVectors` or `MergeGreedy`.
 * optimize the permutation if `permute` is true.
+
+### Examples
+
+```julia
+julia> using OMEinsum
+
+julia> code = ein"ij, jk, kl, il->"
+ij, jk, kl, il -> 
+```
+
+```
+julia> optimize_code(code, uniformsize(code, 2), TreeSA())
+SlicedEinsum{Char, NestedEinsum{DynamicEinCode{Char}}}(Char[], ki, ki -> 
+├─ jk, ij -> ki
+│  ├─ jk
+│  └─ ij
+└─ kl, il -> ki
+   ├─ kl
+   └─ il
+)
+```
 """
 function optimize_code(code::Union{EinCode, NestedEinsum}, size_dict::Dict, optimizer::CodeOptimizer, simplifier=nothing, permute::Bool=true)
     if simplifier === nothing
