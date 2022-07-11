@@ -52,6 +52,31 @@ getiyv(ne::SlicedEinsum) = getiyv(ne.eins)
 uniquelabels(code::AbstractEinsum) = unique!(vcat(getixsv(code)..., getiyv(code)))
 labeltype(code::AbstractEinsum) = eltype(getiyv(code))
 
+# Better printing
+struct LeafString
+    str::String
+end
+function AbstractTrees.children(ne::NestedEinsum)
+    [isleaf(item) ? LeafString(_join(getixsv(ne.eins)[k])) : item for (k,item) in enumerate(ne.args)]
+end
+function AbstractTrees.printnode(io::IO, x::NestedEinsum)
+    isleaf(x) ? print(io, x.tensorindex) : print(io, x.eins)
+end
+AbstractTrees.printnode(io::IO, e::LeafString) = print(io, e.str)
+function Base.show(io::IO, e::EinCode)
+    s = join([_join(ix) for ix in getixs(e)], ", ") * " -> " * _join(getiy(e))
+    print(io, s)
+end
+function Base.show(io::IO, e::NestedEinsum)
+    print_tree(io, e)
+end
+Base.show(io::IO, ::MIME"text/plain", e::NestedEinsum) = show(io, e)
+Base.show(io::IO, ::MIME"text/plain", e::EinCode) = show(io, e)
+_join(ix) = isempty(ix) ? "" : join(ix, connector(eltype(ix)))
+connector(::Type{Char}) = ""
+connector(::Type{Int}) = "∘"
+connector(::Type) = "-"
+
 ############### Simplifier and optimizer types #################
 abstract type CodeSimplifier end
 

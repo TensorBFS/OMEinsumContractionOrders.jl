@@ -6,6 +6,7 @@ using Base: RefValue
 using BetterExp
 using Base.Threads
 using Suppressor: @suppress
+using AbstractTrees
 
 using Requires
 function __init__()
@@ -23,9 +24,8 @@ export CodeOptimizer, CodeSimplifier,
     simplify_code, optimize_code, optimize_permute,
     # time space complexity
     peak_memory, timespace_complexity, timespacereadwrite_complexity, flop,
-    # file io
-    writejson, readjson,
     label_elimination_order
+    # writejson, readjson are not exported to avoid namespace conflict
 
 include("Core.jl")
 include("utils.jl")

@@ -79,7 +79,9 @@ end
     @test optcode(x, y) ≈ code(x, y)
 
     code = ein"ij,jk,kl->ijl"
+    println(code)
     optcode = optimize_code(code, Dict('i'=>4, 'j'=>4, 'k'=>4, 'l'=>4), KaHyParBipartite(; sc_target=4, max_group_size=2))
+    println(optcode)
     @test optcode isa NestedEinsum
     a, b, c = [rand(4,4) for i=1:4]
     @test optcode(a, b, c) ≈ code(a, b, c)
