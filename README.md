@@ -20,14 +20,14 @@ pkg> add KaHyPar
 The `KaHyPar` package (used in `KaHyParBipartite` optimizer) is optional because some one may have the binary issue, check [this](https://github.com/kahypar/KaHyPar.jl/issues/12) and [this](https://github.com/kahypar/KaHyPar.jl/issues/19).
 
 ## Example
-Contract a tensor network
+Optimize a contraction order
 ```julia
-julia> using OMEinsum, OMEinsumContractionOrders, Graphs, KaHyPar
+julia> using OMEinsumContractionOrders, Graphs, KaHyPar
 
 julia> function random_regular_eincode(n, k; optimize=nothing)
 	    g = Graphs.random_regular_graph(n, k)
-	    ixs = [minmax(e.src,e.dst) for e in Graphs.edges(g)]
-	    return EinCode((ixs..., [(i,) for i in Graphs.vertices(g)]...), ())
+	    ixs = [[minmax(e.src,e.dst)...] for e in Graphs.edges(g)]
+	    return EinCode([ixs..., [[i] for i in Graphs.vertices(g)]...], Int[])
     end
     
 julia> code = random_regular_eincode(200, 3);
@@ -42,20 +42,39 @@ julia> optcode_kahypar = optimize_code(code, uniformsize(code, 2), KaHyParBipart
 
 julia> optcode_sa = optimize_code(code, uniformsize(code, 2), SABipartite(sc_target=30, max_group_size=50));
 
-julia> OMEinsum.timespace_complexity(code, uniformsize(code, 2))
+julia> timespace_complexity(code, uniformsize(code, 2))
 (200.0, 0.0)
 
-julia> OMEinsum.timespace_complexity(optcode_kahypar, uniformsize(code, 2))
+julia> timespace_complexity(optcode_kahypar, uniformsize(code, 2))
 (39.00774639886569, 28.0)
 
-julia> OMEinsum.timespace_complexity(optcode_sa, uniformsize(code, 2))
+julia> timespace_complexity(optcode_sa, uniformsize(code, 2))
 (39.09524927371961, 28.0)
 
-julia> tc, sc = OMEinsum.timespace_complexity(optcode_tree, uniformsize(code, 2))
+julia> timespace_complexity(optcode_tree, uniformsize(code, 2))
 (31.13883492534964, 27.0)
 
-julia> tc, sc = OMEinsum.timespace_complexity(optcode_tree_with_slice, uniformsize(code, 2))
+julia> timespace_complexity(optcode_tree_with_slice, uniformsize(code, 2))
 (31.292828948918775, 22.0)
+```
+
+It is already a part of [`OMEinsum`](https://github.com/under-Peter/OMEinsum.jl):
+
+```julia
+julia> using OMEinsum
+
+julia> code = ein"ij, jk, kl, il->"
+ij, jk, kl, il -> 
+
+julia> optimize_code(code, uniformsize(code, 2), TreeSA())
+SlicedEinsum{Char, NestedEinsum{DynamicEinCode{Char}}}(Char[], ki, ki -> 
+├─ jk, ij -> ki
+│  ├─ jk
+│  └─ ij
+└─ kl, il -> ki
+   ├─ kl
+   └─ il
+)
 ```
 
 ## Acknowledge OMEinsum/OMEinsumContractionOrders
@@ -65,6 +84,18 @@ https://github.com/TensorBFS/OMEinsumContractionOrders.jl/issues/21
 ## References
 
 If you find this package useful in your research, please cite the following papers
+```
+@misc{Liu2022,
+  doi = {10.48550/ARXIV.2205.03718},
+  url = {https://arxiv.org/abs/2205.03718},
+  author = {Liu, Jin-Guo and Gao, Xun and Cain, Madelyn and Lukin, Mikhail D. and Wang, Sheng-Tao},
+  keywords = {Statistical Mechanics (cond-mat.stat-mech), FOS: Physical sciences, FOS: Physical sciences},
+  title = {Computing solution space properties of combinatorial optimization problems via generic tensor networks},
+  publisher = {arXiv},
+  year = {2022},
+  copyright = {Creative Commons Attribution 4.0 International}
+}
+```
 
 To credit the `KaHyParBipartite` and `SABipartite` method,
 ```

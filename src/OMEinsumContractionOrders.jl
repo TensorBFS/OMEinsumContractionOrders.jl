@@ -1,11 +1,12 @@
 module OMEinsumContractionOrders
 
-using Requires
-using SparseArrays, Suppressor
-using OMEinsum
-using OMEinsum: NestedEinsum, getixsv, getiyv, DynamicEinCode, StaticEinCode, isleaf, MinSpaceDiff, MinSpaceOut
-export MinSpaceDiff, MinSpaceOut
 using JSON
+using SparseArrays
+using Base: RefValue
+using BetterExp
+using Base.Threads
+using Suppressor: @suppress
+using AbstractTrees
 
 using Requires
 function __init__()
@@ -15,30 +16,39 @@ function __init__()
     end
 end
 
-abstract type CodeOptimizer end
+export CodeOptimizer, CodeSimplifier,
+    KaHyParBipartite, GreedyMethod, TreeSA, SABipartite,
+    MinSpaceDiff, MinSpaceOut,
+    MergeGreedy, MergeVectors,
+    uniformsize,
+    simplify_code, optimize_code, optimize_permute,
+    # time space complexity
+    peak_memory, timespace_complexity, timespacereadwrite_complexity, flop,
+    label_elimination_order
+    # writejson, readjson are not exported to avoid namespace conflict
 
-"""
-    GreedyMethod{MT}
-    GreedyMethod(; method=MinSpaceOut(), nrepeat=10)
+include("Core.jl")
+include("utils.jl")
 
-The fast but poor greedy optimizer. Input arguments are
+# greedy method
+include("incidencelist.jl")
+include("greedy.jl")
 
-* `method` is `MinSpaceDiff()` or `MinSpaceOut`.
-    * `MinSpaceOut` choose one of the contraction that produces a minimum output tensor size,
-    * `MinSpaceDiff` choose one of the contraction that decrease the space most.
-* `nrepeat` is the number of repeatition, returns the best contraction order.
-"""
-Base.@kwdef struct GreedyMethod{MT} <: CodeOptimizer
-    method::MT = MinSpaceOut()
-    nrepeat::Int = 10
-end
-
-include("slicing.jl")
-include("kahypar.jl")
+# bipartition based methods
 include("sa.jl")
+include("kahypar.jl")
+
+# local search method
 include("treesa.jl")
+
+# simplification passes
 include("simplify.jl")
+
+# interfaces
+include("complexity.jl")
 include("interfaces.jl")
+
+# saveload
 include("json.jl")
 
 end

@@ -1,9 +1,9 @@
-using Test, OMEinsumContractionOrders, OMEinsum
+using Test, OMEinsumContractionOrders
 
 @testset "save load" begin
     for code in [
-        EinCode([[1,2], [2,3], [3,4]], [1,4]),
-        EinCode([['a','b'], ['b','c'], ['c','d']], ['a','d'])
+        OMEinsumContractionOrders.EinCode([[1,2], [2,3], [3,4]], [1,4]),
+        OMEinsumContractionOrders.EinCode([['a','b'], ['b','c'], ['c','d']], ['a','d'])
     ]
         for optcode in [optimize_code(code, uniformsize(code, 2), GreedyMethod()),
             optimize_code(code, uniformsize(code, 2), TreeSA(nslices=1))]

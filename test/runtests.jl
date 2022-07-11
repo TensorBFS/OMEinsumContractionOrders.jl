@@ -1,10 +1,6 @@
 using OMEinsumContractionOrders
 using Test
 
-@testset "slicing" begin
-    include("slicing.jl")
-end
-
 @testset "kahypar" begin
     include("kahypar.jl")
 end

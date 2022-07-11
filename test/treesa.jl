@@ -1,24 +1,41 @@
 using OMEinsumContractionOrders, Test, Random
-using OMEinsumContractionOrders: random_exprtree, ExprTree, ExprInfo, ruleset, update_tree!, tcscrw, optimize_subtree!, optimize_tree_sa!, labels, tree_timespace_complexity, fast_log2sumexp2
-using OMEinsum, Graphs
+using OMEinsumContractionOrders: random_exprtree, ExprTree, ExprInfo,
+    ruleset, update_tree!, tcscrw, optimize_subtree!, optimize_tree_sa!, labels, tree_timespace_complexity, fast_log2sumexp2,
+    ExprTree, optimize_greedy, _label_dict, Slicer, optimize_tree
+using Graphs
+using OMEinsum: decorate
+
+@testset "slicer" begin
+    log2_sizes = [1, 2,3 ,4.0]
+    s = Slicer(log2_sizes, 3, [])
+    push!(s, 1)
+    @test_throws AssertionError push!(s, 1)
+    push!(s, 2)
+    push!(s, 3)
+    @test_throws AssertionError push!(s, 4)
+    replace!(s, 1=>4)
+    @test s.log2_sizes == [1, 0.0, 0.0, 0.0]
+    @test s.legs == Dict(2=>2.0, 3=>3.0, 4=>4.0)
+    @test_throws AssertionError replace!(s, 1=>4)
+end
 
 @testset "random expr tree" begin
     function random_regular_eincode(n, k)
         g = Graphs.random_regular_graph(n, k)
-        ixs = [minmax(e.src,e.dst) for e in Graphs.edges(g)]
-        return EinCode((ixs..., [(i,) for i in Graphs.vertices(g)]...), ())
+        ixs = [[minmax(e.src,e.dst)...] for e in Graphs.edges(g)]
+        return OMEinsumContractionOrders.EinCode([ixs..., [[i] for i in Graphs.vertices(g)]...], Int[])
     end
     Random.seed!(2)
     tree = random_exprtree([[1,2,5], [2,3], [2,4]], [5], 5)
-    @test tree isa OMEinsumContractionOrders.ExprTree
-    tree2 = random_exprtree(EinCode(((1,2,5), (2,3), (2,4)), (5,)))
-    @test tree isa OMEinsumContractionOrders.ExprTree
+    @test tree isa ExprTree
+    tree2 = random_exprtree(OMEinsumContractionOrders.EinCode([[1,2,5], [2,3], [2,4]], [5]))
+    @test tree isa ExprTree
     code = random_regular_eincode(20, 3)
     optcode = optimize_greedy(code, uniformsize(code, 2))
     tree3 = ExprTree(optcode)
-    @test tree isa OMEinsumContractionOrders.ExprTree
-    labelmap = Dict([v=>k for (k,v) in OMEinsumContractionOrders._label_dict(code)])
-    optcode_reconstruct = NestedEinsum(tree3, labelmap)
+    @test tree isa ExprTree
+    labelmap = Dict([v=>k for (k,v) in _label_dict(code)])
+    optcode_reconstruct = OMEinsumContractionOrders.NestedEinsum(tree3, labelmap)
     @test optcode == optcode_reconstruct
 end
 
@@ -53,8 +70,8 @@ end
 @testset "optimization" begin
     function random_regular_eincode(n, k)
         g = Graphs.random_regular_graph(n, k)
-        ixs = [minmax(e.src,e.dst) for e in Graphs.edges(g)]
-        return EinCode((ixs..., [(i,) for i in Graphs.vertices(g)]...), ())
+        ixs = [[minmax(e.src,e.dst)...] for e in Graphs.edges(g)]
+        return OMEinsumContractionOrders.EinCode([ixs..., [[i] for i in Graphs.vertices(g)]...], Int[])
     end
     Random.seed!(2)
     n = 40
@@ -64,7 +81,7 @@ end
     tree = ExprTree(optcode)
     tc0, sc0, rw0 = tree_timespace_complexity(tree, log2_sizes)
     size_dict = Dict([j=>exp2(log2_sizes[j]) for j=1:length(log2_sizes)])
-    tc0_, sc0_ = OMEinsum.timespace_complexity(NestedEinsum(tree), size_dict)
+    tc0_, sc0_ = timespace_complexity(OMEinsumContractionOrders.NestedEinsum(tree), size_dict)
     @test tc0 ≈ tc0_ && sc0 ≈ sc0_
     opt_tree = copy(tree)
     optimize_subtree!(opt_tree, 100.0, log2_sizes, 5, 2.0, 1.0)
@@ -75,8 +92,8 @@ end
 @testset "optimize tree sa" begin
     function random_regular_eincode(n, k)
         g = Graphs.random_regular_graph(n, k)
-        ixs = [minmax(e.src,e.dst) for e in Graphs.edges(g)]
-        return EinCode((ixs..., [(i,) for i in Graphs.vertices(g)]...), ())
+        ixs = [[minmax(e.src,e.dst)...] for e in Graphs.edges(g)]
+        return OMEinsumContractionOrders.EinCode([ixs..., [[i] for i in Graphs.vertices(g)]...], Int[])
     end
     Random.seed!(3)
     n = 60
@@ -104,18 +121,18 @@ end
 @testset "sa tree" begin
     function random_regular_eincode(n, k)
         g = Graphs.random_regular_graph(n, k)
-        ixs = [minmax(e.src,e.dst) for e in Graphs.edges(g)]
-        return EinCode((ixs..., [(i,) for i in Graphs.vertices(g)]...), ())
+        ixs = [[minmax(e.src,e.dst)...] for e in Graphs.edges(g)]
+        return OMEinsumContractionOrders.EinCode([ixs..., [[i] for i in Graphs.vertices(g)]...], Int[])
     end
     Random.seed!(2)
     g = random_regular_graph(220, 3)
     code = random_regular_eincode(220, 3)
     res = optimize_greedy(code,uniformsize(code, 2))
-    tc, sc = OMEinsum.timespace_complexity(res, uniformsize(code, 2))
+    tc, sc = timespace_complexity(res, uniformsize(code, 2))
 
-    @test optimize_tree(res,uniformsize(code, 2); sc_target=32, βs=0.1:0.05:20.0, ntrials=0, niters=10, sc_weight=1.0, rw_weight=1.0) isa SlicedEinsum
-    optcode = optimize_tree(res,uniformsize(code, 2); sc_target=32, βs=0.1:0.05:20.0, ntrials=2, niters=10, sc_weight=1.0, rw_weight=1.0)
-    tc, sc = OMEinsum.timespace_complexity(optcode, uniformsize(code, 2))
+    @test optimize_tree(res, uniformsize(code, 2); sc_target=32, βs=0.1:0.05:20.0, ntrials=0, niters=10, sc_weight=1.0, rw_weight=1.0) isa OMEinsumContractionOrders.SlicedEinsum
+    optcode = optimize_tree(res, uniformsize(code, 2); sc_target=32, βs=0.1:0.05:20.0, ntrials=2, niters=10, sc_weight=1.0, rw_weight=1.0)
+    tc, sc = timespace_complexity(optcode, uniformsize(code, 2))
     @test sc <= 32
     @test length(optcode.slicing) == 0
 
@@ -123,22 +140,22 @@ end
     code = random_regular_eincode(50, 3)
     codek = optimize_greedy(code, uniformsize(code, 2))
     codeg = optimize_tree(code, uniformsize(code, 2); initializer=:random)
-    tc, sc = OMEinsum.timespace_complexity(codek, uniformsize(code, 2))
+    tc, sc = timespace_complexity(codek, uniformsize(code, 2))
     @test sc <= 12
     xs = [[2*randn(2, 2) for i=1:75]..., [randn(2) for i=1:50]...]
-    resg = codeg(xs...)
-    resk = codek(xs...)
+    resg = decorate(codeg)(xs...)
+    resk = decorate(codek)(xs...)
     @test resg ≈ resk
 
     # contraction test
     code = random_regular_eincode(50, 3)
     codek = optimize_greedy(code, uniformsize(code, 2))
     codeg = optimize_tree(codek, uniformsize(code, 2); initializer=:specified)
-    tc, sc = OMEinsum.timespace_complexity(codek, uniformsize(code, 2))
+    tc, sc = timespace_complexity(codek, uniformsize(code, 2))
     @test sc <= 12
     xs = [[2*randn(2, 2) for i=1:75]..., [randn(2) for i=1:50]...]
-    resg = codeg(xs...)
-    resk = codek(xs...)
+    resg = decorate(codeg)(xs...)
+    resk = decorate(codek)(xs...)
     @test resg ≈ resk
 end
 
@@ -151,8 +168,8 @@ end
 @testset "slicing" begin
     function random_regular_eincode(n, k)
         g = Graphs.random_regular_graph(n, k)
-        ixs = [minmax(e.src,e.dst) for e in Graphs.edges(g)]
-        return EinCode((ixs..., [(i,) for i in Graphs.vertices(g)]...), ())
+        ixs = [[minmax(e.src,e.dst)...] for e in Graphs.edges(g)]
+        return OMEinsumContractionOrders.EinCode([ixs..., [[i] for i in Graphs.vertices(g)]...], Int[])
     end
     # contraction test
     Random.seed!(2)
@@ -160,54 +177,54 @@ end
     code0 = optimize_greedy(code, uniformsize(code, 2))
     codek = optimize_tree(code0, uniformsize(code, 2); initializer=:specified, nslices=0, niters=5)
     codeg = optimize_tree(code0, uniformsize(code, 2); initializer=:specified, nslices=5, niters=5)
-    tc0, sc0 = OMEinsum.timespace_complexity(codek, uniformsize(code, 2))
-    tc, sc = OMEinsum.timespace_complexity(codeg, uniformsize(code, 2))
+    tc0, sc0 = timespace_complexity(codek, uniformsize(code, 2))
+    tc, sc = timespace_complexity(codeg, uniformsize(code, 2))
     @show tc, sc, tc0, sc0
     @test sc <= sc0 - 4
     xs = [[2*randn(2, 2) for i=1:150]..., [randn(2) for i=1:100]...]
-    resg = codeg(xs...)
-    resk = codek(xs...)
+    resg = decorate(codeg)(xs...)
+    resk = decorate(codek)(xs...)
     @test resg ≈ resk
 
     # with open edges
     Random.seed!(2)
-    code = EinCode(random_regular_eincode(100, 3).ixs, [3,81,2])
+    code = OMEinsumContractionOrders.EinCode(random_regular_eincode(100, 3).ixs, [3,81,2])
     codek = optimize_tree(code0, uniformsize(codek, 2); initializer=:specified, nslices=0, niters=5)
     codeg = optimize_tree(code0, uniformsize(codeg, 2); initializer=:specified, nslices=5, niters=5)
-    tc0, sc0 = OMEinsum.timespace_complexity(codek, uniformsize(code, 2))
-    tc, sc = OMEinsum.timespace_complexity(codeg, uniformsize(code, 2))
-    fl = OMEinsum.flop(codeg, uniformsize(code, 2))
+    tc0, sc0 = timespace_complexity(codek, uniformsize(code, 2))
+    tc, sc = timespace_complexity(codeg, uniformsize(code, 2))
+    fl = flop(codeg, uniformsize(code, 2))
     @test tc ≈ log2(fl)
     @show tc, sc, tc0, sc0
     @test sc <= sc0 - 4
     @test sc <= 17
     xs = [[2*randn(2, 2) for i=1:150]..., [randn(2) for i=1:100]...]
-    resg = codeg(xs...)
-    resk = codek(xs...)
+    resg = decorate(codeg)(xs...)
+    resk = decorate(codek)(xs...)
     @test resg ≈ resk
 
     # slice with fixed slices
     Random.seed!(2)
-    code = EinCode(random_regular_eincode(20, 3).ixs, [3,10,2])
+    code = OMEinsumContractionOrders.EinCode(random_regular_eincode(20, 3).ixs, [3,10,2])
     code0 = optimize_tree(code, uniformsize(code, 2); nslices=5, fixed_slices=[5,3,8,1,2,4,11])
     code1 = optimize_tree(code, uniformsize(code, 2); ntrials=1, nslices=5)
     code2 = optimize_tree(code, uniformsize(code, 2); ntrials=1, nslices=5, fixed_slices=[5,3])
     code3 = optimize_tree(code, uniformsize(code, 2); ntrials=1, nslices=5, fixed_slices=[5,1,4,3,2])
     code4 = optimize_tree(code, uniformsize(code, 2); ntrials=1, fixed_slices=[5,1,4,3,2])
     xs = [[2*randn(2, 2) for i=1:30]..., [randn(2) for i=1:20]...]
-    @test length(code0.slicing) == 7 && code0.slicing.legs == [5,3,8,1,2,4,11]
-    @test length(code2.slicing) == 5 && code2.slicing.legs[1:2] == [5,3]
-    @test length(code3.slicing) == 5 && code3.slicing.legs == [5,1,4,3,2]
-    @test length(code4.slicing) == 5 && code4.slicing.legs == [5,1,4,3,2]
-    @test code1(xs...) ≈ code2(xs...)
-    @test code1(xs...) ≈ code3(xs...)
+    @test length(code0.slicing) == 7 && code0.slicing == [5,3,8,1,2,4,11]
+    @test length(code2.slicing) == 5 && code2.slicing[1:2] == [5,3]
+    @test length(code3.slicing) == 5 && code3.slicing == [5,1,4,3,2]
+    @test length(code4.slicing) == 5 && code4.slicing == [5,1,4,3,2]
+    @test decorate(code1)(xs...) ≈ decorate(code2)(xs...)
+    @test decorate(code1)(xs...) ≈ decorate(code3)(xs...)
 
     function random_regular_eincode_char(n, k)
         g = Graphs.random_regular_graph(n, k)
-        ixs = [minmax('0' + e.src, '0'+e.dst) for e in Graphs.edges(g)]
-        return EinCode((ixs..., [('0'+i,) for i in Graphs.vertices(g)]...), ())
+        ixs = [[minmax('0' + e.src, '0'+e.dst)...] for e in Graphs.edges(g)]
+        return OMEinsumContractionOrders.EinCode([ixs..., [['0'+i] for i in Graphs.vertices(g)]...], Char[])
     end
-    code = EinCode(random_regular_eincode_char(20, 3).ixs, ['3','8','2'])
+    code = OMEinsumContractionOrders.EinCode(random_regular_eincode_char(20, 3).ixs, ['3','8','2'])
     code1 = optimize_tree(code, uniformsize(code, 2); ntrials=1, fixed_slices=['7'])
-    @test OMEinsum.labeltype(code1) == Char
+    @test eltype(code1.eins.eins.iy) == Char
 end
