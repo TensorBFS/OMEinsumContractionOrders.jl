@@ -1,6 +1,3 @@
-using JSON
-
-export writejson, readjson
 
 function writejson(filename::AbstractString, ne::Union{NestedEinsum, SlicedEinsum})
     dict = _todict(ne)
@@ -10,7 +7,7 @@ function writejson(filename::AbstractString, ne::Union{NestedEinsum, SlicedEinsu
 end
 function _todict(ne::SlicedEinsum)
     dict = _todict(ne.eins)
-    dict["slices"] = ne.slicing.legs
+    dict["slices"] = ne.slicing
     return dict
 end
 function _todict(ne::NestedEinsum)
@@ -42,7 +39,7 @@ end
 
 function todict(ne::NestedEinsum)
     dict = Dict{String,Any}()
-    if OMEinsum.isleaf(ne)
+    if isleaf(ne)
         dict["isleaf"] = true
         dict["tensorindex"] = ne.tensorindex
         return dict
@@ -60,7 +57,7 @@ end
 
 function fromdict(::Type{LT}, dict::Dict) where LT
     if dict["isleaf"]
-        return NestedEinsum{DynamicEinCode{LT}}(dict["tensorindex"])
+        return NestedEinsum{LT}(dict["tensorindex"])
     end
     eins = einsfromdict(LT, dict["eins"])
     return NestedEinsum(fromdict.(LT, dict["args"]), eins)

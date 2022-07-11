@@ -33,7 +33,7 @@ end
 
 function peak_memory(code::SlicedEinsum, size_dict::Dict)
     size_dict_sliced = copy(size_dict)
-    for l in code.slicing.legs
+    for l in code.slicing
         size_dict_sliced[l] = 1
     end
     return peak_memory(code.eins, size_dict_sliced) + _mem(getiyv(code.eins), size_dict)
@@ -166,3 +166,21 @@ function flop(code::SlicedEinsum, size_dict)
 end
 
 uniformsize(code::AbstractEinsum, size) = Dict([l=>size for l in uniquelabels(code)])
+
+"""
+    label_elimination_order(code)
+
+Returns a vector of labels sorted by the order they are eliminated in the contraction tree.
+The contraction tree is specified by `code`, which e.g. can be a `NestedEinsum` instance.
+"""
+label_elimination_order(code::NestedEinsum) = label_elimination_order!(code, labeltype(code)[])
+function label_elimination_order!(code, eliminated_vertices)
+    isleaf(code) && return eliminated_vertices
+    for arg in code.args
+        label_elimination_order!(arg, eliminated_vertices)
+    end
+    append!(eliminated_vertices, setdiff(vcat(getixsv(code.eins)...), getiyv(code.eins)))
+    return eliminated_vertices
+end
+label_elimination_order(code::SlicedEinsum) = label_elimination_order(code.eins)
+

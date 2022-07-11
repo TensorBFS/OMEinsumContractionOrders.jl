@@ -1,5 +1,3 @@
-export IncidenceList
-
 struct IncidenceList{VT,ET}
     v2e::Dict{VT,Vector{ET}}
     e2v::Dict{ET,Vector{VT}}

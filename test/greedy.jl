@@ -1,5 +1,5 @@
-using OMEinsumContractionOrders.ContractionOrderAlgorithms
-using OMEinsumContractionOrders.ContractionOrderAlgorithms: analyze_contraction, contract_pair!, evaluate_costs, contract_tree!, log2sumexp2, parse_tree
+using OMEinsumContractionOrders
+using OMEinsumContractionOrders: analyze_contraction, contract_pair!, evaluate_costs, contract_tree!, log2sumexp2, parse_tree
 using TropicalNumbers
 
 using Test, Random
@@ -35,7 +35,7 @@ end
     @test all((log2sumexp2(tcs_), maximum(scs_)) .<= (log2(exp2(10)+exp2(16)+exp2(15)+exp2(9)), 11))
     vertices = ['A', 'B', 'C', 'D', 'E']
     optcode1 = parse_eincode(StaticEinCode, incidence_list, tree, vertices=vertices)
-    @test optcode1 isa ContractionOrderAlgorithms.NestedEinsum
+    @test optcode1 isa OMEinsumContractionOrders.NestedEinsum
     tree2 = parse_tree(optcode1, vertices)
     @test tree2 == tree
 

@@ -1,8 +1,8 @@
-using Test, OMEinsumContractionOrders.ContractionOrderAlgorithms
+using Test, OMEinsumContractionOrders
 using Graphs, Random
 using SparseArrays
-using OMEinsumContractionOrders.ContractionOrderAlgorithms: bipartite_sc, adjacency_matrix, SABipartite, group_sc, bipartite_sc, optimize_sa, optimize_greedy
-using OMEinsumContractionOrders: decorate
+using OMEinsumContractionOrders: bipartite_sc, adjacency_matrix, SABipartite, group_sc, bipartite_sc, optimize_sa, optimize_greedy
+using OMEinsum: decorate
 
 @testset "sa bipartition" begin
     Random.seed!(3)
@@ -20,7 +20,7 @@ end
     function random_regular_eincode(n, k)
         g = Graphs.random_regular_graph(n, k)
         ixs = [[minmax(e.src,e.dst)...] for e in Graphs.edges(g)]
-        return ContractionOrderAlgorithms.EinCode([ixs..., [[i] for i in Graphs.vertices(g)]...], Int[])
+        return OMEinsumContractionOrders.EinCode([ixs..., [[i] for i in Graphs.vertices(g)]...], Int[])
     end
 
     g = random_regular_graph(220, 3)
@@ -44,15 +44,15 @@ end
     @test group_sc(graph, group12, log2_sizes) <= sc_target+2
 
     code = random_regular_eincode(220, 3)
-    res = optimize_sa(code,ContractionOrderAlgorithms.uniformsize(code, 2); sc_target=30, βs=βs)
-    tc, sc = ContractionOrderAlgorithms.timespace_complexity(res, ContractionOrderAlgorithms.uniformsize(code, 2))
+    res = optimize_sa(code,uniformsize(code, 2); sc_target=30, βs=βs)
+    tc, sc = timespace_complexity(res, uniformsize(code, 2))
     @test sc <= 32
 
     # contraction test
     code = random_regular_eincode(50, 3)
-    codeg = optimize_sa(code, ContractionOrderAlgorithms.uniformsize(code, 2); sc_target=12, βs=βs, ntrials=1, initializer=:greedy)
-    codek = optimize_greedy(code, ContractionOrderAlgorithms.uniformsize(code, 2))
-    tc, sc = ContractionOrderAlgorithms.timespace_complexity(codek, ContractionOrderAlgorithms.uniformsize(code, 2))
+    codeg = optimize_sa(code, uniformsize(code, 2); sc_target=12, βs=βs, ntrials=1, initializer=:greedy)
+    codek = optimize_greedy(code, uniformsize(code, 2))
+    tc, sc = timespace_complexity(codek, uniformsize(code, 2))
     @test sc <= 12
     xs = [[2*randn(2, 2) for i=1:75]..., [randn(2) for i=1:50]...]
     resg = decorate(codeg)(xs...)

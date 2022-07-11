@@ -1,6 +1,3 @@
-export optimize_kahypar, optimize_kahypar_auto
-export KaHyParBipartite
-
 """
     KaHyParBipartite{RT,IT,GM}
     KaHyParBipartite(; sc_target, imbalances=collect(0.0:0.005:0.8),

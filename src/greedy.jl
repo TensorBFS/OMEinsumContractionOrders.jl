@@ -293,22 +293,6 @@ function replace_args(nested::NestedEinsum{LT}, trueargs) where LT
 end
 
 """
-    label_elimination_order(code)
-
-Returns a vector of labels sorted by the order they are eliminated in the contraction tree.
-The contraction tree is specified by `code`, which e.g. can be a `NestedEinsum` instance.
-"""
-label_elimination_order(code::NestedEinsum) = label_elimination_order!(code, labeltype(code)[])
-function label_elimination_order!(code, eliminated_vertices)
-    isleaf(code) && return eliminated_vertices
-    for arg in code.args
-        label_elimination_order!(arg, eliminated_vertices)
-    end
-    append!(eliminated_vertices, setdiff(vcat(getixsv(code.eins)...), getiyv(code.eins)))
-    return eliminated_vertices
-end
-
-"""
     GreedyMethod{MT}
     GreedyMethod(; method=MinSpaceOut(), nrepeat=10)
 

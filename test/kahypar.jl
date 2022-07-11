@@ -1,11 +1,11 @@
 using Graphs
 using Test, Random
 using SparseArrays
-using OMEinsumContractionOrders.ContractionOrderAlgorithms
-using OMEinsumContractionOrders.ContractionOrderAlgorithms: get_coarse_grained_graph, _connected_components, bipartite_sc, group_sc, coarse_grained_optimize,
-    map_tree_to_parts, MinSpaceOut, ContractionTree, optimize_greedy, optimize_kahypar
+using OMEinsumContractionOrders
+using OMEinsumContractionOrders: get_coarse_grained_graph, _connected_components, bipartite_sc, group_sc, coarse_grained_optimize,
+    map_tree_to_parts, MinSpaceOut, ContractionTree, optimize_greedy, optimize_kahypar, optimize_kahypar_auto
 using KaHyPar
-using OMEinsumContractionOrders: decorate
+using OMEinsum: decorate
 
 @testset "graph coarse graining" begin
     Random.seed!(2)
@@ -32,7 +32,7 @@ end
     function random_regular_eincode(n, k)
         g = Graphs.random_regular_graph(n, k)
         ixs = [[minmax(e.src,e.dst)...] for e in Graphs.edges(g)]
-        return ContractionOrderAlgorithms.EinCode([ixs..., [[i] for i in Graphs.vertices(g)]...], Int[])
+        return OMEinsumContractionOrders.EinCode([ixs..., [[i] for i in Graphs.vertices(g)]...], Int[])
     end
 
     g = random_regular_graph(220, 3)
@@ -55,15 +55,15 @@ end
     @test group_sc(graph, group12, log2_sizes) <= sc_target
 
     code = random_regular_eincode(220, 3)
-    res = optimize_kahypar(code,ContractionOrderAlgorithms.uniformsize(code, 2); max_group_size=50, sc_target=30)
-    tc, sc = ContractionOrderAlgorithms.timespace_complexity(res, ContractionOrderAlgorithms.uniformsize(code, 2))
+    res = optimize_kahypar(code,uniformsize(code, 2); max_group_size=50, sc_target=30)
+    tc, sc = timespace_complexity(res, uniformsize(code, 2))
     @test sc <= 30
 
     # contraction test
     code = random_regular_eincode(50, 3)
-    codeg = optimize_kahypar(code, ContractionOrderAlgorithms.uniformsize(code, 2); max_group_size=10, sc_target=12)
-    codek = optimize_greedy(code, ContractionOrderAlgorithms.uniformsize(code, 2))
-    tc, sc = ContractionOrderAlgorithms.timespace_complexity(codek, ContractionOrderAlgorithms.uniformsize(code, 2))
+    codeg = optimize_kahypar(code, uniformsize(code, 2); max_group_size=10, sc_target=12)
+    codek = optimize_greedy(code, uniformsize(code, 2))
+    tc, sc = timespace_complexity(codek, uniformsize(code, 2))
     @test sc <= 12
     xs = [[2*randn(2, 2) for i=1:75]..., [randn(2) for i=1:50]...]
     resg = decorate(codeg)(xs...)
@@ -72,7 +72,7 @@ end
 
     Random.seed!(2)
     code = random_regular_eincode(220, 3)
-    codeg_auto = optimize_kahypar_auto(code, ContractionOrderAlgorithms.uniformsize(code, 2), greedy_method=MinSpaceOut())
-    tc, sc = ContractionOrderAlgorithms.timespace_complexity(codeg_auto, ContractionOrderAlgorithms.uniformsize(code, 2))
+    codeg_auto = optimize_kahypar_auto(code, uniformsize(code, 2), greedy_method=MinSpaceOut())
+    tc, sc = timespace_complexity(codeg_auto, uniformsize(code, 2))
     @test sc <= 30
 end

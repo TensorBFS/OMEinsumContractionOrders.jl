@@ -1,5 +1,5 @@
-struct NetworkSimplifier
-    operations::Vector{NestedEinsum}
+struct NetworkSimplifier{LT}
+    operations::Vector{NestedEinsum{LT}}
 end
 
 function merge_vectors(code::EinCode{LT}) where LT
@@ -61,13 +61,6 @@ function _buildsimplifier(tree, incidence_list)
     NetworkSimplifier([tree[v] for v in vertices]), EinCode(ixs, iy)
 end
 
-function apply_simplifier(s::NetworkSimplifier, xs)
-    map(s.operations) do op
-        return op(xs...)
-    end
-end
-(s::NetworkSimplifier)(xs...) = apply_simplifier(s, xs)
-
 function embed_simplifier(code::NestedEinsum, simplifier)
     if isleaf(code)
         op = simplifier.operations[code.tensorindex]
@@ -81,7 +74,6 @@ end
 
 embed_simplifier(code::SlicedEinsum, simplifier) = SlicedEinsum(code.slicing, embed_simplifier(code.eins, simplifier))
 
-export optimize_permute
 optimize_permute(se::SlicedEinsum, level=0) = SlicedEinsum(se.slicing, se.eins isa EinCode ? se.eins : optimize_permute(se.eins, level))
 function optimize_permute(ne::NestedEinsum, level=0)
     if isleaf(ne)
