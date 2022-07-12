@@ -1,5 +1,5 @@
 """
-    optimize_code(eincode, size_dict, optimizer = GreedyMethod(), simplifier=nothing, permute=true)
+    optimize_code(eincode, size_dict, optimizer = GreedyMethod(), simplifier=nothing, permute=true) -> optimized_eincode
 
 Optimize the einsum contraction code and reduce the time/space complexity of tensor network contraction.
 Returns a `NestedEinsum` instance. Input arguments are

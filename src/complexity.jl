@@ -1,8 +1,8 @@
 #################### compute peak memory ###########################
 """
-    peak_memory(code, size_dict::Dict)
+    peak_memory(code, size_dict::Dict) -> Int
 
-Estimate peak memory usage in number of elements.
+Estimate peak memory in number of elements.
 """
 function peak_memory(code::NestedEinsum, size_dict::Dict)
     ixs = getixsv(code.eins)
@@ -41,11 +41,11 @@ end
 
 ###################### Time space complexity ###################
 """
-    timespace_complexity(eincode, size_dict)
+    timespace_complexity(eincode, size_dict) -> (tc, sc)
 
 Returns the time and space complexity of the einsum contraction.
-The time complexity is defined as `log2(number of element multiplication)`.
-The space complexity is defined as `log2(size of the maximum intermediate tensor)`.
+The time complexity `tc` is defined as `log2(number of element multiplication)`.
+The space complexity `sc` is defined as `log2(size of the maximum intermediate tensor)`.
 """
 function timespace_complexity(code, size_dict)
     tc,sc,rw = timespacereadwrite_complexity(code, size_dict)
@@ -53,12 +53,12 @@ function timespace_complexity(code, size_dict)
 end
 
 """
-    timespacereadwrite_complexity(eincode, size_dict)
+    timespacereadwrite_complexity(eincode, size_dict) -> (tc, sc, rwc)
 
 Returns the time, space and read-write complexity of the einsum contraction.
-The time complexity is defined as `log2(number of element-wise multiplication)`.
-The space complexity is defined as `log2(size of the maximum intermediate tensor)`.
-The read-write complexity is defined as `log2(the number of read-write operations)`.
+The time complexity `tc` is defined as `log2(number of element-wise multiplication)`.
+The space complexity `sc` is defined as `log2(size of the maximum intermediate tensor)`.
+The read-write complexity `rwc` is defined as `log2(the number of read-write operations)`.
 """
 function timespacereadwrite_complexity(ei::NestedEinsum, size_dict)
     log2_sizes = Dict([k=>log2(v) for (k,v) in size_dict])
@@ -129,7 +129,7 @@ end
 
 
 """
-    flop(eincode, size_dict)
+    flop(eincode, size_dict) -> Int
 
 Returns the number of iterations, which is different with the true floating point operations (FLOP) by a factor of 2.
 """
@@ -168,7 +168,7 @@ end
 uniformsize(code::AbstractEinsum, size) = Dict([l=>size for l in uniquelabels(code)])
 
 """
-    label_elimination_order(code)
+    label_elimination_order(code) -> Vector
 
 Returns a vector of labels sorted by the order they are eliminated in the contraction tree.
 The contraction tree is specified by `code`, which e.g. can be a `NestedEinsum` instance.
