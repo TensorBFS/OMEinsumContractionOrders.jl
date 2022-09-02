@@ -64,7 +64,7 @@ function AbstractTrees.printnode(io::IO, x::NestedEinsum)
 end
 AbstractTrees.printnode(io::IO, e::LeafString) = print(io, e.str)
 function Base.show(io::IO, e::EinCode)
-    s = join([_join(ix) for ix in getixs(e)], ", ") * " -> " * _join(getiy(e))
+    s = join([_join(ix) for ix in getixsv(e)], ", ") * " -> " * _join(getiyv(e))
     print(io, s)
 end
 function Base.show(io::IO, e::NestedEinsum)

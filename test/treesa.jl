@@ -34,6 +34,7 @@ end
     optcode = optimize_greedy(code, uniformsize(code, 2))
     tree3 = ExprTree(optcode)
     @test tree isa ExprTree
+    println(tree)
     labelmap = Dict([v=>k for (k,v) in _label_dict(code)])
     optcode_reconstruct = OMEinsumContractionOrders.NestedEinsum(tree3, labelmap)
     @test optcode == optcode_reconstruct
@@ -78,6 +79,8 @@ end
     log2_sizes = rand(n+n÷2) * 2
     code = random_regular_eincode(n, 3)
     optcode = optimize_greedy(code, uniformsize(code, 2))
+    println(code)
+    println(optcode)
     tree = ExprTree(optcode)
     tc0, sc0, rw0 = tree_timespace_complexity(tree, log2_sizes)
     size_dict = Dict([j=>exp2(log2_sizes[j]) for j=1:length(log2_sizes)])
