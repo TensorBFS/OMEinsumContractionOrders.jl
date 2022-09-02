@@ -75,13 +75,13 @@ end
 embed_simplifier(code::SlicedEinsum, simplifier) = SlicedEinsum(code.slicing, embed_simplifier(code.eins, simplifier))
 
 optimize_permute(se::SlicedEinsum, level=0) = SlicedEinsum(se.slicing, se.eins isa EinCode ? se.eins : optimize_permute(se.eins, level))
-function optimize_permute(ne::NestedEinsum, level=0)
+function optimize_permute(ne::NestedEinsum{LT}, level=0) where LT
     if isleaf(ne)
         return ne
     else
-        args = optimize_permute.(ne.args, level+1)
+        args = NestedEinsum{LT}[optimize_permute(arg, level+1) for arg in ne.args]
         ixs0 = getixsv(ne.eins)
-        ixs = [isleaf(x) ? ixs0[i] : getiyv(x.eins) for (i, x) in enumerate(args)]
+        ixs = Vector{LT}[isleaf(x) ? ixs0[i] : getiyv(x.eins) for (i, x) in enumerate(args)]
         iy = level == 0 ? getiyv(ne.eins) : optimize_output_permute(ixs, getiyv(ne.eins))
         return NestedEinsum(args, EinCode(ixs, iy))
     end

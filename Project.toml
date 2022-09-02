@@ -1,7 +1,7 @@
 name = "OMEinsumContractionOrders"
 uuid = "6f22d1fd-8eed-4bb7-9776-e7d684900715"
 authors = ["Jin-Guo Liu", "Pan Zhang"]
-version = "0.7.1"
+version = "0.8.0"
 
 [deps]
 AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
@@ -12,7 +12,7 @@ SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 Suppressor = "fd094767-a336-5f1f-9728-57cf17d0bbfb"
 
 [compat]
-AbstractTrees = "0.4"
+AbstractTrees = "0.3, 0.4"
 BetterExp = "0.1"
 JSON = "0.21"
 Requires = "1"
