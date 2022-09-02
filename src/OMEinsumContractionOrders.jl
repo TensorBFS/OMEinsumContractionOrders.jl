@@ -51,7 +51,7 @@ include("interfaces.jl")
 # saveload
 include("json.jl")
 
-@deprecate timespacereadwrite_complexity(code::AbstractEinsum, size_dict::Dict) (contraction_complexity(code, size_dict)...,)
-@deprecate timespace_complexity(code::AbstractEinsum, size_dict::Dict) (contraction_complexity(code, size_dict)...,)[1:2]
+@deprecate timespacereadwrite_complexity(code, size_dict::Dict) (contraction_complexity(code, size_dict)...,)
+@deprecate timespace_complexity(code, size_dict::Dict) (contraction_complexity(code, size_dict)...,)[1:2]
 
 end
