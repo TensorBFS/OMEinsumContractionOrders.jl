@@ -48,6 +48,11 @@ end
     tc, sc = timespace_complexity(res, uniformsize(code, 2))
     @test sc <= 32
 
+    tc1, sc1, rw1 = timespacereadwrite_complexity(res, uniformsize(code, 2))
+    cc = contraction_complexity(res, uniformsize(code, 2))
+    @test (tc1, sc1, rw1) == (cc...,)
+    println(cc)
+
     # contraction test
     code = random_regular_eincode(50, 3)
     codeg = optimize_sa(code, uniformsize(code, 2); sc_target=12, βs=βs, ntrials=1, initializer=:greedy)

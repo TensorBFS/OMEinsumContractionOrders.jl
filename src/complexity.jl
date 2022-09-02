@@ -40,32 +40,12 @@ function peak_memory(code::SlicedEinsum, size_dict::Dict)
 end
 
 ###################### Time space complexity ###################
-"""
-    timespace_complexity(eincode, size_dict) -> (tc, sc)
-
-Returns the time and space complexity of the einsum contraction.
-The time complexity `tc` is defined as `log2(number of element multiplication)`.
-The space complexity `sc` is defined as `log2(size of the maximum intermediate tensor)`.
-"""
-function timespace_complexity(code, size_dict)
-    tc,sc,rw = timespacereadwrite_complexity(code, size_dict)
-    return tc, sc
-end
-
-"""
-    timespacereadwrite_complexity(eincode, size_dict) -> (tc, sc, rwc)
-
-Returns the time, space and read-write complexity of the einsum contraction.
-The time complexity `tc` is defined as `log2(number of element-wise multiplication)`.
-The space complexity `sc` is defined as `log2(size of the maximum intermediate tensor)`.
-The read-write complexity `rwc` is defined as `log2(the number of read-write operations)`.
-"""
-function timespacereadwrite_complexity(ei::NestedEinsum, size_dict)
+function __timespacereadwrite_complexity(ei::NestedEinsum, size_dict)
     log2_sizes = Dict([k=>log2(v) for (k,v) in size_dict])
     _timespacereadwrite_complexity(ei, log2_sizes)
 end
 
-function timespacereadwrite_complexity(ei::EinCode, size_dict)
+function __timespacereadwrite_complexity(ei::EinCode, size_dict)
     log2_sizes = Dict([k=>log2(v) for (k,v) in size_dict])
     _timespacereadwrite_complexity(getixsv(ei), getiyv(ei), log2_sizes)
 end
@@ -147,12 +127,12 @@ end
 
 
 ############### Sliced methods   ##################
-function timespacereadwrite_complexity(code::SlicedEinsum, size_dict)
+function __timespacereadwrite_complexity(code::SlicedEinsum, size_dict)
     size_dict_sliced = copy(size_dict)
     for l in code.slicing
         size_dict_sliced[l] = 1
     end
-    tc, sc, rw = timespacereadwrite_complexity(code.eins, size_dict_sliced)
+    tc, sc, rw = __timespacereadwrite_complexity(code.eins, size_dict_sliced)
     sliceoverhead = sum(log2.(getindex.(Ref(size_dict), code.slicing)))
     tc + sliceoverhead, sc, rw+sliceoverhead
 end
@@ -198,4 +178,14 @@ Read-write complexity (number of element-wise read and write) = 2^$(cc.rwc)")
 end
 Base.iterate(cc::ContractionComplexity) = Base.iterate((cc.tc, cc.sc, cc.rwc))
 Base.iterate(cc::ContractionComplexity, state) = Base.iterate((cc.tc, cc.sc, cc.rwc), state)
-contraction_complexity(code::AbstractEinsum, size_dict) = ContractionComplexity(timespacereadwrite_complexity(code, size_dict)...)
+
+"""
+    contraction_complexity(eincode, size_dict) -> ContractionComplexity
+
+Returns the time, space and read-write complexity of the einsum contraction.
+The returned object contains 3 fields:
+* time complexity `tc` defined as `log2(number of element-wise multiplications)`.
+* space complexity `sc` defined as `log2(size of the maximum intermediate tensor)`.
+* read-write complexity `rwc` defined as `log2(the number of read-write operations)`.
+"""
+contraction_complexity(code::AbstractEinsum, size_dict) = ContractionComplexity(__timespacereadwrite_complexity(code, size_dict)...)

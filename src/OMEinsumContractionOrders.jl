@@ -23,7 +23,7 @@ export CodeOptimizer, CodeSimplifier,
     uniformsize,
     simplify_code, optimize_code, optimize_permute,
     # time space complexity
-    peak_memory, timespace_complexity, timespacereadwrite_complexity, flop, contraction_complexity,
+    peak_memory, flop, contraction_complexity,
     label_elimination_order
     # writejson, readjson are not exported to avoid namespace conflict
 
@@ -50,5 +50,8 @@ include("interfaces.jl")
 
 # saveload
 include("json.jl")
+
+@deprecate timespacereadwrite_complexity(code::AbstractEinsum, size_dict::Dict) (contraction_complexity(code, size_dict)...,)
+@deprecate timespace_complexity(code::AbstractEinsum, size_dict::Dict) (contraction_complexity(code, size_dict)...,)[1:2]
 
 end
