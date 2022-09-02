@@ -184,3 +184,18 @@ function label_elimination_order!(code, eliminated_vertices)
 end
 label_elimination_order(code::SlicedEinsum) = label_elimination_order(code.eins)
 
+# to replace timespacereadwrite_complexity
+struct ContractionComplexity
+    tc::Float64
+    sc::Float64
+    rwc::Float64
+end
+
+function Base.show(io::IO, cc::ContractionComplexity)
+    print(io, "Time complexity (number of element-wise multiplications) = 2^$(cc.tc)
+Space complexity (number of elements in the largest intermediate tensor) = 2^$(cc.sc)
+Read-write complexity (number of element-wise read and write) = 2^$(cc.rwc)")
+end
+Base.iterate(cc::ContractionComplexity) = Base.iterate((cc.tc, cc.sc, cc.rwc))
+Base.iterate(cc::ContractionComplexity, state) = Base.iterate((cc.tc, cc.sc, cc.rwc), state)
+contraction_complexity(code::AbstractEinsum, size_dict) = ContractionComplexity(timespacereadwrite_complexity(code, size_dict)...)

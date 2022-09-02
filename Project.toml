@@ -12,7 +12,7 @@ SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 Suppressor = "fd094767-a336-5f1f-9728-57cf17d0bbfb"
 
 [compat]
-AbstractTrees = "0.4"
+AbstractTrees = "0.3, 0.4"
 BetterExp = "0.1"
 JSON = "0.21"
 Requires = "1"

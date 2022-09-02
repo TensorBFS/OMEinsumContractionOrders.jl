@@ -23,7 +23,7 @@ export CodeOptimizer, CodeSimplifier,
     uniformsize,
     simplify_code, optimize_code, optimize_permute,
     # time space complexity
-    peak_memory, timespace_complexity, timespacereadwrite_complexity, flop,
+    peak_memory, timespace_complexity, timespacereadwrite_complexity, flop, contraction_complexity,
     label_elimination_order
     # writejson, readjson are not exported to avoid namespace conflict
 
