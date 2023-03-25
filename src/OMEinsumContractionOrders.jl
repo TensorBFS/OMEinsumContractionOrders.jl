@@ -17,7 +17,7 @@ function __init__()
 end
 
 export CodeOptimizer, CodeSimplifier,
-    KaHyParBipartite, GreedyMethod, TreeSA, SABipartite,
+    KaHyParBipartite, GreedyMethod, TreeSA, SABipartite, CuTensorOptimizer,
     MinSpaceDiff, MinSpaceOut,
     MergeGreedy, MergeVectors,
     uniformsize,
@@ -43,6 +43,9 @@ include("treesa.jl")
 
 # simplification passes
 include("simplify.jl")
+
+# cuTensorNet optimization
+include("cutensornet.jl")
 
 # interfaces
 include("complexity.jl")

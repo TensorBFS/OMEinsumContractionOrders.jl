@@ -39,6 +39,18 @@ function peak_memory(code::SlicedEinsum, size_dict::Dict)
     return peak_memory(code.eins, size_dict_sliced) + _mem(getiyv(code.eins), size_dict)
 end
 
+function peak_memory(code::CuTensorEinsum, workspace_preference, memspace)
+    info = code.info
+    ctn = code.ctn
+    workspace_desc = cuTensorNet.CuTensorNetworkWorkspaceDescriptor()
+    cuTensorNet.cutensornetWorkspaceComputeSizes(
+        cuTensorNet.handle(), ctn.desc, info, workspace_desc)
+    actual_ws_size = Ref{UInt64}()
+    cuTensorNet.cutensornetWorkspaceGetSize(
+        cuTensorNet.handle(), workspace_desc, workspace_preference, memspace, actual_ws_size)
+    return actual_ws_size[]
+end
+
 ###################### Time space complexity ###################
 function __timespacereadwrite_complexity(ei::NestedEinsum, size_dict)
     log2_sizes = Dict([k=>log2(v) for (k,v) in size_dict])
@@ -144,6 +156,8 @@ function flop(code::SlicedEinsum, size_dict)
     fl = flop(code.eins, size_dict_sliced)
     fl * prod(getindex.(Ref(size_dict), code.slicing))
 end
+
+flop(code::CuTensorEinsum) = cuTensorNet.flop_count(code.info)/2
 
 uniformsize(code::AbstractEinsum, size) = Dict([l=>size for l in uniquelabels(code)])
 
