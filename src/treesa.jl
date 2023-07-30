@@ -454,7 +454,7 @@ function ExprTree(code::NestedEinsum)
     _exprtree(code, _label_dict(code))
 end
 function _exprtree(code::NestedEinsum, labels)
-    @assert length(code.args) == 2
+    @assert length(code.args) == 2 "einsum contraction not in the binary form, got number of arguments: $(length(code.args))"
     ExprTree(map(enumerate(code.args)) do (i,arg)
         if isleaf(arg)  # leaf nodes
             ExprTree(ExprInfo(getindex.(Ref(labels), getixsv(code.eins)[i]), arg.tensorindex))
