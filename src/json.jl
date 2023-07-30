@@ -31,7 +31,7 @@ function _fromdict(dict)
     end
     ne = fromdict(LT, dict["tree"])
     if haskey(dict, "slices")
-        return SlicedEinsum(_convert.(LT, dict["slices"]), ne)
+        return SlicedEinsum(LT[_convert(LT, l) for l in dict["slices"]], ne)
     else
         return ne
     end
@@ -68,4 +68,4 @@ function einsfromdict(::Type{LT}, dict::Dict) where LT
 end
 
 _convert(::Type{LT}, x) where LT = convert(LT, x)
-_convert(::Type{Char}, x::String) where LT = (@assert length(x)==1; x[1])
+_convert(::Type{Char}, x::String) = (@assert length(x)==1; x[1])
