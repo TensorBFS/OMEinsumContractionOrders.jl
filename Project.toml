@@ -22,7 +22,7 @@ BetterExp = "0.1"
 JSON = "0.21"
 KaHyPar = "0.3"
 Suppressor = "0.2"
-julia = "1"
+julia = "1.9"
 
 [extras]
 Graphs = "86223c79-3864-5bf0-83f7-82e725a168b6"
