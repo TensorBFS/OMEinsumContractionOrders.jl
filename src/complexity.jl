@@ -172,9 +172,9 @@ struct ContractionComplexity
 end
 
 function Base.show(io::IO, cc::ContractionComplexity)
-    print(io, "Time complexity (number of element-wise multiplications) = 2^$(cc.tc)
-Space complexity (number of elements in the largest intermediate tensor) = 2^$(cc.sc)
-Read-write complexity (number of element-wise read and write) = 2^$(cc.rwc)")
+    print(io, "Time complexity: 2^$(cc.tc)
+Space complexity: 2^$(cc.sc)
+Read-write complexity: 2^$(cc.rwc)")
 end
 Base.iterate(cc::ContractionComplexity) = Base.iterate((cc.tc, cc.sc, cc.rwc))
 Base.iterate(cc::ContractionComplexity, state) = Base.iterate((cc.tc, cc.sc, cc.rwc), state)

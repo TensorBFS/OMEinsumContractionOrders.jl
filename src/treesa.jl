@@ -75,7 +75,7 @@ function Base.replace!(slicer::Slicer, pair::Pair)
     return slicer
 end
 
-function Base.push!(slicer, best)
+function Base.push!(slicer::Slicer, best)
     @assert length(slicer) < slicer.max_size
     @assert !haskey(slicer.legs, best)
     slicer.legs[best] = slicer.log2_sizes[best]  # add best to legs
