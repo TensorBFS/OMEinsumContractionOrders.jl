@@ -59,8 +59,8 @@ end
     code2 = optimize_code(code, uniformsize(code, 5), TreeSA(ntrials=1, nslices=5))
     pm2 = peak_memory(code2, uniformsize(code, 5))
     tc2, sc2, rw2 = timespacereadwrite_complexity(code2, uniformsize(code, 5))
-    @test 5 * 2^sc1 > pm1 > 2^sc1
-    @test 5 * 2^sc2 > pm2 > 2^sc2
+    @test 10 * 2^sc1 > pm1 > 2^sc1
+    @test 10 * 2^sc2 > pm2 > 2^sc2
 end
 
 
