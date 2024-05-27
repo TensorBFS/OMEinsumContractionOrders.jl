@@ -6,6 +6,15 @@ end
 struct MinSpaceOut end
 struct MinSpaceDiff end
 
+
+"""
+    LegInfo{ET}
+
+    A struct to store the information of legs in a pairwise contraction between vertices `vi` and `vj`.
+    *`l*` are the legs that are not connected to the other vertex (internal legs)
+    *`l0*` are the legs that are connected to other vertices (external legs)
+    *`*1` are the legs that are connected only to `vi`, and `*2` are the legs that are connected only to `vj`, and `*12` are the legs that are connected to both.
+"""
 struct LegInfo{ET}
     l1::Vector{ET}
     l2::Vector{ET}
