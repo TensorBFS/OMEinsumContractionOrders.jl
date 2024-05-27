@@ -44,12 +44,12 @@ end
     size_dict = Dict([c=>(1<<i) for (i,c) in enumerate(['a', 'b', 'c', 'd', 'e', 'f'])]...)
     Random.seed!(2)
     optcode2 = optimize_greedy(eincode, size_dict) 
-    tc, sc = timespace_complexity(optcode2, edge_sizes)
+    cc = contraction_complexity(optcode2, edge_sizes)
     # test flop
-    @test tc ≈ log2(flop(optcode2, edge_sizes))
+    @test cc.tc ≈ log2(flop(optcode2, edge_sizes))
     @test flop(OMEinsumContractionOrders.EinCode([['i']], Vector{Char}()), Dict('i'=>4)) == 4
-    @test 16 <= tc <= log2(exp2(10)+exp2(16)+exp2(15)+exp2(9))
-    @test sc == 11
+    @test 16 <= cc.tc <= log2(exp2(10)+exp2(16)+exp2(15)+exp2(9))
+    @test cc.sc == 11
     @test optcode1 == optcode2
 
     # eincode3 = ein"(ab,acd),bcef,e,df->"
@@ -103,57 +103,13 @@ end
     size_dict = Dict([i=>2 for i in 1:60])
     log2_edge_sizes = Dict([i=>1 for i in 1:60])
     edge_sizes = Dict([i=>2 for i in 1:60])
-    tc, sc = timespace_complexity(code, edge_sizes)
-    @test tc == 60
-    @test sc == 0
+    cc = contraction_complexity(code, edge_sizes)
+    @test cc.tc == 60
+    @test cc.sc == 0
     optcode = optimize_greedy(code, size_dict)
-    tc2, sc2 = timespace_complexity(optcode, edge_sizes)
-    @test sc2 == 10
+    cc2 = contraction_complexity(optcode, edge_sizes)
+    @test cc2.sc == 10
     xs = vcat([TropicalF64.([-1 1; 1 -1]) for i=1:90], [TropicalF64.([0, 0]) for i=1:60])
     @test flatten(optcode) == code
     @test flatten(code) == code
-    # @test optcode(xs...)[].n == 66
 end
-
-# The following tests are based on the OMEinsum instead of OMEinsumContractionOrders, no fixed yet
-
-# @testset "regression test" begin
-#     code = EinCode([['i']], Vector{Char}())
-#     optcode = optimize_greedy(code, Dict('i'=>3))
-#     @test optcode isa NestedEinsum
-#     x = randn(3)
-#     @test optcode(x) ≈ code(x)
-
-#     code = ein"i,j->"
-#     optcode = optimize_greedy(code, Dict('i'=>3, 'j'=>3))
-#     @test optcode isa NestedEinsum
-#     x = randn(3)
-#     y = randn(3)
-#     @test optcode(x, y) ≈ code(x, y)
-
-#     code = ein"ij,jk,kl->ijl"
-#     optcode = optimize_greedy(code, Dict('i'=>3, 'j'=>3, 'k'=>3, 'l'=>3))
-#     @test optcode isa NestedEinsum
-#     a, b, c = [rand(3,3) for i=1:3]
-#     @test optcode(a, b, c) ≈ code(a, b, c)
-# end
-
-# @testset "constructing contraction tree manually" begin
-#     code = ein"ij,jk,kl->ijl"
-#     dcode = DynamicEinCode(ein"ij,jk,kl->ijl")
-#     a, b, c = randn(2, 2), randn(2,2), randn(2,2)
-#     ne1 = parse_nested(code, ContractionTree(ContractionTree(1, 2), 3))
-#     ne2 = parse_nested(dcode, ContractionTree(ContractionTree(1, 2), 3))
-#     ne3 = parse_nested(code, ContractionTree(ContractionTree(1, 3), 2))
-#     @test typeof(ne1) == NestedEinsum{StaticEinCode}
-#     @test typeof(ne2) == NestedEinsum{DynamicEinCode{Char}}
-#     @test ne1(a,b,c) ≈ ein"(ij,jk),kl->ijl"(a,b,c)
-#     @test ne2(a,b,c) ≈ ein"(ij,jk),kl->ijl"(a,b,c)
-#     @test ne3(a,b,c) ≈ ein"(ij,jk),kl->ijl"(a,b,c)
-#     @test flop(code, Dict([l=>2 for l in uniquelabels(code)])) == 2^4
-#     @test flop(ne1, Dict([l=>2 for l in uniquelabels(code)])) == 2^4 + 2^3
-#     @test flop(ne2, Dict([l=>2 for l in uniquelabels(code)])) == 2^4 + 2^3
-
-#     # label elimination order
-#     @test label_elimination_order(ein"(ij,jk),kl->il") == ['j', 'k']
-# end
