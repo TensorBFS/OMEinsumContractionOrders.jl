@@ -5,6 +5,11 @@ end
 
 struct MinSpaceOut end
 struct MinSpaceDiff end
+struct HyperGreedy{T}
+    α::T
+    t::T
+    HyperGreedy() = new{Float64}(0.0, 1.0)
+end
 
 
 """
@@ -89,7 +94,11 @@ function _tree_greedy(incidence_list::IncidenceList{VT,ET}, log2_edge_sizes; met
             vpool = collect(vertices(incidence_list))
             pair = minmax(vpool[1], vpool[2])  # to prevent empty intersect
         else
-            pair = find_best_cost(cost_values)
+            if method isa HyperGreedy
+                pair = sample_best_cost(cost_values, method.t)
+            else
+                pair = find_best_cost(cost_values)
+            end
         end
         log2_tc_step, sc, code = contract_pair!(incidence_list, pair..., log2_edge_sizes)
         push!(log2_tcs, log2_tc_step)
@@ -162,6 +171,14 @@ function find_best_cost(cost_values::Dict{PT}) where PT
     return rand(pairs)
 end
 
+function sample_best_cost(cost_values::Dict{PT}, t::T) where {PT, T}
+    length(cost_values) < 1 && error("cost value information missing")
+    vals = [v for v in values(cost_values)]
+    prob = exp.( - vals ./ t)
+    vc = [k for (k, v) in cost_values]
+    sample(vc, Weights(prob))
+end
+
 function analyze_contraction(incidence_list::IncidenceList{VT,ET}, vi::VT, vj::VT) where {VT,ET}
     ei = edges(incidence_list, vi)
     ej = edges(incidence_list, vj)
@@ -205,6 +222,13 @@ function greedy_loss(::MinSpaceDiff, incidence_list, log2_edge_sizes, vi, vj)
     legs = analyze_contraction(incidence_list, vi, vj)
     D1,D2,D12,D01,D02,D012 = log2dim.(getfield.(Ref(legs), 1:6))
     exp2(D01+D02+D012) - exp2(D01+D12+D012) - exp2(D02+D12+D012)  # out - in
+end
+
+function greedy_loss(hg::HyperGreedy, incidence_list, log2_edge_sizes, vi, vj)
+    log2dim(legs) = isempty(legs) ? 0 : sum(l->log2_edge_sizes[l], legs)  # for 1.5, you need this patch because `init` kw is not allowed.
+    legs = analyze_contraction(incidence_list, vi, vj)
+    D1,D2,D12,D01,D02,D012 = log2dim.(getfield.(Ref(legs), 1:6))
+    exp2(D01+D02+D012) - hg.α * (exp2(D01+D12+D012) + exp2(D02+D12+D012))  # out - in
 end
 
 function space_complexity(incidence_list, log2_sizes)
@@ -307,9 +331,10 @@ end
 
 The fast but poor greedy optimizer. Input arguments are
 
-* `method` is `MinSpaceDiff()` or `MinSpaceOut`.
+* `method` is `MinSpaceDiff()`, `MinSpaceOut()` or `HyperGreedy(α=0.0, t=1.0)`.
     * `MinSpaceOut` choose one of the contraction that produces a minimum output tensor size,
     * `MinSpaceDiff` choose one of the contraction that decrease the space most.
+    * `HyperGreedy` is a hyperparameterized greedy method, `α` is the weight of the space, and `t` is the temperature.
 * `nrepeat` is the number of repeatition, returns the best contraction order.
 """
 Base.@kwdef struct GreedyMethod{MT} <: CodeOptimizer

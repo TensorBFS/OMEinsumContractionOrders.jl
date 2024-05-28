@@ -2,8 +2,8 @@ module OMEinsumContractionOrders
 
 using JSON
 using SparseArrays
+using StatsBase
 using Base: RefValue
-using BetterExp
 using Base.Threads
 using AbstractTrees
 

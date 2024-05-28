@@ -5,9 +5,9 @@ version = "0.8.3"
 
 [deps]
 AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
-BetterExp = "7cffe744-45fd-4178-b173-cf893948b8b7"
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 Suppressor = "fd094767-a336-5f1f-9728-57cf17d0bbfb"
 
 [weakdeps]
@@ -18,7 +18,6 @@ KaHyParExt = ["KaHyPar"]
 
 [compat]
 AbstractTrees = "0.3, 0.4"
-BetterExp = "0.1"
 JSON = "0.21"
 KaHyPar = "0.3"
 Suppressor = "0.2"
@@ -32,4 +31,4 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 TropicalNumbers = "b3a74e9c-7526-4576-a4eb-79c0d4c32334"
 
 [targets]
-test = ["Test", "Random", "Graphs", "TropicalNumbers", "OMEinsum", "KaHyPar"]
+test = ["Test", "Random", "Graphs", "TropicalNumbers", "OMEinsum"]
