@@ -4,20 +4,20 @@ struct ContractionTree
 end
 
 """
-    Greedy{TA, TT}
+    GreedyStrategy{TA, TT}
     * `α` is the parameter for the loss function, for pairwise interaction, L = size(out) - α * (size(in1) + size(in2))
     * `tempareture` is the parameter for sampling, if it is zero, the minimum loss is selected; for non-zero, the loss is selected by the Boltzmann distribution, given by p ~ exp(-loss/tempareture).
 
     MinSpaceOut() = Greedy(0.0, 0.0)
     MinSpaceDiff() = Greedy(1.0, 0.0)
 """
-struct Greedy{TA, TT}
+struct GreedyStrategy{TA, TT}
     α::TA
     tempareture::TT
 end
 
-MinSpaceOut() = Greedy(0.0, 0.0)
-MinSpaceDiff() = Greedy(1.0, 0.0)
+MinSpaceOut() = GreedyStrategy(0.0, 0.0)
+MinSpaceDiff() = GreedyStrategy(1.0, 0.0)
 
 
 struct LegInfo{ET}
@@ -161,7 +161,7 @@ function update_costs!(cost_values, va, vb, method, incidence_list::IncidenceLis
     end
 end
 
-function find_best_cost(method::Greedy, cost_values::Dict{PT}) where PT
+function find_best_cost(method::GreedyStrategy, cost_values::Dict{PT}) where PT
     length(cost_values) < 1 && error("cost value information missing")
     if iszero(method.tempareture)
         minval = minimum(Base.values(cost_values))
@@ -217,7 +217,7 @@ function analyze_contraction(incidence_list::IncidenceList{VT,ET}, vi::VT, vj::V
     return LegInfo(leg1, leg2, leg12, leg01, leg02, leg012)
 end
 
-function greedy_loss(method::Greedy, incidence_list, log2_edge_sizes, vi, vj)
+function greedy_loss(method::GreedyStrategy, incidence_list, log2_edge_sizes, vi, vj)
     log2dim(legs) = isempty(legs) ? 0 : sum(l->log2_edge_sizes[l], legs)  # for 1.5, you need this patch because `init` kw is not allowed.
     legs = analyze_contraction(incidence_list, vi, vj)
     D1,D2,D12,D01,D02,D012 = log2dim.(getfield.(Ref(legs), 1:6))
@@ -325,10 +325,10 @@ end
 
 The fast but poor greedy optimizer. Input arguments are
 
-* `method` is `MinSpaceDiff()`, `MinSpaceOut()` or `Greedy(α, tempareture)`.
+* `method` is `MinSpaceDiff()`, `MinSpaceOut()` or `GreedyStrategy(α, tempareture)`.
     * `MinSpaceOut` choose one of the contraction that produces a minimum output tensor size,
     * `MinSpaceDiff` choose one of the contraction that decrease the space most.
-    * `Greedy(α, tempareture)` is the generalized greedy method, where
+    * `GreedyStrategy(α, tempareture)` is the generalized greedy method, where
         * `α` is the parameter for the loss function, for pairwise interaction, L = size(out) - α * (size(in1) + size(in2))
         * `tempareture` is the parameter for sampling, if it is zero, the minimum loss is selected; for non-zero, the loss is selected by the Boltzmann distribution, given by p ~ exp(-loss/tempareture).
 * `nrepeat` is the number of repeatition, returns the best contraction order.

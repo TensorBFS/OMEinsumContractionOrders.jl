@@ -113,7 +113,7 @@ end
     @test flatten(optcode) == code
     @test flatten(code) == code
 
-    optcode_hyper = optimize_greedy(code, size_dict, method = Greedy(0.0, 100.0), nrepeat = 20)
+    optcode_hyper = optimize_greedy(code, size_dict, method = GreedyStrategy(0.0, 100.0), nrepeat = 20)
     cc3 = contraction_complexity(optcode_hyper, edge_sizes)
     @test cc3.sc <= 12
     @test flatten(optcode_hyper) == code
