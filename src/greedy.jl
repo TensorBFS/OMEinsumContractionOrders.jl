@@ -3,29 +3,32 @@ struct ContractionTree
     right
 end
 
-struct MinSpaceOut end
-struct MinSpaceDiff end
-struct HyperGreedy{T}
-    t::T
-    HyperGreedy(t::T = 1.0) where T = new{T}(t)
+```
+    Greedy{TA, TT}
+    * `α` is the parameter for the loss function, for pairwise interaction, L = size(out) - α * (size(in1) + size(in2))
+    * `tempareture` is the parameter for sampling, if it is zero, the minimum loss is selected; for non-zero, the loss is selected by the Boltzmann distribution, given by p ~ exp(-loss/tempareture).
+
+    MinSpaceOut() = Greedy(0.0, 0.0)
+    MinSpaceDiff() = Greedy(1.0, 0.0)
+```
+struct Greedy{TA, TT}
+    α::TA
+    tempareture::TT
 end
 
+MinSpaceOut() = Greedy(0.0, 0.0)
+MinSpaceDiff() = Greedy(1.0, 0.0)
 
-"""
-    LegInfo{ET}
 
-    A struct to store the information of legs in a pairwise contraction between vertices `vi` and `vj`.
-    *`l*` are the legs that are not connected to the other vertex (internal legs)
-    *`l0*` are the legs that are connected to other vertices (external legs)
-    *`*1` are the legs that are connected only to `vi`, and `*2` are the legs that are connected only to `vj`, and `*12` are the legs that are connected to both.
-"""
 struct LegInfo{ET}
-    l1::Vector{ET}
-    l2::Vector{ET}
-    l12::Vector{ET}
-    l01::Vector{ET}
-    l02::Vector{ET}
-    l012::Vector{ET}
+    # legs that are not connected to the other vertex (internal legs)
+    l1::Vector{ET} # legs that are connected only to vi
+    l2::Vector{ET} # legs that are connected only to vj
+    l12::Vector{ET} # legs that are connected to both
+    # legs that are connected to other vertices (external legs)
+    l01::Vector{ET} # legs that are connected to vi and other vertices
+    l02::Vector{ET} # legs that are connected to vj and other vertices
+    l012::Vector{ET} # legs that are connected to both and other vertices
 end
 
 """
@@ -97,11 +100,7 @@ function _tree_greedy(incidence_list::IncidenceList{VT,ET}, log2_edge_sizes; met
             vpool = collect(vertices(incidence_list))
             pair = minmax(vpool[1], vpool[2])  # to prevent empty intersect
         else
-            if method isa HyperGreedy
-                pair = sample_best_cost(cost_values, method.t)
-            else
-                pair = find_best_cost(cost_values)
-            end
+            pair = find_best_cost(method, cost_values)
         end
         log2_tc_step, sc, code = contract_pair!(incidence_list, pair..., log2_edge_sizes)
         push!(log2_tcs, log2_tc_step)
@@ -162,23 +161,26 @@ function update_costs!(cost_values, va, vb, method, incidence_list::IncidenceLis
     end
 end
 
-function find_best_cost(cost_values::Dict{PT}) where PT
+function find_best_cost(method::Greedy, cost_values::Dict{PT}) where PT
     length(cost_values) < 1 && error("cost value information missing")
-    minval = minimum(Base.values(cost_values))
-    pairs = PT[]
-    for (k, v) in cost_values
-        if v == minval
-            push!(pairs, k)
+    if iszero(method.tempareture)
+        minval = minimum(Base.values(cost_values))
+        pairs = PT[]
+        for (k, v) in cost_values
+            if v == minval
+                push!(pairs, k)
+            end
         end
+        return rand(pairs)
+    else
+        return sample_best_cost(cost_values, method.tempareture)
     end
-    return rand(pairs)
 end
 
 function sample_best_cost(cost_values::Dict{PT}, t::T) where {PT, T}
     length(cost_values) < 1 && error("cost value information missing")
     vals = [v for v in values(cost_values)]
     prob = exp.( - vals ./ t)
-    prob = prob ./ sum(prob)
     vc = [k for (k, v) in cost_values]
     sample(vc, Weights(prob))
 end
@@ -215,17 +217,12 @@ function analyze_contraction(incidence_list::IncidenceList{VT,ET}, vi::VT, vj::V
     return LegInfo(leg1, leg2, leg12, leg01, leg02, leg012)
 end
 
-function greedy_loss(::Union{MinSpaceOut, HyperGreedy}, incidence_list, log2_edge_sizes, vi, vj)
-    log2dim(legs) = isempty(legs) ? 0 : sum(l->log2_edge_sizes[l], legs)  # for 1.5, you need this patch because `init` kw is not allowed.
-    legs = analyze_contraction(incidence_list, vi, vj)
-    log2dim(legs.l01)+log2dim(legs.l02)+log2dim(legs.l012)
-end
-
-function greedy_loss(::MinSpaceDiff, incidence_list, log2_edge_sizes, vi, vj)
+function greedy_loss(method::Greedy, incidence_list, log2_edge_sizes, vi, vj)
     log2dim(legs) = isempty(legs) ? 0 : sum(l->log2_edge_sizes[l], legs)  # for 1.5, you need this patch because `init` kw is not allowed.
     legs = analyze_contraction(incidence_list, vi, vj)
     D1,D2,D12,D01,D02,D012 = log2dim.(getfield.(Ref(legs), 1:6))
-    exp2(D01+D02+D012) - exp2(D01+D12+D012) - exp2(D02+D12+D012)  # out - in
+    loss = exp2(D01+D02+D012) - method.α * (exp2(D01+D12+D012) + exp2(D02+D12+D012))  # out - in
+    return loss
 end
 
 function space_complexity(incidence_list, log2_sizes)
@@ -328,10 +325,12 @@ end
 
 The fast but poor greedy optimizer. Input arguments are
 
-* `method` is `MinSpaceDiff()`, `MinSpaceOut()` or `HyperGreedy(α=0.0, t=1.0)`.
+* `method` is `MinSpaceDiff()`, `MinSpaceOut()` or `Greedy(α, tempareture)`.
     * `MinSpaceOut` choose one of the contraction that produces a minimum output tensor size,
     * `MinSpaceDiff` choose one of the contraction that decrease the space most.
-    * `HyperGreedy` is a hyperparameterized greedy method, `t` is the temperature.
+    * `Greedy(α, tempareture)` is the generalized greedy method, where
+        * `α` is the parameter for the loss function, for pairwise interaction, L = size(out) - α * (size(in1) + size(in2))
+        * `tempareture` is the parameter for sampling, if it is zero, the minimum loss is selected; for non-zero, the loss is selected by the Boltzmann distribution, given by p ~ exp(-loss/tempareture).
 * `nrepeat` is the number of repeatition, returns the best contraction order.
 """
 Base.@kwdef struct GreedyMethod{MT} <: CodeOptimizer

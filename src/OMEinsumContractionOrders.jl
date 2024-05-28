@@ -9,7 +9,7 @@ using AbstractTrees
 
 export CodeOptimizer, CodeSimplifier,
     KaHyParBipartite, GreedyMethod, TreeSA, SABipartite,
-    MinSpaceDiff, MinSpaceOut, HyperGreedy,
+    Greedy, MinSpaceDiff, MinSpaceOut, 
     MergeGreedy, MergeVectors,
     uniformsize,
     simplify_code, optimize_code, optimize_permute,

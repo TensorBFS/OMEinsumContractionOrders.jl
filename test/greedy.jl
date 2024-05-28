@@ -29,7 +29,7 @@ end
         @test sort(target.e2v[k]) == sort(v)
     end
     costs = evaluate_costs(MinSpaceOut(), incidence_list, log2_edge_sizes)
-    @test costs == Dict(('A', 'B')=>9, ('A', 'C')=>15, ('B','C')=>18, ('B','E')=>10, ('C','D')=>11, ('C', 'E')=>14)
+    @test costs == Dict(('A', 'B')=>(2^9), ('A', 'C')=>2^15, ('B','C')=>2^18, ('B','E')=>2^10, ('C','D')=>2^11, ('C', 'E')=>2^14)
     tree, log2_tcs, log2_scs = tree_greedy(incidence_list, log2_edge_sizes)
     tcs_, scs_ = [], []
     contract_tree!(copy(incidence_list), tree, log2_edge_sizes, tcs_, scs_)
@@ -112,7 +112,7 @@ end
     @test flatten(optcode) == code
     @test flatten(code) == code
 
-    optcode_hyper = optimize_greedy(code, size_dict, method = HyperGreedy(0.1))
+    optcode_hyper = optimize_greedy(code, size_dict, method = Greedy(0.0, 100.0))
     cc3 = contraction_complexity(optcode_hyper, edge_sizes)
     @test cc3.sc == 10
     @test flatten(optcode_hyper) == code
