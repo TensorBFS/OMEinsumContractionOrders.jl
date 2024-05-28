@@ -1,6 +1,6 @@
 using OMEinsumContractionOrders
 using OMEinsumContractionOrders: analyze_contraction, contract_pair!, evaluate_costs, contract_tree!, log2sumexp2, parse_tree
-using OMEinsumContractionOrders: IncidenceList, neighbors, analyze_contraction, LegInfo, tree_greedy, parse_eincode, optimize_greedy
+using OMEinsumContractionOrders: IncidenceList, analyze_contraction, LegInfo, tree_greedy, parse_eincode, optimize_greedy
 using TropicalNumbers
 
 using Test, Random
@@ -109,7 +109,11 @@ end
     optcode = optimize_greedy(code, size_dict)
     cc2 = contraction_complexity(optcode, edge_sizes)
     @test cc2.sc == 10
-    xs = vcat([TropicalF64.([-1 1; 1 -1]) for i=1:90], [TropicalF64.([0, 0]) for i=1:60])
     @test flatten(optcode) == code
     @test flatten(code) == code
+
+    optcode_hyper = optimize_greedy(code, size_dict, method = HyperGreedy(0.1))
+    cc3 = contraction_complexity(optcode_hyper, edge_sizes)
+    @test cc3.sc == 10
+    @test flatten(optcode_hyper) == code
 end

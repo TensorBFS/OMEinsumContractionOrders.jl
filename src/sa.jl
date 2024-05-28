@@ -72,9 +72,9 @@ function bipartite_sc(bipartiter::SABipartite, adj::SparseMatrixCSC, vertices, l
             newloss = compute_loss(sc_ti, sc_tinew, state.group_sizes[ti]-1, state.group_sizes[3-ti]+1)
             sc_ti0, sc_tinew0 = state.group_scs[ti], state.group_scs[3-ti]
             accept = if max(sc_ti0, sc_tinew0) <= bipartiter.sc_target
-                max(sc_ti, sc_tinew) <= bipartiter.sc_target && (rand() < BetterExp.exp2(β*(state.loss[] - newloss)))
+                max(sc_ti, sc_tinew) <= bipartiter.sc_target && (rand() < exp2(β*(state.loss[] - newloss)))
             else
-                rand() < BetterExp.exp2(-β*(max(sc_ti, sc_tinew) - max(sc_ti0, sc_tinew0)))
+                rand() < exp2(-β*(max(sc_ti, sc_tinew) - max(sc_ti0, sc_tinew0)))
             end
             accept && update_state!(state, adjt, vertices, idxi, sc_ti, sc_tinew, newloss)
         end
