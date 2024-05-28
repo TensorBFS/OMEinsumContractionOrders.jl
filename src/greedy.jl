@@ -3,14 +3,14 @@ struct ContractionTree
     right
 end
 
-```
+"""
     Greedy{TA, TT}
     * `α` is the parameter for the loss function, for pairwise interaction, L = size(out) - α * (size(in1) + size(in2))
     * `tempareture` is the parameter for sampling, if it is zero, the minimum loss is selected; for non-zero, the loss is selected by the Boltzmann distribution, given by p ~ exp(-loss/tempareture).
 
     MinSpaceOut() = Greedy(0.0, 0.0)
     MinSpaceDiff() = Greedy(1.0, 0.0)
-```
+"""
 struct Greedy{TA, TT}
     α::TA
     tempareture::TT
