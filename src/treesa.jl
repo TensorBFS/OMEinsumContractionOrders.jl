@@ -182,7 +182,7 @@ end
 Optimize the einsum contraction pattern specified by `code`, and edge sizes specified by `size_dict`.
 Check the docstring of [`TreeSA`](@ref) for detailed explaination of other input arguments.
 """
-function optimize_tree(code::AbstractEinsum, size_dict; nslices::Int=0, sc_target=20, βs=0.1:0.1:10, ntrials=20, niters=100, sc_weight=1.0, rw_weight=0.2, initializer=:greedy, greedy_method=MinSpaceOut(), greedy_nrepeat=1, fixed_slices=[])
+function optimize_tree(code::AbstractEinsum, size_dict; nslices::Int=0, sc_target=20, βs=0.1:0.1:10, ntrials=20, niters=100, sc_weight=1.0, rw_weight=0.2, initializer=:greedy, greedy_method=GreedyMethod(nrepeat = 1), fixed_slices=[])
     LT = labeltype(code)
     if nslices < length(fixed_slices)
         @warn("Number of slices: $(nslices) is smaller than the number of fixed slices, setting it to: $(length(fixed_slices)).")
@@ -199,7 +199,7 @@ function optimize_tree(code::AbstractEinsum, size_dict; nslices::Int=0, sc_targe
     inverse_map = Dict([v=>k for (k,v) in labels])  # the inverse transformation, map integers to labels
     log2_sizes = [log2.(size_dict[inverse_map[i]]) for i=1:length(labels)]   # use `log2` sizes in computing time
     if ntrials <= 0  # no optimization at all, then 1). initialize an expression tree and 2). convert back to nested einsum.
-        best_tree = _initializetree(code, size_dict, initializer; greedy_method=greedy_method, greedy_nrepeat=greedy_nrepeat)
+        best_tree = _initializetree(code, size_dict, initializer; greedy_method=greedy_method)
         return SlicedEinsum(LT[], NestedEinsum(best_tree, inverse_map))
     end
     ###### Stage 2: computing ######
@@ -207,7 +207,7 @@ function optimize_tree(code::AbstractEinsum, size_dict; nslices::Int=0, sc_targe
     trees, tcs, scs, rws, slicers = Vector{ExprTree}(undef, ntrials), zeros(ntrials), zeros(ntrials), zeros(ntrials), Vector{Slicer}(undef, ntrials)
     @threads for t = 1:ntrials  # multi-threading on different trials, use `JULIA_NUM_THREADS=5 julia xxx.jl` for setting number of threads.
         # 1). random/greedy initialize a contraction tree.
-        tree = _initializetree(code, size_dict, initializer; greedy_method=greedy_method, greedy_nrepeat=greedy_nrepeat)
+        tree = _initializetree(code, size_dict, initializer; greedy_method=greedy_method)
         # 2). optimize the `tree` and `slicer` in a inplace manner.
         slicer = Slicer(log2_sizes, nslices, Int[labels[l] for l in fixed_slices])
         optimize_tree_sa!(tree, log2_sizes, slicer; sc_target=sc_target, βs=βs, niters=niters, sc_weight=sc_weight, rw_weight=rw_weight)
@@ -233,10 +233,10 @@ function optimize_tree(code::AbstractEinsum, size_dict; nslices::Int=0, sc_targe
 end
 
 # initialize a contraction tree
-function _initializetree(code, size_dict, method; greedy_method, greedy_nrepeat)
+function _initializetree(code, size_dict, method; greedy_method)
     if method == :greedy
         labels = _label_dict(code)  # label to int
-        return _exprtree(optimize_greedy(code, size_dict; method=greedy_method, nrepeat=greedy_nrepeat), labels)
+        return _exprtree(optimize_greedy(code, size_dict; α = greedy_method.α, temperature = greedy_method.temperature, nrepeat=greedy_method.nrepeat), labels)
     elseif method == :random
         return random_exprtree(code)
     elseif method == :specified

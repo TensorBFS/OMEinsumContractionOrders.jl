@@ -28,7 +28,7 @@ end
     for (k,v) in il.e2v
         @test sort(target.e2v[k]) == sort(v)
     end
-    costs = evaluate_costs(MinSpaceOut(), incidence_list, log2_edge_sizes)
+    costs = evaluate_costs(0.0, incidence_list, log2_edge_sizes)
     @test costs == Dict(('A', 'B')=>(2^9), ('A', 'C')=>2^15, ('B','C')=>2^18, ('B','E')=>2^10, ('C','D')=>2^11, ('C', 'E')=>2^14)
     tree, log2_tcs, log2_scs = tree_greedy(incidence_list, log2_edge_sizes)
     tcs_, scs_ = [], []
@@ -113,7 +113,7 @@ end
     @test flatten(optcode) == code
     @test flatten(code) == code
 
-    optcode_hyper = optimize_greedy(code, size_dict, method = GreedyStrategy(0.0, 100.0), nrepeat = 20)
+    optcode_hyper = optimize_greedy(code, size_dict, α = 0.0, temperature = 100.0, nrepeat = 20)
     cc3 = contraction_complexity(optcode_hyper, edge_sizes)
     @test cc3.sc <= 12
     @test flatten(optcode_hyper) == code
