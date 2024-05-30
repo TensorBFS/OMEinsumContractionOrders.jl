@@ -14,20 +14,20 @@ Then finds the contraction order inside each group with the greedy search algori
 * `βs` is a list of inverse temperature `1/T`,
 * `niters` is the number of iteration in each temperature,
 * `ntrials` is the number of repetition (with different random seeds),
-* `greedy_config` configures the greedy method,
+* `sub_optimizer`, the optimizer for the bipartited sub graphs, one can choose `GreedyMethod()` or `TreeSA()`,
 * `initializer`, the partition configuration initializer, one can choose `:random` or `:greedy` (slow but better).
 
 ### References
 * [Hyper-optimized tensor network contraction](https://arxiv.org/abs/2002.01935)
 """
-Base.@kwdef struct SABipartite{RT,BT,GM} <: CodeOptimizer
+Base.@kwdef struct SABipartite{RT,BT,SO} <: CodeOptimizer
     sc_target::RT = 25
     ntrials::Int = 50  # number of trials
     βs::BT = 0.1:0.2:15.0  # temperatures
     niters::Int = 1000  # number of iterations in each temperature
     max_group_size::Int = 40
     # configure greedy algorithm
-    greedy_config::GM = GreedyMethod()
+    sub_optimizer::SO = GreedyMethod()
     initializer::Symbol = :random
 end
 
@@ -72,9 +72,9 @@ function bipartite_sc(bipartiter::SABipartite, adj::SparseMatrixCSC, vertices, l
             newloss = compute_loss(sc_ti, sc_tinew, state.group_sizes[ti]-1, state.group_sizes[3-ti]+1)
             sc_ti0, sc_tinew0 = state.group_scs[ti], state.group_scs[3-ti]
             accept = if max(sc_ti0, sc_tinew0) <= bipartiter.sc_target
-                max(sc_ti, sc_tinew) <= bipartiter.sc_target && (rand() < BetterExp.exp2(β*(state.loss[] - newloss)))
+                max(sc_ti, sc_tinew) <= bipartiter.sc_target && (rand() < exp2(β*(state.loss[] - newloss)))
             else
-                rand() < BetterExp.exp2(-β*(max(sc_ti, sc_tinew) - max(sc_ti0, sc_tinew0)))
+                rand() < exp2(-β*(max(sc_ti, sc_tinew) - max(sc_ti0, sc_tinew0)))
             end
             accept && update_state!(state, adjt, vertices, idxi, sc_ti, sc_tinew, newloss)
         end
@@ -181,7 +181,7 @@ function initialize_greedy(adj, vertices, log2_sizes)
     incidence_list = IncidenceList(v2e; openedges=openedges)
     log2_edge_sizes = Dict([i=>log2_sizes[i] for i=1:length(log2_sizes)])
     # nrepeat=3 because there are overheads
-    tree, _, _ = tree_greedy(incidence_list, log2_edge_sizes; method=MinSpaceOut(), nrepeat=3)
+    tree, _, _ = tree_greedy(incidence_list, log2_edge_sizes; nrepeat=3)
 
     # build configuration from the tree
     res = ones(Int, size(adj, 1))
@@ -203,7 +203,7 @@ end
 # legacy interface
 """
     optimize_sa(code, size_dict; sc_target, max_group_size=40, βs=0.1:0.2:15.0, niters=1000, ntrials=50,
-            greedy_method=MinSpaceOut(), greedy_nrepeat=10, initializer=:random)
+           sub_optimizer = GreedyMethod(), initializer=:random)
 
 Optimize the einsum `code` contraction order using the Simulated Annealing bipartition + Greedy approach.
 `size_dict` is a dictionary that specifies leg dimensions. 
@@ -213,10 +213,10 @@ Check the docstring of `SABipartite` for detailed explaination of other input ar
 * [Hyper-optimized tensor network contraction](https://arxiv.org/abs/2002.01935)
 """
 function optimize_sa(code::EinCode, size_dict; sc_target, max_group_size=40,
-             βs=0.01:0.02:15.0, niters=1000, ntrials=50, greedy_method=MinSpaceOut(), greedy_nrepeat=10,
+             βs=0.01:0.02:15.0, niters=1000, ntrials=50, sub_optimizer=GreedyMethod(),
              initializer=:random)
     bipartiter = SABipartite(; sc_target=sc_target, βs=βs, niters=niters, ntrials=ntrials,
-        greedy_config=GreedyMethod(method=greedy_method, nrepeat=greedy_nrepeat),
+    sub_optimizer=sub_optimizer,
         max_group_size=max_group_size, initializer=initializer)
     recursive_bipartite_optimize(bipartiter, code, size_dict)
 end

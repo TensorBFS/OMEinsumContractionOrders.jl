@@ -2,14 +2,13 @@ module OMEinsumContractionOrders
 
 using JSON
 using SparseArrays
+using StatsBase
 using Base: RefValue
-using BetterExp
 using Base.Threads
 using AbstractTrees
 
 export CodeOptimizer, CodeSimplifier,
     KaHyParBipartite, GreedyMethod, TreeSA, SABipartite,
-    MinSpaceDiff, MinSpaceOut,
     MergeGreedy, MergeVectors,
     uniformsize,
     simplify_code, optimize_code, optimize_permute,

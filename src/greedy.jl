@@ -3,10 +3,8 @@ struct ContractionTree
     right
 end
 
-struct MinSpaceOut end
-struct MinSpaceDiff end
-
 struct LegInfo{ET}
+    # We use number 0, 1, 2 to denote the output tensor, the first input tensor and the second input tensor,and use e.g. `l01` to denote the set of labels that appear in both the output tensor and the input tensor.
     l1::Vector{ET}
     l2::Vector{ET}
     l12::Vector{ET}
@@ -16,10 +14,12 @@ struct LegInfo{ET}
 end
 
 """
-    tree_greedy(incidence_list, log2_sizes; method=MinSpaceOut())
+    tree_greedy(incidence_list, log2_sizes; α = 0.0, temperature = 0.0, nrepeat=10)
 
 Compute greedy order, and the time and space complexities, the rows of the `incidence_list` are vertices and columns are edges.
 `log2_sizes` are defined on edges.
+`α` is the parameter for the loss function, for pairwise interaction, L = size(out) - α * (size(in1) + size(in2))
+`temperature` is the parameter for sampling, if it is zero, the minimum loss is selected; for non-zero, the loss is selected by the Boltzmann distribution, given by p ~ exp(-loss/temperature).
 
 ```julia
 julia> code = ein"(abc,cde),(ce,sf,j),ak->ael"
@@ -48,21 +48,25 @@ ae, ak -> ea
       └─ abc
 ```
 """
-function tree_greedy(incidence_list::IncidenceList{VT,ET}, log2_edge_sizes; method=MinSpaceOut(), nrepeat=10) where {VT,ET}
+function tree_greedy(incidence_list::IncidenceList{VT,ET}, log2_edge_sizes; α::TA = 0.0, temperature::TT = 0.0, nrepeat=10) where {VT,ET,TA,TT}
     @assert nrepeat >= 1
-    best_tree, best_tcs, best_scs = _tree_greedy(incidence_list, log2_edge_sizes; method=method)
-    best_tc, best_sc = log2sumexp2(best_tcs), maximum(best_scs)
-    for _ = 1:nrepeat-1
-        tree, tcs, scs = _tree_greedy(incidence_list, log2_edge_sizes; method=method)
-        tc, sc = log2sumexp2(tcs), maximum(scs)
-        if sc < best_sc || (sc <= best_sc && tc < best_tc)
-            best_tcs, best_scs, best_tc, best_sc, best_tree = tcs, scs, tc, sc, tree
-        end
+
+    results = Vector{Tuple{ContractionTree, Vector{Float64}, Vector{Float64}}}(undef, nrepeat)
+
+    @threads for i = 1:nrepeat
+        results[i] = _tree_greedy(incidence_list, log2_edge_sizes; α = α, temperature = temperature)
     end
+
+    best_sc = minimum([maximum(r[3]) for r in results])
+    possible_ids = findall(x -> maximum(x[3]) == best_sc, results)
+    possible_results = results[possible_ids]
+
+    best_tree, best_tcs, best_scs = results[argmin([log2sumexp2(r[2]) for r in possible_results])]
+
     return best_tree, best_tcs, best_scs
 end
 
-function _tree_greedy(incidence_list::IncidenceList{VT,ET}, log2_edge_sizes; method=MinSpaceOut()) where {VT,ET}
+function _tree_greedy(incidence_list::IncidenceList{VT,ET}, log2_edge_sizes; α::TA = 0.0, temperature::TT = 0.0) where {VT,ET,TA,TT}
     incidence_list = copy(incidence_list)
     n = nv(incidence_list)
     if n == 0
@@ -74,13 +78,13 @@ function _tree_greedy(incidence_list::IncidenceList{VT,ET}, log2_edge_sizes; met
     log2_scs = Float64[]
 
     tree = Dict{VT,Any}([v=>v for v in vertices(incidence_list)])
-    cost_values = evaluate_costs(method, incidence_list, log2_edge_sizes)
+    cost_values = evaluate_costs(α, incidence_list, log2_edge_sizes)
     while true
         if length(cost_values) == 0
             vpool = collect(vertices(incidence_list))
             pair = minmax(vpool[1], vpool[2])  # to prevent empty intersect
         else
-            pair = find_best_cost(cost_values)
+            pair = find_best_cost(temperature, cost_values)
         end
         log2_tc_step, sc, code = contract_pair!(incidence_list, pair..., log2_edge_sizes)
         push!(log2_tcs, log2_tc_step)
@@ -90,7 +94,7 @@ function _tree_greedy(incidence_list::IncidenceList{VT,ET}, log2_edge_sizes; met
         else
             return ContractionTree(tree[pair[1]], tree[pair[2]]), log2_tcs, log2_scs
         end
-        update_costs!(cost_values, pair..., method, incidence_list, log2_edge_sizes)
+        update_costs!(cost_values, pair..., α, incidence_list, log2_edge_sizes)
     end
 end
 
@@ -116,23 +120,23 @@ function contract_pair!(incidence_list, vi, vj, log2_edge_sizes)
     return tc, sc, code
 end
 
-function evaluate_costs(method, incidence_list::IncidenceList{VT,ET}, log2_edge_sizes) where {VT,ET}
+function evaluate_costs(α::TA, incidence_list::IncidenceList{VT,ET}, log2_edge_sizes) where {VT,ET,TA}
     # initialize cost values
     cost_values = Dict{Tuple{VT,VT},Float64}()
     for vi = vertices(incidence_list)
         for vj in neighbors(incidence_list, vi)
             if vj > vi
-                cost_values[(vi,vj)] = greedy_loss(method, incidence_list, log2_edge_sizes, vi, vj)
+                cost_values[(vi,vj)] = greedy_loss(α, incidence_list, log2_edge_sizes, vi, vj)
             end
         end
     end
     return cost_values
 end
 
-function update_costs!(cost_values, va, vb, method, incidence_list::IncidenceList{VT,ET}, log2_edge_sizes) where {VT,ET}
+function update_costs!(cost_values, va, vb, α::TA, incidence_list::IncidenceList{VT,ET}, log2_edge_sizes) where {VT,ET,TA}
     for vj in neighbors(incidence_list, va)
         vx, vy = minmax(vj, va)
-        cost_values[(vx,vy)] = greedy_loss(method, incidence_list, log2_edge_sizes, vx, vy)
+        cost_values[(vx,vy)] = greedy_loss(α, incidence_list, log2_edge_sizes, vx, vy)
     end
     for k in keys(cost_values)
         if vb ∈ k
@@ -141,16 +145,28 @@ function update_costs!(cost_values, va, vb, method, incidence_list::IncidenceLis
     end
 end
 
-function find_best_cost(cost_values::Dict{PT}) where PT
+function find_best_cost(temperature::TT, cost_values::Dict{PT}) where {PT,TT}
     length(cost_values) < 1 && error("cost value information missing")
-    minval = minimum(Base.values(cost_values))
-    pairs = PT[]
-    for (k, v) in cost_values
-        if v == minval
-            push!(pairs, k)
+    if iszero(temperature)
+        minval = minimum(Base.values(cost_values))
+        pairs = PT[]
+        for (k, v) in cost_values
+            if v == minval
+                push!(pairs, k)
+            end
         end
+        return rand(pairs)
+    else
+        return sample_best_cost(cost_values, temperature)
     end
-    return rand(pairs)
+end
+
+function sample_best_cost(cost_values::Dict{PT}, t::T) where {PT, T}
+    length(cost_values) < 1 && error("cost value information missing")
+    vals = [v for v in values(cost_values)]
+    prob = exp.( - vals ./ t)
+    vc = [k for (k, v) in cost_values]
+    sample(vc, Weights(prob))
 end
 
 function analyze_contraction(incidence_list::IncidenceList{VT,ET}, vi::VT, vj::VT) where {VT,ET}
@@ -185,17 +201,12 @@ function analyze_contraction(incidence_list::IncidenceList{VT,ET}, vi::VT, vj::V
     return LegInfo(leg1, leg2, leg12, leg01, leg02, leg012)
 end
 
-function greedy_loss(::MinSpaceOut, incidence_list, log2_edge_sizes, vi, vj)
-    log2dim(legs) = isempty(legs) ? 0 : sum(l->log2_edge_sizes[l], legs)  # for 1.5, you need this patch because `init` kw is not allowed.
-    legs = analyze_contraction(incidence_list, vi, vj)
-    log2dim(legs.l01)+log2dim(legs.l02)+log2dim(legs.l012)
-end
-
-function greedy_loss(::MinSpaceDiff, incidence_list, log2_edge_sizes, vi, vj)
+function greedy_loss(α, incidence_list, log2_edge_sizes, vi, vj)
     log2dim(legs) = isempty(legs) ? 0 : sum(l->log2_edge_sizes[l], legs)  # for 1.5, you need this patch because `init` kw is not allowed.
     legs = analyze_contraction(incidence_list, vi, vj)
     D1,D2,D12,D01,D02,D012 = log2dim.(getfield.(Ref(legs), 1:6))
-    exp2(D01+D02+D012) - exp2(D01+D12+D012) - exp2(D02+D12+D012)  # out - in
+    loss = exp2(D01+D02+D012) - α * (exp2(D01+D12+D012) + exp2(D02+D12+D012))  # out - in
+    return loss
 end
 
 function space_complexity(incidence_list, log2_sizes)
@@ -254,16 +265,15 @@ function parse_tree(ein, vertices)
 end
 
 """
-    optimize_greedy(eincode, size_dict; method=MinSpaceOut(), nrepeat=10)
+    optimize_greedy(eincode, size_dict; α = 0.0, temperature = 0.0, nrepeat=10)
 
-Greedy optimizing the contraction order and return a `NestedEinsum` object. Methods are
-* `MinSpaceOut`, always choose the next contraction that produces the minimum output tensor.
-* `MinSpaceDiff`, always choose the next contraction that minimizes the total space.
+Greedy optimizing the contraction order and return a `NestedEinsum` object.
+Check the docstring of `tree_greedy` for detailed explaination of other input arguments.
 """
-function optimize_greedy(code::EinCode{L}, size_dict::Dict; method=MinSpaceOut(), nrepeat=10) where {L}
-    optimize_greedy(getixsv(code), getiyv(code), size_dict; method=method, nrepeat=nrepeat)
+function optimize_greedy(code::EinCode{L}, size_dict::Dict; α::TA = 0.0, temperature::TT = 0.0, nrepeat=10) where {L,TA,TT}
+    optimize_greedy(getixsv(code), getiyv(code), size_dict; α = α, temperature = temperature, nrepeat=nrepeat)
 end
-function optimize_greedy(ixs::AbstractVector{<:AbstractVector}, iy::AbstractVector, size_dict::Dict{L,TI}; method=MinSpaceOut(), nrepeat=10) where {L, TI}
+function optimize_greedy(ixs::AbstractVector{<:AbstractVector}, iy::AbstractVector, size_dict::Dict{L,TI}; α::TA = 0.0, temperature::TT = 0.0, nrepeat=10) where {L, TI, TA, TT}
     if length(ixs) <= 2
         return NestedEinsum(NestedEinsum{L}.(1:length(ixs)), EinCode(ixs, iy))
     end
@@ -272,15 +282,15 @@ function optimize_greedy(ixs::AbstractVector{<:AbstractVector}, iy::AbstractVect
         log2_edge_sizes[k] = log2(v)
     end
     incidence_list = IncidenceList(Dict([i=>ixs[i] for i=1:length(ixs)]); openedges=iy)
-    tree, _, _ = tree_greedy(incidence_list, log2_edge_sizes; method=method, nrepeat=nrepeat)
+    tree, _, _ = tree_greedy(incidence_list, log2_edge_sizes; α = α, temperature = temperature, nrepeat=nrepeat)
     parse_eincode!(incidence_list, tree, 1:length(ixs))[2]
 end
-function optimize_greedy(code::NestedEinsum, size_dict; method=MinSpaceOut(), nrepeat=10)
+function optimize_greedy(code::NestedEinsum, size_dict; α::TA = 0.0, temperature::TT = 0.0, nrepeat=10) where {TT, TA}
     isleaf(code) && return code
-    args = optimize_greedy.(code.args, Ref(size_dict); method=method, nrepeat=nrepeat)
+    args = optimize_greedy.(code.args, Ref(size_dict); α = α, temperature = temperature, nrepeat=nrepeat)
     if length(code.args) > 2
         # generate coarse grained hypergraph.
-        nested = optimize_greedy(code.eins, size_dict; method=method, nrepeat=nrepeat)
+        nested = optimize_greedy(code.eins, size_dict; α = α, temperature = temperature, nrepeat=nrepeat)
         replace_args(nested, args)
     else
         NestedEinsum(args, code.eins)
@@ -294,16 +304,16 @@ end
 
 """
     GreedyMethod{MT}
-    GreedyMethod(; method=MinSpaceOut(), nrepeat=10)
+    GreedyMethod(; α = 0.0, temperature = 0.0, nrepeat=10)
 
 The fast but poor greedy optimizer. Input arguments are
 
-* `method` is `MinSpaceDiff()` or `MinSpaceOut`.
-    * `MinSpaceOut` choose one of the contraction that produces a minimum output tensor size,
-    * `MinSpaceDiff` choose one of the contraction that decrease the space most.
-* `nrepeat` is the number of repeatition, returns the best contraction order.
+    * `α` is the parameter for the loss function, for pairwise interaction, L = size(out) - α * (size(in1) + size(in2))
+    * `temperature` is the parameter for sampling, if it is zero, the minimum loss is selected; for non-zero, the loss is selected by the Boltzmann distribution, given by p ~ exp(-loss/temperature).
+    * `nrepeat` is the number of repeatition, returns the best contraction order.
 """
-Base.@kwdef struct GreedyMethod{MT} <: CodeOptimizer
-    method::MT = MinSpaceOut()
+Base.@kwdef struct GreedyMethod{TA, TT} <: CodeOptimizer
+    α::TA = 0.0
+    temperature::TT = 0.0
     nrepeat::Int = 10
 end

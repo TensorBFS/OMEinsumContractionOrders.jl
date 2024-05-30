@@ -51,7 +51,7 @@ function _optimize_code(code, size_dict, optimizer::KaHyParBipartite)
     recursive_bipartite_optimize(optimizer, code, size_dict)
 end
 function _optimize_code(code, size_dict, optimizer::GreedyMethod)
-    optimize_greedy(code, size_dict; method=optimizer.method, nrepeat=optimizer.nrepeat)
+    optimize_greedy(code, size_dict; α = optimizer.α, temperature = optimizer.temperature, nrepeat=optimizer.nrepeat)
 end
 function _optimize_code(code, size_dict, optimizer::SABipartite)
     recursive_bipartite_optimize(optimizer, code, size_dict)
@@ -60,5 +60,5 @@ function _optimize_code(code, size_dict, optimizer::TreeSA)
     optimize_tree(code, size_dict; sc_target=optimizer.sc_target, βs=optimizer.βs,
         ntrials=optimizer.ntrials, niters=optimizer.niters, nslices=optimizer.nslices,
         sc_weight=optimizer.sc_weight, rw_weight=optimizer.rw_weight, initializer=optimizer.initializer,
-        greedy_method=optimizer.greedy_config.method, greedy_nrepeat=optimizer.greedy_config.nrepeat, fixed_slices=optimizer.fixed_slices)
+        greedy_method=optimizer.greedy_config, fixed_slices=optimizer.fixed_slices)
 end

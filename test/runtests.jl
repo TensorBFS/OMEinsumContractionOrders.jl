@@ -1,12 +1,16 @@
 using OMEinsumContractionOrders
 using Test
 
-@testset "kahypar" begin
-    include("kahypar.jl")
+@testset "greedy" begin
+    include("greedy.jl")
 end
 
 @testset "sa" begin
     include("sa.jl")
+end
+
+@testset "kahypar" begin
+    include("kahypar.jl")
 end
 
 @testset "treesa" begin

@@ -45,8 +45,8 @@ end
 
     code = random_regular_eincode(220, 3)
     res = optimize_sa(code,uniformsize(code, 2); sc_target=30, βs=βs)
-    tc, sc = timespace_complexity(res, uniformsize(code, 2))
-    @test sc <= 32
+    cc = contraction_complexity(res, uniformsize(code, 2))
+    @test cc.sc <= 32
 
     tc1, sc1, rw1 = timespacereadwrite_complexity(res, uniformsize(code, 2))
     cc = contraction_complexity(res, uniformsize(code, 2))
@@ -57,8 +57,8 @@ end
     code = random_regular_eincode(50, 3)
     codeg = optimize_sa(code, uniformsize(code, 2); sc_target=12, βs=βs, ntrials=1, initializer=:greedy)
     codek = optimize_greedy(code, uniformsize(code, 2))
-    tc, sc = timespace_complexity(codek, uniformsize(code, 2))
-    @test sc <= 12
+    cc = contraction_complexity(codek, uniformsize(code, 2))
+    @test cc.sc <= 12
     xs = [[2*randn(2, 2) for i=1:75]..., [randn(2) for i=1:50]...]
     resg = decorate(codeg)(xs...)
     resk = decorate(codek)(xs...)

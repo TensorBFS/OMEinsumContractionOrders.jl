@@ -3,7 +3,7 @@ using Test, Random
 using SparseArrays
 using OMEinsumContractionOrders
 using OMEinsumContractionOrders: get_coarse_grained_graph, _connected_components, bipartite_sc, group_sc, coarse_grained_optimize,
-    map_tree_to_parts, MinSpaceOut, ContractionTree, optimize_greedy, optimize_kahypar, optimize_kahypar_auto
+    map_tree_to_parts, ContractionTree, optimize_greedy, optimize_kahypar, optimize_kahypar_auto
 using KaHyPar
 using OMEinsum: decorate
 
@@ -22,7 +22,7 @@ using OMEinsum: decorate
 
     @test length(_connected_components(adj, parts[1])) == 2
 
-    res = coarse_grained_optimize(adj, parts, ones(6), GreedyMethod(MinSpaceOut(), 10))
+    res = coarse_grained_optimize(adj, parts, ones(6), GreedyMethod())
     @test res == ContractionTree(ContractionTree(1,2), 3)
     @test map_tree_to_parts(res, [[[1,2], 3], [7,6], [9, [4,1]]]) == [[[[1,2], 3], [7,6]], [9, [4,1]]]
 end
@@ -56,15 +56,23 @@ end
 
     code = random_regular_eincode(220, 3)
     res = optimize_kahypar(code,uniformsize(code, 2); max_group_size=50, sc_target=30)
-    tc, sc = timespace_complexity(res, uniformsize(code, 2))
-    @test sc <= 30
+    cc = contraction_complexity(res, uniformsize(code, 2))
+    @test cc.sc <= 30
 
     # contraction test
     code = random_regular_eincode(50, 3)
-    codeg = optimize_kahypar(code, uniformsize(code, 2); max_group_size=10, sc_target=12)
+    codeg = optimize_kahypar(code, uniformsize(code, 2); max_group_size=10, sc_target=10)
+    codet = optimize_kahypar(code, uniformsize(code, 2); max_group_size=10, sc_target=10, sub_optimizer = TreeSA())
     codek = optimize_greedy(code, uniformsize(code, 2))
-    tc, sc = timespace_complexity(codek, uniformsize(code, 2))
-    @test sc <= 12
+
+    cc_kg = contraction_complexity(codeg, uniformsize(code, 2))
+    cc_kt = contraction_complexity(codet, uniformsize(code, 2))
+    cc_g = contraction_complexity(codek, uniformsize(code, 2))
+
+    @test cc_kg.sc <= 12
+    @test cc_kt.sc <= 12
+    @test cc_g.sc <= 12
+
     xs = [[2*randn(2, 2) for i=1:75]..., [randn(2) for i=1:50]...]
     resg = decorate(codeg)(xs...)
     resk = decorate(codek)(xs...)
@@ -72,7 +80,13 @@ end
 
     Random.seed!(2)
     code = random_regular_eincode(220, 3)
-    codeg_auto = optimize_kahypar_auto(code, uniformsize(code, 2), greedy_method=MinSpaceOut())
-    tc, sc = timespace_complexity(codeg_auto, uniformsize(code, 2))
-    @test sc <= 30
+    codeg_auto = optimize_kahypar_auto(code, uniformsize(code, 2), sub_optimizer=GreedyMethod())
+    codet_auto = optimize_kahypar_auto(code, uniformsize(code, 2), sub_optimizer=TreeSA(ntrials = 1, sc_weight = 0.1))
+    ccg = contraction_complexity(codeg_auto, uniformsize(code, 2))
+    @show ccg.sc, ccg.tc
+    cct = contraction_complexity(codet_auto, uniformsize(code, 2))
+    @show cct.sc, cct.tc
+
+    @test ccg.sc <= 30
+    @test cct.sc <= 30
 end
