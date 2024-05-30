@@ -177,7 +177,7 @@ end
 
 # this is the main function
 """
-    optimize_tree(code, size_dict; sc_target=20, βs=0.1:0.1:10, ntrials=2, niters=100, sc_weight=1.0, rw_weight=0.2, initializer=:greedy, greedy_method=MinSpaceOut(), greedy_nrepeat=1, fixed_slices=[])
+    optimize_tree(code, size_dict; sc_target=20, βs=0.1:0.1:10, ntrials=2, niters=100, sc_weight=1.0, rw_weight=0.2, initializer=:greedy, greedy_method=MinSpaceOut(), fixed_slices=[])
 
 Optimize the einsum contraction pattern specified by `code`, and edge sizes specified by `size_dict`.
 Check the docstring of [`TreeSA`](@ref) for detailed explaination of other input arguments.

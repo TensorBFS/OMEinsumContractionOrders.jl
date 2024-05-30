@@ -51,12 +51,6 @@ end
     @test 16 <= cc.tc <= log2(exp2(10)+exp2(16)+exp2(15)+exp2(9))
     @test cc.sc == 11
     @test optcode1 == optcode2
-
-    # eincode3 = ein"(ab,acd),bcef,e,df->"
-    # Random.seed!(2)
-    # optcode3 = optimize_greedy(eincode3, size_dict) 
-    # tc, sc = timespace_complexity(optcode3, edge_sizes)
-    # @test 16 <= tc <= log2(exp2(10)+exp2(16)+exp2(15)+exp2(9)+1e-8)
 end
 
 @testset "fullerene" begin

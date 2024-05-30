@@ -14,7 +14,7 @@ Then finds the contraction order inside each group with the greedy search algori
 * `βs` is a list of inverse temperature `1/T`,
 * `niters` is the number of iteration in each temperature,
 * `ntrials` is the number of repetition (with different random seeds),
-* `greedy_config` configures the greedy method,
+* `sub_optimizer`, the optimizer for the bipartited sub graphs, one can choose `GreedyMethod()` or `TreeSA()`,
 * `initializer`, the partition configuration initializer, one can choose `:random` or `:greedy` (slow but better).
 
 ### References
@@ -203,7 +203,7 @@ end
 # legacy interface
 """
     optimize_sa(code, size_dict; sc_target, max_group_size=40, βs=0.1:0.2:15.0, niters=1000, ntrials=50,
-            greedy_method=MinSpaceOut(), greedy_nrepeat=10, initializer=:random)
+           sub_optimizer = GreedyMethod(), initializer=:random)
 
 Optimize the einsum `code` contraction order using the Simulated Annealing bipartition + Greedy approach.
 `size_dict` is a dictionary that specifies leg dimensions. 

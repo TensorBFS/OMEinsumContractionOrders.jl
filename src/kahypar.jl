@@ -98,13 +98,6 @@ function coarse_grained_optimize(adj, parts, log2_sizes, sub_optimizer)
     incidence_list = get_coarse_grained_graph(adj, parts)
     log2_edge_sizes = Dict([i=>log2_sizes[i] for i=1:length(log2_sizes)])
     tree, _, _ = tree_greedy(incidence_list, log2_edge_sizes; α = sub_optimizer.α, temperature = sub_optimizer.temperature, nrepeat=sub_optimizer.nrepeat)
-
-    # eincode = optimize_code(parse_eincode(incidence_list, tree, vertices=1:length(parts)), log2_sizes, sub_optimizer)
-    # if eincode isa SlicedEinsum
-    #     @assert eincode.slicing == 0
-    #     eincode = eincode.eins
-    # end
-    # tree = parse_tree(eincode, collect(1:length(parts)))
     return tree
 end
 
@@ -176,7 +169,7 @@ recursive_flatten(obj::AbstractVector) = vcat(recursive_flatten.(obj)...)
 recursive_flatten(obj) = obj
 
 """
-    optimize_kahypar_auto(code, size_dict; max_group_size=40, greedy_method=MinSpaceOut(), greedy_nrepeat=10)
+    optimize_kahypar_auto(code, size_dict; max_group_size=40, sub_optimizer = GreedyMethod())
 
 Find the optimal contraction order automatically by determining the `sc_target` with bisection.
 It can fail if the tree width of your graph is larger than `100`.
@@ -232,6 +225,5 @@ function recursive_construct_nestedeinsum(ixs::AbstractVector{<:AbstractVector},
         @assert length(res.slicing) == 0
         res = res.eins
     end
-    # res = optimize_greedy(inset, iy1, size_dict; method=greedy_config.method, nrepeat=greedy_config.nrepeat)
     return maplocs(res, parts)
 end
