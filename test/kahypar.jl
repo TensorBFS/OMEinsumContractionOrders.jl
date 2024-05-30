@@ -81,7 +81,7 @@ end
     Random.seed!(2)
     code = random_regular_eincode(220, 3)
     codeg_auto = optimize_kahypar_auto(code, uniformsize(code, 2), sub_optimizer=GreedyMethod())
-    codet_auto = optimize_kahypar_auto(code, uniformsize(code, 2), sub_optimizer=TreeSA(ntrials = 4, sc_weight = 0.1))
+    codet_auto = optimize_kahypar_auto(code, uniformsize(code, 2), sub_optimizer=TreeSA(ntrials = 1, sc_weight = 0.1))
     ccg = contraction_complexity(codeg_auto, uniformsize(code, 2))
     @show ccg.sc, ccg.tc
     cct = contraction_complexity(codet_auto, uniformsize(code, 2))
