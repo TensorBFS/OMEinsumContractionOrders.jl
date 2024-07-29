@@ -17,6 +17,10 @@ end
     include("treesa.jl")
 end
 
+@testset "treewidth" begin
+    include("treewidth.jl")
+end
+
 @testset "simplify" begin
     include("simplify.jl")
 end

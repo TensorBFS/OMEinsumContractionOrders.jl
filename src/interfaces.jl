@@ -6,7 +6,7 @@ Returns a `NestedEinsum` instance. Input arguments are
 
 * `eincode` is an einsum contraction code instance, one of `DynamicEinCode`, `StaticEinCode` or `NestedEinsum`.
 * `size` is a dictionary of "edge label=>edge size" that contains the size information, one can use `uniformsize(eincode, 2)` to create a uniform size.
-* `optimizer` is a `CodeOptimizer` instance, should be one of `GreedyMethod`, `KaHyParBipartite`, `SABipartite` or `TreeSA`. Check their docstrings for details.
+* `optimizer` is a `CodeOptimizer` instance, should be one of `GreedyMethod`, `ExactTreewidth`, `KaHyParBipartite`, `SABipartite` or `TreeSA`. Check their docstrings for details.
 * `simplifier` is one of `MergeVectors` or `MergeGreedy`.
 * optimize the permutation if `permute` is true.
 
@@ -52,6 +52,9 @@ function _optimize_code(code, size_dict, optimizer::KaHyParBipartite)
 end
 function _optimize_code(code, size_dict, optimizer::GreedyMethod)
     optimize_greedy(code, size_dict; α = optimizer.α, temperature = optimizer.temperature, nrepeat=optimizer.nrepeat)
+end
+function _optimize_code(code, size_dict, optimizer::ExactTreewidth)
+    optimize_exact_treewidth(optimizer, code, size_dict)
 end
 function _optimize_code(code, size_dict, optimizer::SABipartite)
     recursive_bipartite_optimize(optimizer, code, size_dict)

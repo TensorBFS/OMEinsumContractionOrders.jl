@@ -8,7 +8,7 @@ using Base.Threads
 using AbstractTrees
 
 export CodeOptimizer, CodeSimplifier,
-    KaHyParBipartite, GreedyMethod, TreeSA, SABipartite,
+    KaHyParBipartite, GreedyMethod, TreeSA, SABipartite, ExactTreewidth,
     MergeGreedy, MergeVectors,
     uniformsize,
     simplify_code, optimize_code, optimize_permute,
@@ -30,6 +30,9 @@ include("kahypar.jl")
 
 # local search method
 include("treesa.jl")
+
+# tree width method
+include("treewidth.jl")
 
 # simplification passes
 include("simplify.jl")

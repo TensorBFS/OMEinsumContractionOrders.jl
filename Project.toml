@@ -5,10 +5,12 @@ version = "0.8.3"
 
 [deps]
 AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
+Graphs = "86223c79-3864-5bf0-83f7-82e725a168b6"
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 Suppressor = "fd094767-a336-5f1f-9728-57cf17d0bbfb"
+TreeWidthSolver = "7d267fc5-9ace-409f-a54c-cd2374872a55"
 
 [weakdeps]
 KaHyPar = "2a6221f6-aa48-11e9-3542-2d9e0ef01880"
