@@ -74,15 +74,7 @@ function exact_treewidth_method(incidence_list::IncidenceList{VT,ET}, log2_edge_
         push!(contraction_trees, eo2ct(elimination_order, incidence_list, log2_edge_sizes, α, temperature, nrepeat))
     end
     
-    if length(contraction_trees) == 1 # the line graph having only one connected component
-        return contraction_trees[1]
-    else # the line graph having multiple connected components
-        contraction_tree = contraction_trees[1]
-        for i in 2:length(contraction_trees)
-            contraction_tree = ContractionTree(contraction_tree, contraction_trees[i])
-        end
-        return contraction_tree
-    end
+    return reduce((x,y) -> ContractionTree(x, y), contraction_trees)
 end
 
 # transform incidence list to line graph
