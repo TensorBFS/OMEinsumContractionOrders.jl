@@ -71,7 +71,8 @@ function exact_treewidth_method(incidence_list::IncidenceList{VT,ET}, log2_edge_
         labeled_graph = LabeledSimpleGraph(lg, lg_indicies, lg_weights)
         tree_decomposition = exact_treewidth(labeled_graph)
         elimination_order = EliminationOrder(tree_decomposition.tree)
-        push!(contraction_trees, eo2ct(elimination_order, incidence_list, log2_edge_sizes, α, temperature, nrepeat))
+        contraction_tree = eo2ct(elimination_order, incidence_list, log2_edge_sizes, α, temperature, nrepeat)
+        push!(contraction_trees, contraction_tree)
     end
     
     return reduce((x,y) -> ContractionTree(x, y), contraction_trees)
@@ -109,19 +110,11 @@ function eo2ct(elimination_order::EliminationOrder, incidence_list::IncidenceLis
         e = pop!(eo)
         if haskey(incidence_list.e2v, e)
             vs = incidence_list.e2v[e]
-            if length(vs) == 2
-                vi = vs[1]
-                vj = vs[2]
-                contract_pair!(incidence_list, vi, vj, log2_edge_sizes)
-                node_i = contraction_tree_nodes[tensors_list[vi]]
-                node_j = contraction_tree_nodes[tensors_list[vj]]
-                contraction_tree_nodes[tensors_list[vi]] = ContractionTree(node_i, node_j)
-                flag = vi
-            elseif length(vs) > 2
+            if length(vs) >= 2
                 sub_list = IncidenceList(Dict([v => incidence_list.v2e[v] for v in vs]); openedges=incidence_list.openedges)
                 sub_tree, scs, tcs = tree_greedy(sub_list, log2_edge_sizes; nrepeat=nrepeat, α=α, temperature=temperature)
                 vi = contract_tree!(incidence_list, sub_tree, log2_edge_sizes, scs, tcs)
-                contraction_tree_nodes[tensors_list[vi]] = sub_tree
+                contraction_tree_nodes[tensors_list[vi]] = st2ct(sub_tree, tensors_list, contraction_tree_nodes)
                 flag = vi
             end
         end
@@ -130,8 +123,16 @@ function eo2ct(elimination_order::EliminationOrder, incidence_list::IncidenceLis
     return contraction_tree_nodes[tensors_list[flag]]
 end
 
+function st2ct(sub_tree::Union{ContractionTree, VT}, tensors_list::Dict{VT, Int}, contraction_tree_nodes::Vector{Union{ContractionTree, VT}}) where{VT}
+    if sub_tree isa ContractionTree
+        return ContractionTree(st2ct(sub_tree.left, tensors_list, contraction_tree_nodes), st2ct(sub_tree.right, tensors_list, contraction_tree_nodes))
+    else
+        return contraction_tree_nodes[tensors_list[sub_tree]]        
+    end
+end
+
 """
-    optimize_greedy(optimizer, eincode, size_dict)
+    optimize_exact_treewidth(optimizer, eincode, size_dict)
 
 Optimizing the contraction order via solve the exact tree width of the line graph corresponding to the eincode and return a `NestedEinsum` object.
 Check the docstring of `exact_treewidth_method` for detailed explaination of other input arguments.
@@ -147,10 +148,19 @@ function optimize_exact_treewidth(optimizer::ExactTreewidth{GM}, ixs::AbstractVe
     for (k, v) in size_dict
         log2_edge_sizes[k] = log2(v)
     end
-    incidence_list = IncidenceList(Dict([i=>ixs[i] for i=1:length(ixs)]); openedges=iy)
+    # complete all open edges as a clique, connected with a dummy tensor
+    incidence_list = IncidenceList(Dict([i=>ixs[i] for i=1:length(ixs)] ∪ [(length(ixs) + 1 => iy)]))
+
     α = optimizer.greedy_config.α
     temperature = optimizer.greedy_config.temperature
     nrepeat = optimizer.greedy_config.nrepeat
     tree = exact_treewidth_method(incidence_list, log2_edge_sizes; α = α, temperature = temperature, nrepeat=nrepeat)
-    parse_eincode!(incidence_list, tree, 1:length(ixs))[2]
+
+    # remove the dummy tensor added for open edges
+    if isempty(iy)
+        return parse_eincode!(incidence_list, tree, 1:length(ixs))[2]
+    else
+        optcode = parse_eincode!(incidence_list, tree, 1:length(ixs) + 1)[2]
+        return tree_reformulate(optcode, length(ixs) + 1)
+    end
 end

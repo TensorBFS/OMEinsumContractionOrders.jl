@@ -97,7 +97,7 @@ function tree_reformulate(code::NestedEinsum, removed_tensor_id::Int)
     path = path_to_tensor(code, removed_tensor_id)
     right = popfirst!(path)
     left = right == 1 ? 2 : 1
-    
+
     return _tree_reformulate!(code.args[right], code.args[left], path)
 end
 
