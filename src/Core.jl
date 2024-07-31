@@ -77,6 +77,61 @@ connector(::Type{Char}) = ""
 connector(::Type{Int}) = "∘"
 connector(::Type) = "-"
 
+function is_binary_tree(code::NestedEinsum)
+    if isleaf(code) return true end
+    if length(code.args) != 2 return false end
+    return all(is_binary_tree, code.args)
+end
+
+# reformulate the nested einsum, removing the root_index
+# consider only binary contraction tree with no openedges
+function tree_reformulate(code::NestedEinsum, removed_tensor_id::Int)
+
+    try
+        @assert is_binary_tree(code)
+        @assert isempty(getiyv(code))
+    catch
+        error("The contraction tree is not binary or has open edges")
+    end
+
+    path = path_to_tensor(code, removed_tensor_id)
+    right = popfirst!(path)
+    left = right == 1 ? 2 : 1
+    
+    return _tree_reformulate!(code.args[right], code.args[left], path)
+end
+
+# find the path to a given tensor in a nested einsum
+function path_to_tensor(code::NestedEinsum, index::Int)
+    path = Vector{Int}()
+    _find_root!(code, index, path)
+    return path
+end
+
+function _find_root!(code::NestedEinsum, index::Int, path::Vector{Int})
+    if isleaf(code) return code.tensorindex == index end
+
+    for (i, arg) in enumerate(code.args)
+        if _find_root!(arg, index, path)
+            pushfirst!(path, i)
+            return true
+        end
+    end
+    return false
+end
+
+function _tree_reformulate!(code::NestedEinsum{LT}, new_code::NestedEinsum{LT}, path::Vector{Int}) where{LT}
+    if !isempty(path)
+        right = popfirst!(path)
+        left = right == 1 ? 2 : 1
+
+        new_eins = EinCode(Vector{LT}[getiyv(code.eins), getixsv(code.eins)[left]], getixsv(code.eins)[right])
+        new_code = NestedEinsum([new_code, code.args[left]], new_eins)
+        new_code = _tree_reformulate!(code.args[right], new_code, path)
+    end
+    return new_code
+end
+
 ############### Simplifier and optimizer types #################
 abstract type CodeSimplifier end
 
