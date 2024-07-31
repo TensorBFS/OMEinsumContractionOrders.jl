@@ -79,26 +79,62 @@ connector(::Type) = "-"
 
 function is_binary_tree(code::NestedEinsum)
     if isleaf(code) return true end
-    if length(code.args) != 2 return false end
+    if length(code.args) > 2 return false end
     return all(is_binary_tree, code.args)
 end
 
-# reformulate the nested einsum, removing the root_index
+
+# reformulate the nested einsum, removing a given tensor without change the space complexity
 # consider only binary contraction tree with no openedges
 function tree_reformulate(code::NestedEinsum, removed_tensor_id::Int)
 
-    try
-        @assert is_binary_tree(code)
-        @assert isempty(getiyv(code))
-    catch
-        error("The contraction tree is not binary or has open edges")
+    try @assert is_binary_tree(code) catch 
+        error("The contraction tree is not binary") 
+    end
+
+    try @assert isempty(getiyv(code)) catch
+        error("The contraction tree has open edges")
     end
 
     path = path_to_tensor(code, removed_tensor_id)
+
     right = popfirst!(path)
     left = right == 1 ? 2 : 1
 
-    return _tree_reformulate!(code.args[right], code.args[left], path)
+    if isleaf(code.args[right])
+        return NestedEinsum([code.args[left].args...], EinCode(getixsv(code.args[left].eins), getixsv(code.eins)[right]))
+    else
+        # update the ein code to make sure the root of the left part and the right part are the same
+        left_code = code.args[left]
+        right_code = NestedEinsum([code.args[right].args...], EinCode(getixsv(code.args[right].eins), getixsv(code.eins)[left]))
+    end
+    tree = _tree_reformulate!(left_code, right_code, path)
+
+    return tree
+end
+
+
+function _tree_reformulate!(left_code::NestedEinsum{LT}, right_code::NestedEinsum{LT}, path::Vector{Int}) where{LT}
+    if !isleaf(right_code)
+        right = popfirst!(path)
+        left = right == 1 ? 2 : 1
+        if length(right_code.args) == 1
+            # orign: left: a, right: b -> a
+            # reformulated: left: a -> b, right: b
+            new_eins = EinCode([getiyv(right_code.eins)], getixsv(right_code.eins)[1])
+            left_code = NestedEinsum([left_code], new_eins)
+            left_code = _tree_reformulate!(left_code, right_code.args[1], path)
+        elseif length(right_code.args) == 2
+            # origin: left: a, right: b, c -> a
+            # reformulated: left: a, b -> c, right: c
+            new_eins = EinCode([getiyv(right_code.eins), getixsv(right_code.eins)[left]], getixsv(right_code.eins)[right])
+            left_code = NestedEinsum([left_code, right_code.args[left]], new_eins)
+            left_code = _tree_reformulate!(left_code, right_code.args[right], path)
+        else
+            error("The contraction tree is not binary")
+        end
+    end
+    return left_code
 end
 
 # find the path to a given tensor in a nested einsum
@@ -118,18 +154,6 @@ function _find_root!(code::NestedEinsum, index::Int, path::Vector{Int})
         end
     end
     return false
-end
-
-function _tree_reformulate!(code::NestedEinsum{LT}, new_code::NestedEinsum{LT}, path::Vector{Int}) where{LT}
-    if !isempty(path)
-        right = popfirst!(path)
-        left = right == 1 ? 2 : 1
-
-        new_eins = EinCode(Vector{LT}[getiyv(code.eins), getixsv(code.eins)[left]], getixsv(code.eins)[right])
-        new_code = NestedEinsum([new_code, code.args[left]], new_eins)
-        new_code = _tree_reformulate!(code.args[right], new_code, path)
-    end
-    return new_code
 end
 
 ############### Simplifier and optimizer types #################
