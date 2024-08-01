@@ -86,7 +86,7 @@ end
 
 # reformulate the nested einsum, removing a given tensor without change the space complexity
 # consider only binary contraction tree with no openedges
-function tree_reformulate(code::NestedEinsum, removed_tensor_id::Int)
+function pivot_tree(code::NestedEinsum, removed_tensor_id::Int)
 
     try @assert is_binary_tree(code) catch 
         error("The contraction tree is not binary") 
@@ -108,13 +108,13 @@ function tree_reformulate(code::NestedEinsum, removed_tensor_id::Int)
         left_code = code.args[left]
         right_code = NestedEinsum([code.args[right].args...], EinCode(getixsv(code.args[right].eins), getixsv(code.eins)[left]))
     end
-    tree = _tree_reformulate!(left_code, right_code, path)
+    tree = _pivot_tree!(left_code, right_code, path)
 
     return tree
 end
 
 
-function _tree_reformulate!(left_code::NestedEinsum{LT}, right_code::NestedEinsum{LT}, path::Vector{Int}) where{LT}
+function _pivot_tree!(left_code::NestedEinsum{LT}, right_code::NestedEinsum{LT}, path::Vector{Int}) where{LT}
     if !isleaf(right_code)
         right = popfirst!(path)
         left = right == 1 ? 2 : 1
@@ -123,13 +123,13 @@ function _tree_reformulate!(left_code::NestedEinsum{LT}, right_code::NestedEinsu
             # reformulated: left: a -> b, right: b
             new_eins = EinCode([getiyv(right_code.eins)], getixsv(right_code.eins)[1])
             left_code = NestedEinsum([left_code], new_eins)
-            left_code = _tree_reformulate!(left_code, right_code.args[1], path)
+            left_code = _pivot_tree!(left_code, right_code.args[1], path)
         elseif length(right_code.args) == 2
             # origin: left: a, right: b, c -> a
             # reformulated: left: a, b -> c, right: c
             new_eins = EinCode([getiyv(right_code.eins), getixsv(right_code.eins)[left]], getixsv(right_code.eins)[right])
             left_code = NestedEinsum([left_code, right_code.args[left]], new_eins)
-            left_code = _tree_reformulate!(left_code, right_code.args[right], path)
+            left_code = _pivot_tree!(left_code, right_code.args[right], path)
         else
             error("The contraction tree is not binary")
         end

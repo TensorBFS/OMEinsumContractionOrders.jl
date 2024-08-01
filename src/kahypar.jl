@@ -161,7 +161,7 @@ function recursive_bipartite_optimize(bipartiter, code::EinCode, size_dict)
     if isempty(iy)
         return optcode
     else
-        return tree_reformulate(optcode, length(ixs) + 1)
+        return pivot_tree(optcode, length(ixs) + 1)
     end
 end
 

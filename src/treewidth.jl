@@ -161,6 +161,6 @@ function optimize_exact_treewidth(optimizer::ExactTreewidth{GM}, ixs::AbstractVe
         return parse_eincode!(incidence_list, tree, 1:length(ixs))[2]
     else
         optcode = parse_eincode!(incidence_list, tree, 1:length(ixs) + 1)[2]
-        return tree_reformulate(optcode, length(ixs) + 1)
+        return pivot_tree(optcode, length(ixs) + 1)
     end
 end

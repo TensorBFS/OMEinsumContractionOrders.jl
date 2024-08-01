@@ -1,5 +1,5 @@
 using OMEinsumContractionOrders, OMEinsum
-using OMEinsumContractionOrders: tree_reformulate, path_to_tensor
+using OMEinsumContractionOrders: pivot_tree, path_to_tensor
 
 using Test
 
@@ -17,7 +17,7 @@ using Test
         tensor = reduce((x, y) -> x.args[y], path, init = code)
         @test tensor.tensorindex == tensor_index
 
-        new_code = tree_reformulate(code, tensor_index)
+        new_code = pivot_tree(code, tensor_index)
         @test contraction_complexity(new_code, size_dict).sc == max(contraction_complexity(code, size_dict).sc, size_tensors[tensor_index])
 
         closed_code = OMEinsumContractionOrders.NestedEinsum([new_code, tensor], OMEinsumContractionOrders.EinCode([OMEinsumContractionOrders.getiyv(new_code), tensor_labels[tensor_index]], Char[]))
