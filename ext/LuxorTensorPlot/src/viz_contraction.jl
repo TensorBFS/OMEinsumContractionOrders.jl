@@ -80,10 +80,10 @@ function OMEinsumContractionOrders.viz_contraction(
 
     filecounter = 1
     le = length(elimination_order)
-    @info "Generating frames, $le frames in total"
+    @info "Generating frames, $(le + 1) frames in total"
     for i in 0:le
         if show_progress
-            @info "Frame $(i) of $le"
+            @info "Frame $(i + 1) of $(le + 1)"
         end
         fig_name = "$(tempdirectory)/$(lpad(filecounter, 10, "0")).png"
         elimination_frame(GViz, tng, elimination_order, i; filename = fig_name, color = color)

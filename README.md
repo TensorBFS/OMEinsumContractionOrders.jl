@@ -87,6 +87,52 @@ SlicedEinsum{Char, NestedEinsum{DynamicEinCode{Char}}}(Char[], ki, ki ->
 )
 ```
 
+## Extensions
+
+### LuxorTensorPlot
+
+`LuxorTensorPlot` is an extension of the `OMEinsumContractionOrders` package that provides a visualization of the contraction order. It is designed to work with the `OMEinsumContractionOrders` package. To use `LuxorTensorPlot`, please follow these steps:
+```julia
+pkg> add OMEinsumContractionOrders, LuxorGraphPlot
+
+julia> using OMEinsumContractionOrders, LuxorGraphPlot
+```
+and then the extension will be loaded automatically.
+
+The extension provides the following to function, `viz_eins` and `viz_contraction`, where the former will plot the tensor network as a graph, and the latter will generate a video or gif of the contraction process.
+Here is an example:
+```julia
+julia> using OMEinsumContractionOrders, LuxorGraphPlot
+
+julia> eincode = OMEinsumContractionOrders.EinCode([['a', 'b'], ['a', 'c', 'd'], ['b', 'c', 'e', 'f'], ['e'], ['d', 'f']], ['a'])
+ab, acd, bcef, e, df -> a
+
+julia> viz_eins(eincode, filename = "eins.png")
+
+julia> nested_eins = optimize_code(eincode, uniformsize(eincode, 2), GreedyMethod())
+ab, ab -> a
+├─ ab
+└─ acf, bcf -> ab
+   ├─ acd, df -> acf
+   │  ├─ acd
+   │  └─ df
+   └─ bcef, e -> bcf
+      ├─ bcef
+      └─ e
+
+
+julia> viz_contraction(nested_eins)
+[ Info: Generating frames, 5 frames in total
+[ Info: Creating video at: ./contraction.mp4
+"./contraction.mp4"
+```
+
+The resulting image and video will be saved in the current working directory, and the image is shown below:
+<div style="text-align:center">
+	<img src="examples/eins.png" alt="Image" width="40%" />
+</div>
+The large white nodes represent the tensors, and the small colored nodes represent the indices, red for closed indices and green for open indices.
+
 ## References
 
 If you find this package useful in your research, please cite the *relevant* papers in [CITATION.bib](CITATION.bib).
