@@ -17,6 +17,9 @@ export CodeOptimizer, CodeSimplifier,
     label_elimination_order
     # writejson, readjson are not exported to avoid namespace conflict
 
+# visiualization tools provided by extension `LuxorTensorPlot`
+export viz_eins, viz_contraction
+
 include("Core.jl")
 include("utils.jl")
 
@@ -40,6 +43,9 @@ include("interfaces.jl")
 
 # saveload
 include("json.jl")
+
+# extension for visiualization
+include("visualization.jl")
 
 @deprecate timespacereadwrite_complexity(code, size_dict::Dict) (contraction_complexity(code, size_dict)...,)
 @deprecate timespace_complexity(code, size_dict::Dict) (contraction_complexity(code, size_dict)...,)[1:2]
