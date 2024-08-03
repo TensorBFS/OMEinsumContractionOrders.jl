@@ -77,6 +77,83 @@ connector(::Type{Char}) = ""
 connector(::Type{Int}) = "∘"
 connector(::Type) = "-"
 
+function is_unary_or_binary(code::NestedEinsum)
+    if isleaf(code) return true end
+    if length(code.args) > 2 return false end
+    return all(is_unary_or_binary, code.args)
+end
+
+
+# reformulate the nested einsum, removing a given tensor without change the space complexity
+# consider only binary contraction tree with no openedges
+function pivot_tree(code::NestedEinsum{LT}, removed_tensor_id::Int) where LT
+    @assert is_unary_or_binary(code) "The contraction tree is not binary"
+    @assert isempty(getiyv(code)) "The contraction tree has open edges"
+
+    path = path_to_tensor(code, removed_tensor_id)
+    isempty(path) && return code   # the tensor is at the root?
+
+    right = popfirst!(path)
+    left = right == 1 ? 2 : 1
+
+    if isleaf(code.args[left]) && isleaf(code.args[right])
+        ixsv = getixsv(code.eins)
+        return NestedEinsum([code.args[left]], EinCode([ixsv[left]], ixsv[right]))
+    elseif isleaf(code.args[right])
+        return NestedEinsum([code.args[left].args...], EinCode(getixsv(code.args[left].eins), getixsv(code.eins)[right]))
+    else
+        # update the ein code to make sure the root of the left part and the right part are the same
+        left_code = code.args[left]
+        right_code = NestedEinsum([code.args[right].args...], EinCode(getixsv(code.args[right].eins), getixsv(code.eins)[left]))
+    end
+    tree = _pivot_tree!(left_code, right_code, path)
+
+    return tree
+end
+
+
+function _pivot_tree!(left_code::NestedEinsum{LT}, right_code::NestedEinsum{LT}, path::Vector{Int}) where{LT}
+    if !isleaf(right_code)
+        right = popfirst!(path)
+        left = right == 1 ? 2 : 1
+        if length(right_code.args) == 1
+            # orign: left: a, right: b -> a
+            # reformulated: left: a -> b, right: b
+            new_eins = EinCode([getiyv(right_code.eins)], getixsv(right_code.eins)[1])
+            left_code = NestedEinsum([left_code], new_eins)
+            left_code = _pivot_tree!(left_code, right_code.args[1], path)
+        elseif length(right_code.args) == 2
+            # origin: left: a, right: b, c -> a
+            # reformulated: left: a, b -> c, right: c
+            new_eins = EinCode([getiyv(right_code.eins), getixsv(right_code.eins)[left]], getixsv(right_code.eins)[right])
+            left_code = NestedEinsum([left_code, right_code.args[left]], new_eins)
+            left_code = _pivot_tree!(left_code, right_code.args[right], path)
+        else
+            error("The contraction tree is not binary")
+        end
+    end
+    return left_code
+end
+
+# find the path to a given tensor in a nested einsum
+function path_to_tensor(code::NestedEinsum, index::Int)
+    path = Vector{Int}()
+    _find_root!(code, index, path)
+    return path
+end
+
+function _find_root!(code::NestedEinsum, index::Int, path::Vector{Int})
+    if isleaf(code) return code.tensorindex == index end
+
+    for (i, arg) in enumerate(code.args)
+        if _find_root!(arg, index, path)
+            pushfirst!(path, i)
+            return true
+        end
+    end
+    return false
+end
+
 ############### Simplifier and optimizer types #################
 abstract type CodeSimplifier end
 

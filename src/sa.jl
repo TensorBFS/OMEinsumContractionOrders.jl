@@ -51,17 +51,18 @@ function partition_state(adj, group, config, log2_sizes)
 end
 
 function bipartite_sc(bipartiter::SABipartite, adj::SparseMatrixCSC, vertices, log2_sizes)
+    @assert length(vertices) >= 2
     degrees_all = sum(adj, dims=1)
     adjt = SparseMatrixCSC(adj')
-    config = _initialize(bipartiter.initializer,adj, vertices, log2_sizes)
+    config = _initialize(bipartiter.initializer, adj, vertices, log2_sizes)
+    if all(config .== 1) || all(config .== 2)
+        config[1] = 3 - config[1]  # flip the first group to avoid empty group
+    end
     best = partition_state(adj, vertices, config, log2_sizes)  # this is the `state` of current partition.
 
     for _ = 1:bipartiter.ntrials
         config = _initialize(bipartiter.initializer,adj, vertices, log2_sizes)
         state = partition_state(adj, vertices, config, log2_sizes)  # this is the `state` of current partition.
-        if state.group_sizes[1]==0 || state.group_sizes[2] == 0
-            continue
-        end
 
         @inbounds for β in bipartiter.βs, iter = 1:bipartiter.niters
             idxi = rand(1:length(vertices))
@@ -78,6 +79,7 @@ function bipartite_sc(bipartiter::SABipartite, adj::SparseMatrixCSC, vertices, l
             end
             accept && update_state!(state, adjt, vertices, idxi, sc_ti, sc_tinew, newloss)
         end
+        (state.group_sizes[1]==0 || state.group_sizes[2] == 0) && continue
         tc, sc1, sc2 = timespace_complexity_singlestep(state.config, adj, vertices, log2_sizes)
         @assert state.group_scs ≈ [sc1, sc2]  # sanity check
         if maximum(state.group_scs) <= max(bipartiter.sc_target, maximum(best.group_scs)) && (maximum(best.group_scs) >= bipartiter.sc_target || state.loss[] < best.loss[])
@@ -87,7 +89,7 @@ function bipartite_sc(bipartiter::SABipartite, adj::SparseMatrixCSC, vertices, l
     best_tc, = timespace_complexity_singlestep(best.config, adj, vertices, log2_sizes)
     @debug "best loss = $(round(best.loss[]; digits=3)) space complexities = $(best.group_scs) time complexity = $(best_tc) groups_sizes = $(best.group_sizes)"
     if maximum(best.group_scs) > bipartiter.sc_target
-        @warn "target space complexity not found, got: $(maximum(best.group_scs)), with time complexity $best_tc."
+        @warn "target space complexity $(bipartiter.sc_target) not found, got: $(maximum(best.group_scs)), with time complexity $best_tc."
     end
     return vertices[findall(==(1), best.config)], vertices[findall(==(2), best.config)]
 end

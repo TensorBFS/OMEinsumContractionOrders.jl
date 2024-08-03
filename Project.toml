@@ -9,6 +9,7 @@ JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 Suppressor = "fd094767-a336-5f1f-9728-57cf17d0bbfb"
+TreeWidthSolver = "7d267fc5-9ace-409f-a54c-cd2374872a55"
 
 [weakdeps]
 KaHyPar = "2a6221f6-aa48-11e9-3542-2d9e0ef01880"
@@ -22,6 +23,7 @@ JSON = "0.21"
 KaHyPar = "0.3"
 StatsBase = "0.34"
 Suppressor = "0.2"
+TreeWidthSolver = "0.1.0"
 julia = "1.9"
 
 [extras]

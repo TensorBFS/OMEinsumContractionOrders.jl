@@ -131,7 +131,7 @@ function adjacency_matrix(ixs::AbstractVector)
         push!(rows, map(x->i, ix)...)
         push!(cols, map(x->findfirst(==(x), edges), ix)...)
     end
-    return sparse(rows, cols, ones(Int, length(rows))), edges
+    return sparse(rows, cols, ones(Int, length(rows)), length(ixs), length(edges)), edges
 end
 
 # legacy interface
@@ -149,10 +149,12 @@ end
 function recursive_bipartite_optimize(bipartiter, code::EinCode, size_dict)
     ixs, iy = getixsv(code), getiyv(code)
     ixv = [ixs..., iy]
+    
     adj, edges = adjacency_matrix(ixv)
-    vertices=collect(1:length(ixs))
+    vertices=collect(1:length(ixv))
     parts = bipartition_recursive(bipartiter, adj, vertices, [log2(size_dict[e]) for e in edges])
-    recursive_construct_nestedeinsum(ixv, iy, parts, size_dict, 0, bipartiter.sub_optimizer)
+    optcode = recursive_construct_nestedeinsum(ixv, empty(iy), parts, size_dict, 0, bipartiter.sub_optimizer)
+    return pivot_tree(optcode, length(ixs) + 1)
 end
 
 maplocs(ne::NestedEinsum{ET}, parts) where ET = isleaf(ne) ? NestedEinsum{ET}(parts[ne.tensorindex]) : NestedEinsum(maplocs.(ne.args, Ref(parts)), ne.eins)
