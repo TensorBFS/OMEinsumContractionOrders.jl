@@ -77,17 +77,17 @@ connector(::Type{Char}) = ""
 connector(::Type{Int}) = "∘"
 connector(::Type) = "-"
 
-function is_binary_tree(code::NestedEinsum)
+function is_unary_or_binary(code::NestedEinsum)
     if isleaf(code) return true end
     if length(code.args) > 2 return false end
-    return all(is_binary_tree, code.args)
+    return all(is_unary_or_binary, code.args)
 end
 
 
 # reformulate the nested einsum, removing a given tensor without change the space complexity
 # consider only binary contraction tree with no openedges
 function pivot_tree(code::NestedEinsum{LT}, removed_tensor_id::Int) where LT
-    @assert is_binary_tree(code) "The contraction tree is not binary"
+    @assert is_unary_or_binary(code) "The contraction tree is not binary"
     @assert isempty(getiyv(code)) "The contraction tree has open edges"
 
     path = path_to_tensor(code, removed_tensor_id)
