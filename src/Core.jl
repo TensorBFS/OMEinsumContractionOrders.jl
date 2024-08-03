@@ -88,13 +88,8 @@ end
 # consider only binary contraction tree with no openedges
 function pivot_tree(code::NestedEinsum, removed_tensor_id::Int)
 
-    try @assert is_binary_tree(code) catch 
-        error("The contraction tree is not binary") 
-    end
-
-    try @assert isempty(getiyv(code)) catch
-        error("The contraction tree has open edges")
-    end
+    @assert is_binary_tree(code) "The contraction tree is not binary"
+    @assert isempty(getiyv(code)) "The contraction tree has open edges"
 
     path = path_to_tensor(code, removed_tensor_id)
 

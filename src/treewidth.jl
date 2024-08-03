@@ -1,6 +1,3 @@
-using TreeWidthSolver
-using Graphs: connected_components, induced_subgraph, SimpleGraph, add_edge!
-
 """
     struct ExactTreewidth{GM} <: CodeOptimizer
     ExactTreewidth(greedy_config::GM = GreedyMethod(nrepeat=1))

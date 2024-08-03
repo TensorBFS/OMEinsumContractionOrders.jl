@@ -6,6 +6,8 @@ using StatsBase
 using Base: RefValue
 using Base.Threads
 using AbstractTrees
+using TreeWidthSolver
+using TreeWidthSolver.Graphs
 
 export CodeOptimizer, CodeSimplifier,
     KaHyParBipartite, GreedyMethod, TreeSA, SABipartite, ExactTreewidth,
