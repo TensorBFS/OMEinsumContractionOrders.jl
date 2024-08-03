@@ -1,6 +1,31 @@
+using OMEinsumContractionOrders: ein2hypergraph, ein2elimination
+
+# tests before the extension loaded
+@testset "luxor tensor plot dependency check" begin
+    @test_throws ArgumentError begin
+        eincode = OMEinsumContractionOrders.EinCode([['a', 'b'], ['a', 'c', 'd'], ['b', 'c', 'e', 'f'], ['e'], ['d', 'f']], ['a'])
+        ein2hypergraph(eincode)
+    end
+
+    @test_throws ArgumentError begin
+        eincode = OMEinsum.rawcode(ein"((ij, jk), kl), lm -> im")
+        ein2elimination(eincode)
+    end
+
+    @test_throws ArgumentError begin
+        eincode = OMEinsumContractionOrders.EinCode([['a', 'b'], ['a', 'c', 'd'], ['b', 'c', 'e', 'f'], ['e'], ['d', 'f']], Vector{Char}())
+        viz_eins(eincode)
+    end
+
+    @test_throws ArgumentError begin
+        eincode = OMEinsumContractionOrders.EinCode([['a', 'b'], ['a', 'c', 'd'], ['b', 'c', 'e', 'f'], ['e'], ['d', 'f']], Vector{Char}())
+        nested_code = optimize_code(eincode, uniformsize(eincode, 2), GreedyMethod())
+        viz_contraction(nested_code, pathname = "")
+    end
+end
+
 using LuxorGraphPlot
 using LuxorGraphPlot.Luxor
-using OMEinsumContractionOrders: ein2hypergraph, ein2elimination
 
 @testset "eincode to hypergraph" begin
     eincode = OMEinsumContractionOrders.EinCode([['a', 'b'], ['a', 'c', 'd'], ['b', 'c', 'e', 'f'], ['e'], ['d', 'f']], ['a'])
