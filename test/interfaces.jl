@@ -48,9 +48,9 @@ end
 @testset "corner case: smaller contraction orders" begin
     code = ein"i->"
     sizes = uniformsize(code, 2)
-    ne = StaticNestedEinsum((StaticNestedEinsum{Char}(1),), code)
+    sne = StaticNestedEinsum((StaticNestedEinsum{Char}(1),), code)
     dne = DynamicNestedEinsum((DynamicNestedEinsum{Char}(1),), DynamicEinCode(code))
-    @test optimize_code(code, sizes, GreedyMethod()) == ne
+    @test optimize_code(code, sizes, GreedyMethod()) == sne
     @test optimize_code(code, sizes, TreeSA()) == SlicedEinsum(Char[], dne)
     @test optimize_code(code, sizes, TreeSA(nslices=2)) == SlicedEinsum(Char[], dne)
     @test optimize_code(code, sizes, KaHyParBipartite(sc_target=25)) == dne

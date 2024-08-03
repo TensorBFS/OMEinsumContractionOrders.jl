@@ -12,7 +12,7 @@ function _todict(ne::SlicedEinsum)
 end
 function _todict(ne::NestedEinsum)
     LT = labeltype(ne)
-    dict = Dict{String,Any}("label-type"=>LT, "inputs"=>getixsv(ne), "output"=>getiyv(ne))
+    dict = Dict{String,Any}("label-type"=>string(LT), "inputs"=>getixsv(ne), "output"=>getiyv(ne))
     dict["tree"] = todict(ne)
     return dict
 end

@@ -86,17 +86,20 @@ end
 
 # reformulate the nested einsum, removing a given tensor without change the space complexity
 # consider only binary contraction tree with no openedges
-function pivot_tree(code::NestedEinsum, removed_tensor_id::Int)
-
+function pivot_tree(code::NestedEinsum{LT}, removed_tensor_id::Int) where LT
     @assert is_binary_tree(code) "The contraction tree is not binary"
     @assert isempty(getiyv(code)) "The contraction tree has open edges"
 
     path = path_to_tensor(code, removed_tensor_id)
+    isempty(path) && return code   # the tensor is at the root?
 
     right = popfirst!(path)
     left = right == 1 ? 2 : 1
 
-    if isleaf(code.args[right])
+    if isleaf(code.args[left]) && isleaf(code.args[right])
+        ixsv = getixsv(code.eins)
+        return NestedEinsum([code.args[left]], EinCode([ixsv[left]], ixsv[right]))
+    elseif isleaf(code.args[right])
         return NestedEinsum([code.args[left].args...], EinCode(getixsv(code.args[left].eins), getixsv(code.eins)[right]))
     else
         # update the ein code to make sure the root of the left part and the right part are the same
