@@ -27,6 +27,22 @@ using OMEinsum
     for i=1:length(results)-1
         @test results[i] ≈ results[i+1]
     end
+
+    small_code = random_regular_eincode(10, 3)
+    xs = [[randn(2,2) for i=1:15]..., [randn(2) for i=1:10]...]
+
+    results = Float64[]
+    for optimizer in [TreeSA(ntrials=1), TreeSA(ntrials=1, nslices=5), GreedyMethod(), KaHyParBipartite(sc_target=18), SABipartite(sc_target=18, ntrials=1), ExactTreewidth()]
+        for simplifier in (nothing, MergeVectors(), MergeGreedy())
+            @info "optimizer = $(optimizer), simplifier = $(simplifier)"
+            res = optimize_code(small_code,uniformsize(small_code, 2), optimizer, simplifier)
+            tc, sc = OMEinsum.timespace_complexity(res, uniformsize(small_code, 2))
+            push!(results, res(xs...)[])
+        end
+    end
+    for i=1:length(results)-1
+        @test results[i] ≈ results[i+1]
+    end
 end
 
 @testset "corner case: smaller contraction orders" begin
