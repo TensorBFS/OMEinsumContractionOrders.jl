@@ -154,10 +154,7 @@ function optimize_exact_treewidth(optimizer::ExactTreewidth{GM}, ixs::AbstractVe
     tree = exact_treewidth_method(incidence_list, log2_edge_sizes; α = α, temperature = temperature, nrepeat=nrepeat)
 
     # remove the dummy tensor added for open edges
-    if isempty(iy)
-        return parse_eincode!(incidence_list, tree, 1:length(ixs))[2]
-    else
-        optcode = parse_eincode!(incidence_list, tree, 1:length(ixs) + 1)[2]
-        return pivot_tree(optcode, length(ixs) + 1)
-    end
+    optcode = parse_eincode!(incidence_list, tree, 1:length(ixs) + 1)[2]
+
+    return isempty(iy) ? optcode : pivot_tree(optcode, length(ixs) + 1)
 end
