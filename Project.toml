@@ -24,6 +24,7 @@ JSON = "0.21"
 KaHyPar = "0.3"
 StatsBase = "0.34"
 Suppressor = "0.2"
+TreeWidthSolver = "0.1.0"
 julia = "1.9"
 
 [extras]
