@@ -13,9 +13,11 @@ TreeWidthSolver = "7d267fc5-9ace-409f-a54c-cd2374872a55"
 
 [weakdeps]
 KaHyPar = "2a6221f6-aa48-11e9-3542-2d9e0ef01880"
+LuxorGraphPlot = "1f49bdf2-22a7-4bc4-978b-948dc219fbbc"
 
 [extensions]
 KaHyParExt = ["KaHyPar"]
+LuxorTensorPlot = ["LuxorGraphPlot"]
 
 [compat]
 AbstractTrees = "0.3, 0.4"
@@ -23,6 +25,7 @@ JSON = "0.21"
 KaHyPar = "0.3"
 StatsBase = "0.34"
 Suppressor = "0.2"
+LuxorGraphPlot = "0.5.1"
 TreeWidthSolver = "0.1.0"
 julia = "1.9"
 
@@ -32,6 +35,7 @@ OMEinsum = "ebe7aa44-baf0-506c-a96f-8464559b3922"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 TropicalNumbers = "b3a74e9c-7526-4576-a4eb-79c0d4c32334"
+LuxorGraphPlot = "1f49bdf2-22a7-4bc4-978b-948dc219fbbc"
 
 [targets]
-test = ["Test", "Random", "Graphs", "TropicalNumbers", "OMEinsum", "KaHyPar"]
+test = ["Test", "Random", "Graphs", "TropicalNumbers", "OMEinsum", "KaHyPar", "LuxorGraphPlot"]

@@ -36,3 +36,8 @@ end
 @testset "json" begin
     include("json.jl")
 end
+
+# testing the extension `LuxorTensorPlot` for visualization
+@testset "visualization" begin
+    include("visualization.jl")
+end
