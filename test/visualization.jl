@@ -1,3 +1,4 @@
+using OMEinsum
 using OMEinsumContractionOrders: ein2hypergraph, ein2elimination
 
 # tests before the extension loaded
@@ -69,20 +70,30 @@ end
 @testset "visualize contraction" begin
     eincode = OMEinsumContractionOrders.EinCode([['a', 'b'], ['a', 'c', 'd'], ['b', 'c', 'e', 'f'], ['e'], ['d', 'f']], Vector{Char}())
     nested_code = optimize_code(eincode, uniformsize(eincode, 2), GreedyMethod())
-    t_mp4 = viz_contraction(nested_code, pathname = "")
+    t_mp4 = viz_contraction(nested_code)
+    t_mp4_2 = viz_contraction(nested_code, filename = "test.mp4")
     @test typeof(t_mp4) == String
-    t_gif = viz_contraction(nested_code, pathname = "", create_gif = true)
+    @test typeof(t_mp4_2) == String
+    t_gif = viz_contraction(nested_code, filename = "test.gif")
     @test typeof(t_gif) == String
 
+    @test_throws ArgumentError begin
+        viz_contraction(nested_code, filename = "test.avi")
+    end
+
     sliced_code = optimize_code(eincode, uniformsize(eincode, 2), TreeSA())
-    t_mp4 = viz_contraction(sliced_code, pathname = "")
+    t_mp4 = viz_contraction(sliced_code)
+    t_mp4_2 = viz_contraction(sliced_code, filename = "test.mp4")
     @test typeof(t_mp4) == String
-    t_gif = viz_contraction(sliced_code, pathname = "", create_gif = true)
+    @test typeof(t_mp4_2) == String
+    t_gif = viz_contraction(sliced_code, filename = "test.gif")
     @test typeof(t_gif) == String
 
     sliced_code2 =  optimize_code(eincode, uniformsize(eincode, 2), TreeSA(nslices = 1))
-    t_mp4 = viz_contraction(sliced_code2, pathname = "")
+    t_mp4 = viz_contraction(sliced_code2)
+    t_mp4_2 = viz_contraction(sliced_code2, filename = "test.mp4")
     @test typeof(t_mp4) == String
-    t_gif = viz_contraction(sliced_code2, pathname = "", create_gif = true)
+    @test typeof(t_mp4_2) == String
+    t_gif = viz_contraction(sliced_code2, filename = "test.gif")
     @test typeof(t_gif) == String
 end
