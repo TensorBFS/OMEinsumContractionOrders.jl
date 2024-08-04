@@ -121,10 +121,10 @@ ab, ab -> a
       └─ e
 
 
-julia> viz_contraction(nested_eins)
-[ Info: Generating frames, 5 frames in total
-[ Info: Creating video at: ./contraction.mp4
-"./contraction.mp4"
+julia> viz_contraction(nested_code)
+[ Info: Generating frames, 7 frames in total
+[ Info: Creating video at: /var/folders/3y/xl2h1bxj4ql27p01nl5hrrnc0000gn/T/jl_SiSvrH/contraction.mp4
+"/var/folders/3y/xl2h1bxj4ql27p01nl5hrrnc0000gn/T/jl_SiSvrH/contraction.mp4"
 ```
 
 The resulting image and video will be saved in the current working directory, and the image is shown below:
