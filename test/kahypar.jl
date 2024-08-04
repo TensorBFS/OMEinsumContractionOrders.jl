@@ -35,6 +35,20 @@ end
         return OMEinsumContractionOrders.EinCode([ixs..., [[i] for i in Graphs.vertices(g)]...], Int[])
     end
 
+    function random_regular_open_eincode(n, k, m)
+        g = Graphs.random_regular_graph(n, k)
+        ixs = [[minmax(e.src,e.dst)...] for e in Graphs.edges(g)]
+        iy = Int[]
+        while length(iy) < m
+            v = rand(1:n)
+            if !(v in iy)
+                push!(iy, v)
+            end
+        end
+        sort!(iy)
+        return OMEinsumContractionOrders.EinCode([ixs..., [[i] for i in Graphs.vertices(g)]...], iy)
+    end
+
     g = random_regular_graph(220, 3)
     rows = Int[]
     cols = Int[]
@@ -89,4 +103,17 @@ end
 
     @test ccg.sc <= 30
     @test cct.sc <= 30
+
+    Random.seed!(2)
+    code = random_regular_open_eincode(50, 3, 3)
+    codeg = optimize_kahypar(code, uniformsize(code, 2); max_group_size=10, sc_target=10)
+    codet = optimize_kahypar(code, uniformsize(code, 2); max_group_size=10, sc_target=10, sub_optimizer = TreeSA())
+    codek = optimize_greedy(code, uniformsize(code, 2))
+
+    xs = [[2*randn(2, 2) for i=1:75]..., [randn(2) for i=1:50]...]
+    resg = decorate(codeg)(xs...)
+    rest = decorate(codet)(xs...)
+    resk = decorate(codek)(xs...)
+    @test rest ≈ resk
+    @test resg ≈ resk
 end
