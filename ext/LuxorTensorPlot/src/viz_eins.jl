@@ -43,9 +43,9 @@ function _get_key(dict::Dict, value)
     @error "Value not found in dictionary"
 end
 
-function OMEinsumContractionOrders.ein2hypergraph(ec::T) where{T <: AbstractEinsum}
-    ixs = getixsv(ec)
-    iy = getiyv(ec)
+function OMEinsumContractionOrders.ein2hypergraph(code::T) where{T <: AbstractEinsum}
+    ixs = getixsv(code)
+    iy = getiyv(code)
 
     edges = unique!([Iterators.flatten(ixs)...])
     open_edges = [iy[i] for i in 1:length(iy) if iy[i] in edges]
@@ -62,19 +62,21 @@ function OMEinsumContractionOrders.ein2hypergraph(ec::T) where{T <: AbstractEins
 end
 
 """
-    viz_eins(ec::AbstractEinsum; locs=StressLayout(), filename = nothing, kwargs...)
+    viz_eins(code::AbstractEinsum; locs=StressLayout(), filename = nothing, kwargs...)
 
 Visualizes an `AbstractEinsum` object by creating a tensor network graph and rendering it using GraphViz.
 
-## Arguments
-- `ec::AbstractEinsum`: The `AbstractEinsum` object to visualize.
-- `locs=StressLayout()`: The layout algorithm to use for positioning the nodes in the graph. Default is `StressLayout()`.
-- `filename = nothing`: The name of the file to save the visualization to. If `nothing`, the visualization will be displayed on the screen instead of saving to a file.
-- `kwargs...`: Additional keyword arguments to be passed to the `GraphViz` constructor.
+### Arguments
+- `code::AbstractEinsum`: The `AbstractEinsum` object to visualize.
 
+### Keyword Arguments
+- `locs=StressLayout()`: The coordinates or layout algorithm to use for positioning the nodes in the graph.
+- `filename = nothing`: The name of the file to save the visualization to. If `nothing`, the visualization will be displayed on the screen instead of saving to a file.
+- `config = GraphDisplayConfig()`: The configuration for displaying the graph. Please refer to the documentation of [`GraphDisplayConfig`](https://giggleliu.github.io/LuxorGraphPlot.jl/dev/ref/#LuxorGraphPlot.GraphDisplayConfig) for more information.
+- `kwargs...`: Additional keyword arguments to be passed to the [`GraphViz`](https://giggleliu.github.io/LuxorGraphPlot.jl/dev/ref/#LuxorGraphPlot.GraphViz) constructor.
 """
-function OMEinsumContractionOrders.viz_eins(ec::AbstractEinsum; locs=StressLayout(), filename = nothing, kwargs...)
-    tng = TensorNetworkGraph(ein2hypergraph(ec))
+function OMEinsumContractionOrders.viz_eins(code::AbstractEinsum; locs=StressLayout(), filename = nothing, config=LuxorTensorPlot.GraphDisplayConfig(), kwargs...)
+    tng = TensorNetworkGraph(ein2hypergraph(code))
     gviz = GraphViz(tng, locs; kwargs...)
-    return show_graph(gviz, filename = filename)
+    return show_graph(gviz; filename, config)
 end
