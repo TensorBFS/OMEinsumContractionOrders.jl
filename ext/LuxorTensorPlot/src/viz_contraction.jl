@@ -75,7 +75,7 @@ function OMEinsumContractionOrders.viz_contraction(
     le = length(elimination_order)
     for i in 0:le
         show_progress && @info "Frame $(i + 1) of $(le + 1)"
-        fig_name = "$(tempdirectory)/$(lpad(i+1, 10, "0")).png"
+        fig_name = joinpath(tempdirectory, "$(lpad(i+1, 10, "0")).png")
         elimination_frame(gviz, tng, elimination_order, i; filename = fig_name)
     end
 
