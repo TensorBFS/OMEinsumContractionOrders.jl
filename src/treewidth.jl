@@ -55,9 +55,11 @@ ab, ab -> a
 """
 function exact_treewidth_method(incidence_list::IncidenceList{VT,ET}, log2_edge_sizes; α::TA = 0.0, temperature::TT = 0.0, nrepeat=1) where {VT,ET,TA,TT}
     indicies = collect(keys(incidence_list.e2v))
+    tensors = collect(keys(incidence_list.v2e))
     weights = [log2_edge_sizes[e] for e in indicies]
     line_graph = il2lg(incidence_list, indicies)
 
+    scalars = [i for i in tensors if isempty(incidence_list.v2e[i])]
     contraction_trees = Vector{Union{ContractionTree, VT}}()
 
     # avoid the case that the line graph is not connected
@@ -71,8 +73,9 @@ function exact_treewidth_method(incidence_list::IncidenceList{VT,ET}, log2_edge_
         contraction_tree = eo2ct(elimination_order, incidence_list, log2_edge_sizes, α, temperature, nrepeat)
         push!(contraction_trees, contraction_tree)
     end
-    
-    return reduce((x,y) -> ContractionTree(x, y), contraction_trees)
+
+    # add the scalars back to the contraction tree
+    return reduce((x,y) -> ContractionTree(x, y), contraction_trees ∪ scalars)
 end
 
 # transform incidence list to line graph
