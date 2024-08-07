@@ -36,7 +36,7 @@ using Test, Random
     @test decorate(eincode)(tensors...) ≈ decorate(optcode)(tensors...)
 
     eincode = OMEinsumContractionOrders.EinCode([['a', 'b'], ['a', 'c', 'd'], ['b', 'c', 'e'], ['e'], ['f'], Char[]], ['a', 'f'])
-    tensors = tensors ∪ fill(2.0,())
+    tensors = tensors ∪ [fill(2.0,())]
     optcode = optimize_exact_treewidth(optimizer, eincode, size_dict)
     cc = contraction_complexity(optcode, size_dict)
     @test decorate(eincode)(tensors...) ≈ decorate(optcode)(tensors...)
