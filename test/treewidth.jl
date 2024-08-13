@@ -15,7 +15,7 @@ using Test, Random
     cc = contraction_complexity(optcode, size_dict)
     # test flop
     @test cc.tc ≈ log2(flop(optcode, size_dict))
-    @test 16 <= cc.tc <= log2(exp2(10)+exp2(16)+exp2(15)+exp2(9))
+    @test (16 <= cc.tc <= log2(exp2(10)+exp2(16)+exp2(15)+exp2(9))) | (cc.tc ≈ log2(exp2(10)+exp2(16)+exp2(15)+exp2(9)))
     @test cc.sc == 11
     @test decorate(eincode)(tensors...) ≈ decorate(optcode)(tensors...)
 

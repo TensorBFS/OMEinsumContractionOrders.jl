@@ -67,10 +67,8 @@ function exact_treewidth_method(incidence_list::IncidenceList{VT,ET}, log2_edge_
         lg = induced_subgraph(line_graph, vertice_ids)[1]
         lg_indicies = indicies[vertice_ids]
         lg_weights = weights[vertice_ids]
-        labeled_graph = LabeledSimpleGraph(lg, lg_indicies, lg_weights)
-        tree_decomposition = exact_treewidth(labeled_graph)
-        elimination_order = EliminationOrder(tree_decomposition.tree)
-        contraction_tree = eo2ct(elimination_order, incidence_list, log2_edge_sizes, α, temperature, nrepeat)
+        eo = elimination_order(lg, labels = lg_indicies, weights = lg_weights)
+        contraction_tree = eo2ct(eo, incidence_list, log2_edge_sizes, α, temperature, nrepeat)
         push!(contraction_trees, contraction_tree)
     end
 
@@ -95,8 +93,8 @@ function il2lg(incidence_list::IncidenceList{VT, ET}, indicies::Vector{ET}) wher
 end
 
 # transform elimination order to contraction tree
-function eo2ct(elimination_order::EliminationOrder, incidence_list::IncidenceList{VT, ET}, log2_edge_sizes, α::TA, temperature::TT, nrepeat) where {VT, ET, TA, TT}
-    eo = copy(elimination_order.order)
+function eo2ct(elimination_order::Vector{Vector{TL}}, incidence_list::IncidenceList{VT, ET}, log2_edge_sizes, α::TA, temperature::TT, nrepeat) where {TL, VT, ET, TA, TT}
+    eo = copy(elimination_order)
     incidence_list = copy(incidence_list)
     contraction_tree_nodes = Vector{Union{VT, ContractionTree}}(collect(keys(incidence_list.v2e)))
     tensors_list = Dict{VT, Int}()
