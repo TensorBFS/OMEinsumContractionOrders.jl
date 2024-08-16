@@ -13,8 +13,10 @@ end
     include("sa.jl")
 end
 
-@testset "kahypar" begin
-    include("kahypar.jl")
+if isdefined(Base, :get_extension)
+    @testset "kahypar" begin
+        include("kahypar.jl")
+    end
 end
 
 @testset "treesa" begin
@@ -38,6 +40,8 @@ end
 end
 
 # testing the extension `LuxorTensorPlot` for visualization
-@testset "visualization" begin
-    include("visualization.jl")
+if isdefined(Base, :get_extension)
+    @testset "visualization" begin
+        include("visualization.jl")
+    end
 end
