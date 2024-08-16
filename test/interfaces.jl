@@ -15,7 +15,17 @@ using OMEinsum
     xs = [[randn(2,2) for i=1:150]..., [randn(2) for i=1:100]...]
 
     results = Float64[]
-    for optimizer in [TreeSA(ntrials=1), TreeSA(ntrials=1, nslices=5), GreedyMethod(), KaHyParBipartite(sc_target=18), SABipartite(sc_target=18, ntrials=1)]
+    for optimizer in [TreeSA(ntrials=1), TreeSA(ntrials=1, nslices=5), GreedyMethod(), SABipartite(sc_target=18, ntrials=1)]
+        for simplifier in (nothing, MergeVectors(), MergeGreedy())
+            @info "optimizer = $(optimizer), simplifier = $(simplifier)"
+            res = optimize_code(code,uniformsize(code, 2), optimizer, simplifier)
+            tc, sc = OMEinsum.timespace_complexity(res, uniformsize(code, 2))
+            @test sc <= 18
+            push!(results, res(xs...)[])
+        end
+    end
+    if isdefined(Base, :get_extension)
+        optimizer = KaHyParBipartite(sc_target=18)
         for simplifier in (nothing, MergeVectors(), MergeGreedy())
             @info "optimizer = $(optimizer), simplifier = $(simplifier)"
             res = optimize_code(code,uniformsize(code, 2), optimizer, simplifier)
@@ -32,7 +42,16 @@ using OMEinsum
     xs = [[randn(2,2) for i=1:15]..., [randn(2) for i=1:10]...]
 
     results = Float64[]
-    for optimizer in [TreeSA(ntrials=1), TreeSA(ntrials=1, nslices=5), GreedyMethod(), KaHyParBipartite(sc_target=18), SABipartite(sc_target=18, ntrials=1), ExactTreewidth()]
+    for optimizer in [TreeSA(ntrials=1), TreeSA(ntrials=1, nslices=5), GreedyMethod(), SABipartite(sc_target=18, ntrials=1), ExactTreewidth()]
+        for simplifier in (nothing, MergeVectors(), MergeGreedy())
+            @info "optimizer = $(optimizer), simplifier = $(simplifier)"
+            res = optimize_code(small_code,uniformsize(small_code, 2), optimizer, simplifier)
+            tc, sc = OMEinsum.timespace_complexity(res, uniformsize(small_code, 2))
+            push!(results, res(xs...)[])
+        end
+    end
+    if isdefined(Base, :get_extension)
+        optimizer = KaHyParBipartite(sc_target=18)
         for simplifier in (nothing, MergeVectors(), MergeGreedy())
             @info "optimizer = $(optimizer), simplifier = $(simplifier)"
             res = optimize_code(small_code,uniformsize(small_code, 2), optimizer, simplifier)
@@ -53,7 +72,7 @@ end
     @test optimize_code(code, sizes, GreedyMethod()) == sne
     @test optimize_code(code, sizes, TreeSA()) == SlicedEinsum(Char[], dne)
     @test optimize_code(code, sizes, TreeSA(nslices=2)) == SlicedEinsum(Char[], dne)
-    @test optimize_code(code, sizes, KaHyParBipartite(sc_target=25)) == dne
+    isdefined(Base, :get_extension) &&  (@test optimize_code(code, sizes, KaHyParBipartite(sc_target=25)) == dne)
     @test optimize_code(code, sizes, SABipartite(sc_target=25)) == dne
 end
 
@@ -79,32 +98,33 @@ end
     @test 10 * 2^sc2 > pm2 > 2^sc2
 end
 
+if isdefined(Base, :get_extension)
+    @testset "kahypar regression test" begin
+        code = ein"i->"
+        optcode = optimize_code(code, Dict('i'=>4), KaHyParBipartite(; sc_target=10, max_group_size=10))
+        @test optcode isa NestedEinsum
+        x = randn(4)
+        @test optcode(x) ≈ code(x)
 
-@testset "kahypar regression test" begin
-    code = ein"i->"
-    optcode = optimize_code(code, Dict('i'=>4), KaHyParBipartite(; sc_target=10, max_group_size=10))
-    @test optcode isa NestedEinsum
-    x = randn(4)
-    @test optcode(x) ≈ code(x)
+        code = ein"i,j->"
+        optcode = optimize_code(code, Dict('i'=>4, 'j'=>4), KaHyParBipartite(; sc_target=10, max_group_size=10))
+        @test optcode isa NestedEinsum
+        x = randn(4)
+        y = randn(4)
+        @test optcode(x, y) ≈ code(x, y)
 
-    code = ein"i,j->"
-    optcode = optimize_code(code, Dict('i'=>4, 'j'=>4), KaHyParBipartite(; sc_target=10, max_group_size=10))
-    @test optcode isa NestedEinsum
-    x = randn(4)
-    y = randn(4)
-    @test optcode(x, y) ≈ code(x, y)
+        code = ein"ij,jk,kl->ijl"
+        println(code)
+        optcode = optimize_code(code, Dict('i'=>4, 'j'=>4, 'k'=>4, 'l'=>4), KaHyParBipartite(; sc_target=4, max_group_size=2))
+        println(optcode)
+        @test optcode isa NestedEinsum
+        a, b, c = [rand(4,4) for i=1:4]
+        @test optcode(a, b, c) ≈ code(a, b, c)
 
-    code = ein"ij,jk,kl->ijl"
-    println(code)
-    optcode = optimize_code(code, Dict('i'=>4, 'j'=>4, 'k'=>4, 'l'=>4), KaHyParBipartite(; sc_target=4, max_group_size=2))
-    println(optcode)
-    @test optcode isa NestedEinsum
-    a, b, c = [rand(4,4) for i=1:4]
-    @test optcode(a, b, c) ≈ code(a, b, c)
-
-    code = ein"ij,jk,kl->ijl"
-    optcode = optimize_code(code, Dict('i'=>3, 'j'=>3, 'k'=>3, 'l'=>3), KaHyParBipartite(; sc_target=4, max_group_size=2))
-    @test optcode isa NestedEinsum
-    a, b, c = [rand(3,3) for i=1:4]
-    @test optcode(a, b, c) ≈ code(a, b, c)
+        code = ein"ij,jk,kl->ijl"
+        optcode = optimize_code(code, Dict('i'=>3, 'j'=>3, 'k'=>3, 'l'=>3), KaHyParBipartite(; sc_target=4, max_group_size=2))
+        @test optcode isa NestedEinsum
+        a, b, c = [rand(3,3) for i=1:4]
+        @test optcode(a, b, c) ≈ code(a, b, c)
+    end
 end
