@@ -146,7 +146,7 @@ function optimize_kahypar(code::EinCode, size_dict; sc_target, max_group_size=40
     recursive_bipartite_optimize(bipartiter, code, size_dict)
 end
 
-function recursive_bipartite_optimize(bipartiter, code::EinCode, size_dict)
+function recursive_bipartite_optimize(bipartiter, code::AbstractEinsum, size_dict)
     ixs, iy = getixsv(code), getiyv(code)
     ixv = [ixs..., iy]
     

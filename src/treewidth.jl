@@ -135,7 +135,7 @@ end
 Optimizing the contraction order via solve the exact tree width of the line graph corresponding to the eincode and return a `NestedEinsum` object.
 Check the docstring of `exact_treewidth_method` for detailed explaination of other input arguments.
 """
-function optimize_exact_treewidth(optimizer::ExactTreewidth{GM}, code::EinCode{L}, size_dict::Dict) where {L,GM}
+function optimize_exact_treewidth(optimizer::ExactTreewidth{GM}, code::AbstractEinsum, size_dict::Dict) where {GM}
     optimize_exact_treewidth(optimizer, getixsv(code), getiyv(code), size_dict)
 end
 function optimize_exact_treewidth(optimizer::ExactTreewidth{GM}, ixs::AbstractVector{<:AbstractVector}, iy::AbstractVector, size_dict::Dict{L,TI}) where {L, TI, GM}
