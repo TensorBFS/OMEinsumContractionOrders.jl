@@ -63,7 +63,7 @@ function _timespacereadwrite_complexity(ei::NestedEinsum, log2_sizes::Dict{L,VT}
     end
     tc2, sc2, rw2 = _timespacereadwrite_complexity(getixsv(ei.eins), getiyv(ei.eins), log2_sizes)
     tc = log2sumexp2([tcs..., tc2])
-    sc = max(reduce(max, scs), sc2)
+    sc = max(reduce(max, scs, init=zero(VT)), sc2)
     rw = log2sumexp2([rws..., rw2])
     return tc, sc, rw
 end
