@@ -25,3 +25,11 @@ using Test
         @test eincode(tensors...) ≈ new_eincode(tensors...)
     end
 end
+
+@testset "contraction complexity for empty tensor network" begin
+    code = OMEinsumContractionOrders.EinCode(Vector{Char}[], Char[])
+    @test contraction_complexity(code, Dict{Char, Int}()).sc == 0
+
+    code = OMEinsumContractionOrders.NestedEinsum(OMEinsumContractionOrders.NestedEinsum{Char}[], OMEinsumContractionOrders.EinCode(Vector{Char}[], Char[]))
+    @test contraction_complexity(code, Dict{Char, Int}()).sc == 0
+end
