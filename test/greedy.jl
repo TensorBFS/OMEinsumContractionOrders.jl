@@ -4,37 +4,47 @@ using OMEinsumContractionOrders: IncidenceList, analyze_contraction, LegInfo, tr
 using TropicalNumbers
 
 using Test, Random
+
 @testset "analyze contraction" begin
-    incidence_list = IncidenceList(Dict('A' => ['a', 'b', 'k', 'o', 'f'], 'B'=>['a', 'c', 'd', 'm', 'f'], 'C'=>['b', 'c', 'e', 'f'], 'D'=>['e'], 'E'=>['d', 'f']), openedges=['c', 'f', 'o'])
-    info = analyze_contraction(incidence_list, 'A', 'B')
-    @test Set(info.l1) == Set(['k'])
-    @test Set(info.l2) == Set(['m'])
-    @test Set(info.l12) == Set(['a'])
-    @test Set(info.l01) == Set(['b','o'])
-    @test Set(info.l02) == Set(['c', 'd'])
-    @test Set(info.l012) == Set(['f'])
+    incidence_list = IncidenceList(Dict(1 => [1, 2, 11, 15, 6], 2=>[1, 3, 4, 13, 6], 3=>[2, 3, 5, 6], 4=>[5], 5=>[4, 6]), openedges=[3, 6, 15])
+    info = analyze_contraction(incidence_list, 1, 2)
+    @test Set(info.l1) == Set([11])
+    @test Set(info.l2) == Set([13])
+    @test Set(info.l12) == Set([1])
+    @test Set(info.l01) == Set([2,15])
+    @test Set(info.l02) == Set([3, 4])
+    @test Set(info.l012) == Set([6])
+end
+
+@testset "parse eincode" begin
+    incidence_list = IncidenceList(Dict(1 => [1, 2], 2=>[1, 3, 4], 3=>[2, 3, 5, 6], 4=>[5], 5=>[4, 6]))
+    tree = OMEinsumContractionOrders.ContractionTree(OMEinsumContractionOrders.ContractionTree(1, 2), OMEinsumContractionOrders.ContractionTree(3, 4))
+    vertices = [1, 2, 3, 4, 5, 6]
+    ti, optcode = OMEinsumContractionOrders.parse_eincode!(incidence_list, tree, vertices, Dict([v=>0 for v in vertices]))
+    @test ti == 1
+    @test optcode isa OMEinsumContractionOrders.NestedEinsum
 end
 
 @testset "tree greedy" begin
     Random.seed!(2)
-    incidence_list = IncidenceList(Dict('A' => ['a', 'b'], 'B'=>['a', 'c', 'd'], 'C'=>['b', 'c', 'e', 'f'], 'D'=>['e'], 'E'=>['d', 'f']))
-    log2_edge_sizes = Dict([c=>i for (i,c) in enumerate(['a', 'b', 'c', 'd', 'e', 'f'])]...)
-    edge_sizes = Dict([c=>(1<<i) for (i,c) in enumerate(['a', 'b', 'c', 'd', 'e', 'f'])]...)
+    incidence_list = IncidenceList(Dict(1 => [1, 2], 2=>[1, 3, 4], 3=>[2, 3, 5, 6], 4=>[5], 5=>[4, 6]))
+    log2_edge_sizes = Dict([i=>i for i in 1:6])
+    edge_sizes = Dict([i=>(1<<i) for i in 1:6])
     il = copy(incidence_list)
-    contract_pair!(il, 'A', 'B', log2_edge_sizes)
-    target = IncidenceList(Dict('A' => ['b', 'c', 'd'], 'C'=>['b', 'c', 'e', 'f'], 'D'=>['e'], 'E'=>['d', 'f']))
+    contract_pair!(il, 1, 2, log2_edge_sizes)
+    target = IncidenceList(Dict(1 => [2, 3, 4], 3=>[2, 3, 5, 6], 4=>[5], 5=>[4, 6]))
     @test il.v2e == target.v2e
     @test length(target.e2v) == length(il.e2v)
     for (k,v) in il.e2v
         @test sort(target.e2v[k]) == sort(v)
     end
-    costs = evaluate_costs(0.0, incidence_list, log2_edge_sizes)
-    @test costs == Dict(('A', 'B')=>(2^9), ('A', 'C')=>2^15, ('B','C')=>2^18, ('B','E')=>2^10, ('C','D')=>2^11, ('C', 'E')=>2^14)
+    costs, cost_graph = evaluate_costs(0.0, incidence_list, log2_edge_sizes)
+    @test costs == Dict((1, 2)=>(2^9), (1, 3)=>2^15, (2,3)=>2^18, (2,5)=>2^10, (3,4)=>2^11, (3, 5)=>2^14)
     tree, log2_tcs, log2_scs = tree_greedy(incidence_list, log2_edge_sizes)
     tcs_, scs_ = [], []
     contract_tree!(copy(incidence_list), tree, log2_edge_sizes, tcs_, scs_)
     @test all((log2sumexp2(tcs_), maximum(scs_)) .<= (log2(exp2(10)+exp2(16)+exp2(15)+exp2(9)), 11))
-    vertices = ['A', 'B', 'C', 'D', 'E']
+    vertices = [1, 2, 3, 4, 5, 6]
     optcode1 = parse_eincode(incidence_list, tree, vertices=vertices)
     @test optcode1 isa OMEinsumContractionOrders.NestedEinsum
     tree2 = parse_tree(optcode1, vertices)
@@ -44,13 +54,13 @@ end
     size_dict = Dict([c=>(1<<i) for (i,c) in enumerate(['a', 'b', 'c', 'd', 'e', 'f'])]...)
     Random.seed!(2)
     optcode2 = optimize_greedy(eincode, size_dict) 
-    cc = contraction_complexity(optcode2, edge_sizes)
+    cc = contraction_complexity(optcode2, size_dict)
     # test flop
-    @test cc.tc ≈ log2(flop(optcode2, edge_sizes))
+    @test cc.tc ≈ log2(flop(optcode2, size_dict))
     @test flop(OMEinsumContractionOrders.EinCode([['i']], Vector{Char}()), Dict('i'=>4)) == 4
-    @test 16 <= cc.tc <= log2(exp2(10)+exp2(16)+exp2(15)+exp2(9))
+    @test 16 <= cc.tc <= 17
     @test cc.sc == 11
-    @test optcode1 == optcode2
+    @test optcode1 == OMEinsumContractionOrders.convert_label(optcode2, Dict([c=>i for (i,c) in enumerate(['a', 'b', 'c', 'd', 'e', 'f'])]))
 end
 
 @testset "fullerene" begin
