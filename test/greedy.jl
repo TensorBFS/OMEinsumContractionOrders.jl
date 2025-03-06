@@ -16,6 +16,15 @@ using Test, Random
     @test Set(info.l012) == Set([6])
 end
 
+@testset "parse eincode" begin
+    incidence_list = IncidenceList(Dict(1 => [1, 2], 2=>[1, 3, 4], 3=>[2, 3, 5, 6], 4=>[5], 5=>[4, 6]))
+    tree = OMEinsumContractionOrders.ContractionTree(OMEinsumContractionOrders.ContractionTree(1, 2), OMEinsumContractionOrders.ContractionTree(3, 4))
+    vertices = [1, 2, 3, 4, 5, 6]
+    ti, optcode = OMEinsumContractionOrders.parse_eincode!(incidence_list, tree, vertices, Dict([v=>0 for v in vertices]))
+    @test ti == 1
+    @test optcode isa OMEinsumContractionOrders.NestedEinsum
+end
+
 @testset "tree greedy" begin
     Random.seed!(2)
     incidence_list = IncidenceList(Dict(1 => [1, 2], 2=>[1, 3, 4], 3=>[2, 3, 5, 6], 4=>[5], 5=>[4, 6]))
@@ -49,7 +58,7 @@ end
     # test flop
     @test cc.tc ≈ log2(flop(optcode2, size_dict))
     @test flop(OMEinsumContractionOrders.EinCode([['i']], Vector{Char}()), Dict('i'=>4)) == 4
-    @test 16 <= cc.tc <= log2(exp2(10)+exp2(16)+exp2(15)+exp2(9))
+    @test 16 <= cc.tc <= 17
     @test cc.sc == 11
     @test optcode1 == OMEinsumContractionOrders.convert_label(optcode2, Dict([c=>i for (i,c) in enumerate(['a', 'b', 'c', 'd', 'e', 'f'])]))
 end

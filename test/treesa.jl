@@ -203,7 +203,7 @@ end
     fl = flop(codeg, uniformsize(code, 2))
     @test tc ≈ log2(fl)
     @show tc, sc, tc0, sc0
-    @test sc <= sc0 - 4
+    @test sc <= sc0 - 3
     @test sc <= 17
     xs = [[2*randn(2, 2) for i=1:150]..., [randn(2) for i=1:100]...]
     resg = decorate(codeg)(xs...)

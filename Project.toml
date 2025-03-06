@@ -22,13 +22,13 @@ LuxorTensorPlot = ["LuxorGraphPlot"]
 
 [compat]
 AbstractTrees = "0.3, 0.4"
-DataStructures = "0.18.20"
+DataStructures = "0.18"
 JSON = "0.21"
 KaHyPar = "0.3"
-LuxorGraphPlot = "0.5.1"
+LuxorGraphPlot = "0.5"
 StatsBase = "0.34"
 Suppressor = "0.2"
-TreeWidthSolver = "0.3.1"
+TreeWidthSolver = "0.3"
 julia = "1.8"
 
 [extras]

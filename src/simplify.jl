@@ -36,19 +36,19 @@ function merge_greedy(code::EinCode{LT}, size_dict; threshhold=-1e-12) where LT
         return collect(vertices(incidence_list))[1]
     end
     tree = Dict{Int,NestedEinsum}([v=>NestedEinsum{LT}(v) for v in vertices(incidence_list)])
-    cost_values = evaluate_costs(1.0, incidence_list, log2_edge_sizes)
+    cost_values, cost_graph = evaluate_costs(1.0, incidence_list, log2_edge_sizes)
     while true
-        if length(cost_values) == 0
+        if isempty(cost_values)
             return _buildsimplifier(tree, incidence_list)
         end
-        v, pair = findmin(cost_values)
+        pair, v = peek(cost_values)
         if v <= threshhold
             _, _, c = contract_pair!(incidence_list, pair..., log2_edge_sizes)
             tree[pair[1]] = NestedEinsum([tree[pair[1]], tree[pair[2]]], EinCode([c.first...], c.second))
             if nv(incidence_list) <= 1
                 return _buildsimplifier(tree, incidence_list)
             end
-            update_costs!(cost_values, pair..., 1.0, incidence_list, log2_edge_sizes)
+            update_costs!(cost_values, cost_graph, pair..., 1.0, incidence_list, log2_edge_sizes)
         else
             return _buildsimplifier(tree, incidence_list)
         end

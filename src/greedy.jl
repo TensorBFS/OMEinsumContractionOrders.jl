@@ -3,14 +3,14 @@ struct ContractionTree
     right
 end
 
-struct LegInfo
+struct LegInfo{ET}
     # We use number 0, 1, 2 to denote the output tensor, the first input tensor and the second input tensor,and use e.g. `l01` to denote the set of labels that appear in both the output tensor and the input tensor.
-    l1::Vector{Int}
-    l2::Vector{Int}
-    l12::Vector{Int}
-    l01::Vector{Int}
-    l02::Vector{Int}
-    l012::Vector{Int}
+    l1::Vector{ET}
+    l2::Vector{ET}
+    l12::Vector{ET}
+    l01::Vector{ET}
+    l02::Vector{ET}
+    l012::Vector{ET}
 end
 
 """
@@ -48,11 +48,10 @@ ae, ak -> ea
       └─ abc
 ```
 """
-function tree_greedy(incidence_list::IncidenceList{Int,ET}, log2_edge_sizes; α::TA = 0.0, temperature::TT = 0.0, nrepeat=10) where {ET,TA,TT}
+function tree_greedy(incidence_list::IncidenceList{Int, ET}, log2_edge_sizes; α::TA = 0.0, temperature::TT = 0.0, nrepeat=10) where {TA,TT, ET}
     @assert nrepeat >= 1
 
     results = Vector{Tuple{ContractionTree, Vector{Float64}, Vector{Float64}}}(undef, nrepeat)
-
     @threads for i = 1:nrepeat
         results[i] = _tree_greedy(incidence_list, log2_edge_sizes; α = α, temperature = temperature)
     end
@@ -66,7 +65,7 @@ function tree_greedy(incidence_list::IncidenceList{Int,ET}, log2_edge_sizes; α:
     return best_tree, best_tcs, best_scs
 end
 
-function _tree_greedy(incidence_list::IncidenceList{Int,Int}, log2_edge_sizes; α::TA = 0.0, temperature::TT = 0.0) where {TA,TT}
+function _tree_greedy(incidence_list::IncidenceList{Int,ET}, log2_edge_sizes; α::TA = 0.0, temperature::TT = 0.0) where {TA,TT, ET}
     incidence_list = copy(incidence_list)
     n = nv(incidence_list)
     if n == 0
@@ -88,7 +87,7 @@ function _tree_greedy(incidence_list::IncidenceList{Int,Int}, log2_edge_sizes; �
         end
         log2_tc_step, sc, code = contract_pair!(incidence_list, pair..., log2_edge_sizes)
         push!(log2_tcs, log2_tc_step)
-        push!(log2_scs, space_complexity(incidence_list, log2_edge_sizes))
+        push!(log2_scs, sc)   # NOTE: the original one is computed with `space_complexity`, why did I made such a mistake?
         if nv(incidence_list) > 1
             tree[pair[1]] = ContractionTree(tree[pair[1]], tree[pair[2]])
         else
@@ -120,7 +119,7 @@ function contract_pair!(incidence_list, vi, vj, log2_edge_sizes)
     return tc, sc, code
 end
 
-function evaluate_costs(α::TA, incidence_list::IncidenceList{Int,Int}, log2_edge_sizes) where {TA}
+function evaluate_costs(α::TA, incidence_list::IncidenceList{Int,ET}, log2_edge_sizes) where {TA,ET}
     # initialize cost values
     cost_values = PriorityQueue{Tuple{Int,Int},Float64}()#Dict{Tuple{VT,VT},Float64}()
     cost_graph = SimpleGraph(nv(incidence_list))
@@ -135,14 +134,13 @@ function evaluate_costs(α::TA, incidence_list::IncidenceList{Int,Int}, log2_edg
     return cost_values, cost_graph
 end
 
-function update_costs!(cost_values, cost_graph, va, vb, α::TA, incidence_list::IncidenceList{Int,Int}, log2_edge_sizes) where {TA}
+function update_costs!(cost_values, cost_graph, va, vb, α::TA, incidence_list::IncidenceList{Int,ET}, log2_edge_sizes) where {TA,ET}
     for vj in neighbors(incidence_list, va)
         vx, vy = minmax(vj, va)
         if has_edge(cost_graph, vx, vy)
             delete!(cost_values, (vx,vy))
             enqueue!(cost_values, (vx,vy), greedy_loss(α, incidence_list, log2_edge_sizes, vx, vy))
         else
-            @info "haha!"
             enqueue!(cost_values, (vx,vy), greedy_loss(α, incidence_list, log2_edge_sizes, vx, vy))
             add_edge!(cost_graph, vx, vy)
         end
@@ -171,10 +169,10 @@ end
 #     sample(vc, Weights(prob))
 # end
 
-function analyze_contraction(incidence_list::IncidenceList{Int,Int}, vi::Int, vj::Int)
+function analyze_contraction(incidence_list::IncidenceList{Int,ET}, vi::Int, vj::Int) where {ET}
     ei = edges(incidence_list, vi)
     ej = edges(incidence_list, vj)
-    leg012,leg12,leg1,leg2,leg01,leg02 = Int[], Int[], Int[], Int[], Int[], Int[]
+    leg012,leg12,leg1,leg2,leg01,leg02 = ET[], ET[], ET[], ET[], ET[], ET[]
     # external legs
     for leg in ei ∪ ej
         isext = leg ∈ incidence_list.openedges || !all(x->x==vi || x==vj, vertices(incidence_list, leg))
@@ -231,27 +229,27 @@ function contract_tree!(incidence_list::IncidenceList, tree::ContractionTree, lo
 end
 
 #################### parse to code ####################
-function parse_eincode!(::IncidenceList{IT,LT}, tree, vertices_order, level=0) where {IT,LT}
-    ti = findfirst(==(tree), vertices_order)
-    ti, NestedEinsum{LT}(ti)
+function parse_eincode!(::IncidenceList{IT,LT}, tree, vertices_order, size_dict, level=0) where {IT,LT}
+    ti = findfirst(==(tree), vertices_order)::Int
+    return ti, NestedEinsum{LT}(ti)
 end
 
-function parse_eincode!(incidence_list::IncidenceList{IT,LT}, tree::ContractionTree, vertices_order, level=0) where {IT,LT}
-    ti, codei = parse_eincode!(incidence_list, tree.left, vertices_order, level+1)
-    tj, codej = parse_eincode!(incidence_list, tree.right, vertices_order, level+1)
-    dummy = Dict([e=>0 for e in keys(incidence_list.e2v)])
-    _, _, code = contract_pair!(incidence_list, vertices_order[ti], vertices_order[tj], dummy)
-    ti, NestedEinsum([codei, codej], EinCode([code.first...], level==0 ? incidence_list.openedges : code.second))
+function parse_eincode!(incidence_list::IncidenceList{IT,LT}, tree::ContractionTree, vertices_order, size_dict, level=0) where {IT,LT}
+    ti, codei = parse_eincode!(incidence_list, tree.left, vertices_order, size_dict, level+1)
+    tj, codej = parse_eincode!(incidence_list, tree.right, vertices_order, size_dict, level+1)
+    _, _, code = contract_pair!(incidence_list, vertices_order[ti], vertices_order[tj], size_dict)
+    return ti, NestedEinsum([codei, codej], EinCode([code.first...], level==0 ? incidence_list.openedges : code.second))
 end
 
 function parse_eincode(incidence_list::IncidenceList, tree::ContractionTree; vertices = collect(keys(incidence_list.v2e)))
-    parse_eincode!(copy(incidence_list), tree, vertices)[2]
+    size_dict = Dict([v=>0 for (i,v) in enumerate(vertices)])  # dummy size_dict
+    parse_eincode!(copy(incidence_list), tree, vertices, size_dict)[2]
 end
 
 function parse_nested(code::EinCode{LT}, tree::ContractionTree) where LT
     ixs, iy = getixsv(code), getiyv(code)
     incidence_list = IncidenceList(Dict([i=>ixs[i] for i=1:length(ixs)]); openedges=iy)
-    parse_eincode!(incidence_list, tree, 1:length(ixs))[2]
+    parse_eincode!(incidence_list, tree, 1:length(ixs), size_dict)[2]
 end
 
 function parse_tree(ein, vertices)
@@ -272,15 +270,15 @@ end
 Greedy optimizing the contraction order and return a `NestedEinsum` object.
 Check the docstring of `tree_greedy` for detailed explaination of other input arguments.
 """
-function optimize_greedy(code::EinCode{L}, size_dict::Dict; α::TA = 0.0, temperature::TT = 0.0, nrepeat=10) where {L,TA,TT}
+function optimize_greedy(code::EinCode{L}, size_dict::Dict{L, T2}; α::TA = 0.0, temperature::TT = 0.0, nrepeat=10) where {L,TA,TT, T2}
     symbols = unique!(reduce(vcat, [getixsv(code)..., getiyv(code)]))
     symbol2int = Dict(symbols .=> 1:length(symbols))
-    ixs = [[symbol2int[i] for i in ix] for ix in getixsv(code)]
-    iy = [symbol2int[i] for i in getiyv(code)]
-    size_dict = Dict([k=>size_dict[i] for (i,k) in symbol2int])
-    result = optimize_greedy(ixs, iy, size_dict; α = α, temperature = temperature, nrepeat=nrepeat)
-    inverse_map = Dict([v=>k for (k,v) in symbol2int])
-    result = convert_label(result, inverse_map)
+    #ixs = [Int[symbol2int[i] for i in ix] for ix in getixsv(code)]
+    #iy = Int[symbol2int[i] for i in getiyv(code)]
+    #size_dict = Dict{Int, T2}([k=>size_dict[i] for (i,k) in symbol2int])
+    result = optimize_greedy(getixsv(code), getiyv(code), size_dict; α = α, temperature = temperature, nrepeat=nrepeat)
+    #inverse_map = Dict([v=>k for (k,v) in symbol2int])
+    #result = convert_label(result, inverse_map)
 end
 function convert_label(ne::NestedEinsum, labelmap::Dict{T1,T2}) where {T1,T2}
     isleaf(ne) && return NestedEinsum{T2}(ne.tensorindex)
@@ -288,7 +286,7 @@ function convert_label(ne::NestedEinsum, labelmap::Dict{T1,T2}) where {T1,T2}
     NestedEinsum([convert_label(arg, labelmap) for arg in ne.args], eins)
 end
 
-function optimize_greedy(ixs::AbstractVector{<:AbstractVector}, iy::AbstractVector, size_dict::Dict{L,TI}; α::TA = 0.0, temperature::TT = 0.0, nrepeat=10) where {L, TI, TA, TT}
+function optimize_greedy(ixs::AbstractVector{<:AbstractVector}, iy::AbstractVector, size_dict::Dict{L}; α::TA = 0.0, temperature::TT = 0.0, nrepeat=10) where {L, TA, TT}
     if length(ixs) <= 2
         return NestedEinsum(NestedEinsum{L}.(1:length(ixs)), EinCode(ixs, iy))
     end
@@ -298,7 +296,7 @@ function optimize_greedy(ixs::AbstractVector{<:AbstractVector}, iy::AbstractVect
     end
     incidence_list = IncidenceList(Dict([i=>ixs[i] for i=1:length(ixs)]); openedges=iy)
     tree, _, _ = tree_greedy(incidence_list, log2_edge_sizes; α = α, temperature = temperature, nrepeat=nrepeat)
-    parse_eincode!(incidence_list, tree, 1:length(ixs))[2]
+    parse_eincode!(incidence_list, tree, 1:length(ixs), size_dict)[2]
 end
 function optimize_greedy(code::NestedEinsum, size_dict; α::TA = 0.0, temperature::TT = 0.0, nrepeat=10) where {TT, TA}
     isleaf(code) && return code

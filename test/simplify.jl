@@ -42,7 +42,7 @@ end
     size_dict = uniformsize(tn, 2)
     xs = [randn(fill(2, length(ix))...) for ix in OMEinsumContractionOrders.getixsv(tn)]
     simplifier, tn2 = merge_greedy(tn, size_dict)
-    @test tn2 == rawcode(ein"ab,->ab")
+    @test tn2 == rawcode(ein"ab,->ab") || tn2 == rawcode(ein"ba,->ab")
     @test decorate(tn)(xs...) ≈ decorate(tn2)(apply_simplifier(simplifier, xs)...)
     tn3 = optimize_greedy(tn2, uniformsize(tn2, 2))
     tn4 = embed_simplifier(tn3, simplifier)

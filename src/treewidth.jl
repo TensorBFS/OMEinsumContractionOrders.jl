@@ -110,8 +110,10 @@ function eo2ct(elimination_order::Vector{Vector{TL}}, incidence_list::IncidenceL
         if length(vs) >= 2
             sub_list_indices = unique!(vcat([incidence_list.v2e[v] for v in vs]...)) # the vertices connected to the tensors to be contracted
             sub_list_open_indices = setdiff(sub_list_indices, eliminated_vertices) # the vertices connected to the tensors to be contracted but not eliminated
-            sub_list = IncidenceList(Dict([v => incidence_list.v2e[v] for v in vs]); openedges=sub_list_open_indices) # the subgraph of the contracted tensors
+            vmap = Dict([i => incidence_list.v2e[v] for (i, v) in enumerate(vs)])
+            sub_list = IncidenceList(vmap; openedges=sub_list_open_indices) # the subgraph of the contracted tensors
             sub_tree, scs, tcs = tree_greedy(sub_list, log2_edge_sizes; nrepeat=nrepeat, α=α, temperature=temperature) # optmize the subgraph with greedy method
+            sub_tree = expand_indices(sub_tree, Dict([i => v for (i, v) in enumerate(vs)]))
             vi = contract_tree!(incidence_list, sub_tree, log2_edge_sizes, scs, tcs) # insert the contracted tensors back to the total graph
             contraction_tree_nodes[tensors_list[vi]] = st2ct(sub_tree, tensors_list, contraction_tree_nodes)
             flag = vi
@@ -121,7 +123,15 @@ function eo2ct(elimination_order::Vector{Vector{TL}}, incidence_list::IncidenceL
     return contraction_tree_nodes[tensors_list[flag]]
 end
 
-function st2ct(sub_tree::Union{ContractionTree, VT}, tensors_list::Dict{VT, Int}, contraction_tree_nodes::Vector{Union{ContractionTree, VT}}) where{VT}
+function expand_indices(sub_tree::Union{ContractionTree, VT}, vmap::Dict{Int, VT}) where{VT}
+    if sub_tree isa ContractionTree
+        return ContractionTree(expand_indices(sub_tree.left, vmap), expand_indices(sub_tree.right, vmap))
+    else
+        return vmap[sub_tree]
+    end
+end
+
+function st2ct(sub_tree::Union{ContractionTree, VT}, tensors_list::Dict{VT, Int}, contraction_tree_nodes::Vector) where{VT}
     if sub_tree isa ContractionTree
         return ContractionTree(st2ct(sub_tree.left, tensors_list, contraction_tree_nodes), st2ct(sub_tree.right, tensors_list, contraction_tree_nodes))
     else
@@ -155,7 +165,7 @@ function optimize_exact_treewidth(optimizer::ExactTreewidth{GM}, ixs::AbstractVe
     tree = exact_treewidth_method(incidence_list, log2_edge_sizes; α = α, temperature = temperature, nrepeat=nrepeat)
 
     # remove the dummy tensor added for open edges
-    optcode = parse_eincode!(incidence_list, tree, 1:length(ixs) + 1)[2]
+    optcode = parse_eincode!(incidence_list, tree, 1:length(ixs) + 1, size_dict)[2]
 
     return pivot_tree(optcode, length(ixs) + 1)
 end
