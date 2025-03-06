@@ -147,7 +147,7 @@ function update_costs!(cost_values, cost_graph, va, vb, α::TA, incidence_list::
             add_edge!(cost_graph, vx, vy)
         end
     end
-    for vj in copy(neighbors(cost_graph, vb))
+    for vj in copy(Graphs.neighbors(cost_graph, vb))
         vx, vy = minmax(vj, vb)
         delete!(cost_values, (vx,vy))
         rem_edge!(cost_graph, vx, vy)
@@ -275,15 +275,15 @@ Check the docstring of `tree_greedy` for detailed explaination of other input ar
 function optimize_greedy(code::EinCode{L}, size_dict::Dict; α::TA = 0.0, temperature::TT = 0.0, nrepeat=10) where {L,TA,TT}
     symbols = unique!(reduce(vcat, [getixsv(code)..., getiyv(code)]))
     symbol2int = Dict(symbols .=> 1:length(symbols))
-    ixs = [symbol2int[i] for i in getixsv(code)]
+    ixs = [[symbol2int[i] for i in ix] for ix in getixsv(code)]
     iy = [symbol2int[i] for i in getiyv(code)]
     size_dict = Dict([k=>size_dict[i] for (i,k) in symbol2int])
     result = optimize_greedy(ixs, iy, size_dict; α = α, temperature = temperature, nrepeat=nrepeat)
     inverse_map = Dict([v=>k for (k,v) in symbol2int])
     result = convert_label(result, inverse_map)
 end
-function convert_label(ne::NestedEinsum, labelmap)
-    isleaf(ne) && return NestedEinsum{L}(labelmap[ne.tensorindex])
+function convert_label(ne::NestedEinsum, labelmap::Dict{T1,T2}) where {T1,T2}
+    isleaf(ne) && return NestedEinsum{T2}(ne.tensorindex)
     eins = EinCode([getindex.(Ref(labelmap), ix) for ix in ne.eins.ixs], getindex.(Ref(labelmap), ne.eins.iy))
     NestedEinsum([convert_label(arg, labelmap) for arg in ne.args], eins)
 end
