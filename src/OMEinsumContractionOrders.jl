@@ -8,6 +8,7 @@ using Base.Threads
 using AbstractTrees
 using TreeWidthSolver
 using TreeWidthSolver.Graphs
+using DataStructures: PriorityQueue, enqueue!, dequeue!
 
 export CodeOptimizer, CodeSimplifier,
     KaHyParBipartite, GreedyMethod, TreeSA, SABipartite, ExactTreewidth,

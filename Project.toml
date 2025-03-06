@@ -5,6 +5,7 @@ version = "0.9.3"
 
 [deps]
 AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
+DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
@@ -21,22 +22,23 @@ LuxorTensorPlot = ["LuxorGraphPlot"]
 
 [compat]
 AbstractTrees = "0.3, 0.4"
+DataStructures = "0.18.20"
 JSON = "0.21"
 KaHyPar = "0.3"
+LuxorGraphPlot = "0.5.1"
 StatsBase = "0.34"
 Suppressor = "0.2"
-LuxorGraphPlot = "0.5.1"
 TreeWidthSolver = "0.3.1"
 julia = "1.8"
 
 [extras]
 Graphs = "86223c79-3864-5bf0-83f7-82e725a168b6"
 KaHyPar = "2a6221f6-aa48-11e9-3542-2d9e0ef01880"
+LuxorGraphPlot = "1f49bdf2-22a7-4bc4-978b-948dc219fbbc"
 OMEinsum = "ebe7aa44-baf0-506c-a96f-8464559b3922"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 TropicalNumbers = "b3a74e9c-7526-4576-a4eb-79c0d4c32334"
-LuxorGraphPlot = "1f49bdf2-22a7-4bc4-978b-948dc219fbbc"
 
 [targets]
 test = ["Test", "Random", "Graphs", "TropicalNumbers", "OMEinsum", "KaHyPar", "LuxorGraphPlot"]

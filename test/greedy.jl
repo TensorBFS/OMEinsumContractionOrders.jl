@@ -4,15 +4,16 @@ using OMEinsumContractionOrders: IncidenceList, analyze_contraction, LegInfo, tr
 using TropicalNumbers
 
 using Test, Random
+
 @testset "analyze contraction" begin
-    incidence_list = IncidenceList(Dict('A' => ['a', 'b', 'k', 'o', 'f'], 'B'=>['a', 'c', 'd', 'm', 'f'], 'C'=>['b', 'c', 'e', 'f'], 'D'=>['e'], 'E'=>['d', 'f']), openedges=['c', 'f', 'o'])
-    info = analyze_contraction(incidence_list, 'A', 'B')
-    @test Set(info.l1) == Set(['k'])
-    @test Set(info.l2) == Set(['m'])
-    @test Set(info.l12) == Set(['a'])
-    @test Set(info.l01) == Set(['b','o'])
-    @test Set(info.l02) == Set(['c', 'd'])
-    @test Set(info.l012) == Set(['f'])
+    incidence_list = IncidenceList(Dict(1 => [1, 2, 11, 15, 6], 2=>[1, 3, 4, 13, 6], 3=>[2, 3, 5, 6], 4=>[5], 5=>[4, 6]), openedges=[3, 6, 15])
+    info = analyze_contraction(incidence_list, 1, 2)
+    @test Set(info.l1) == Set([11])
+    @test Set(info.l2) == Set([13])
+    @test Set(info.l12) == Set([1])
+    @test Set(info.l01) == Set([2,15])
+    @test Set(info.l02) == Set([3, 4])
+    @test Set(info.l012) == Set([6])
 end
 
 @testset "tree greedy" begin

@@ -3,14 +3,14 @@ struct ContractionTree
     right
 end
 
-struct LegInfo{ET}
+struct LegInfo
     # We use number 0, 1, 2 to denote the output tensor, the first input tensor and the second input tensor,and use e.g. `l01` to denote the set of labels that appear in both the output tensor and the input tensor.
-    l1::Vector{ET}
-    l2::Vector{ET}
-    l12::Vector{ET}
-    l01::Vector{ET}
-    l02::Vector{ET}
-    l012::Vector{ET}
+    l1::Vector{Int}
+    l2::Vector{Int}
+    l12::Vector{Int}
+    l01::Vector{Int}
+    l02::Vector{Int}
+    l012::Vector{Int}
 end
 
 """
@@ -48,7 +48,7 @@ ae, ak -> ea
       └─ abc
 ```
 """
-function tree_greedy(incidence_list::IncidenceList{VT,ET}, log2_edge_sizes; α::TA = 0.0, temperature::TT = 0.0, nrepeat=10) where {VT,ET,TA,TT}
+function tree_greedy(incidence_list::IncidenceList{Int,ET}, log2_edge_sizes; α::TA = 0.0, temperature::TT = 0.0, nrepeat=10) where {ET,TA,TT}
     @assert nrepeat >= 1
 
     results = Vector{Tuple{ContractionTree, Vector{Float64}, Vector{Float64}}}(undef, nrepeat)
@@ -66,7 +66,7 @@ function tree_greedy(incidence_list::IncidenceList{VT,ET}, log2_edge_sizes; α::
     return best_tree, best_tcs, best_scs
 end
 
-function _tree_greedy(incidence_list::IncidenceList{VT,ET}, log2_edge_sizes; α::TA = 0.0, temperature::TT = 0.0) where {VT,ET,TA,TT}
+function _tree_greedy(incidence_list::IncidenceList{Int,Int}, log2_edge_sizes; α::TA = 0.0, temperature::TT = 0.0) where {TA,TT}
     incidence_list = copy(incidence_list)
     n = nv(incidence_list)
     if n == 0
@@ -77,14 +77,14 @@ function _tree_greedy(incidence_list::IncidenceList{VT,ET}, log2_edge_sizes; α:
     log2_tcs = Float64[] # time complexity
     log2_scs = Float64[]
 
-    tree = Dict{VT,Any}([v=>v for v in vertices(incidence_list)])
-    cost_values = evaluate_costs(α, incidence_list, log2_edge_sizes)
+    tree = Dict{Int,Any}([v=>v for v in vertices(incidence_list)])
+    cost_values, cost_graph = evaluate_costs(α, incidence_list, log2_edge_sizes)
     while true
-        if length(cost_values) == 0
+        if isempty(cost_values)
             vpool = collect(vertices(incidence_list))
             pair = minmax(vpool[1], vpool[2])  # to prevent empty intersect
         else
-            pair = find_best_cost(temperature, cost_values)
+            pair = find_best_cost!(temperature, cost_values, cost_graph)
         end
         log2_tc_step, sc, code = contract_pair!(incidence_list, pair..., log2_edge_sizes)
         push!(log2_tcs, log2_tc_step)
@@ -94,7 +94,7 @@ function _tree_greedy(incidence_list::IncidenceList{VT,ET}, log2_edge_sizes; α:
         else
             return ContractionTree(tree[pair[1]], tree[pair[2]]), log2_tcs, log2_scs
         end
-        update_costs!(cost_values, pair..., α, incidence_list, log2_edge_sizes)
+        update_costs!(cost_values, cost_graph, pair..., α, incidence_list, log2_edge_sizes)
     end
 end
 
@@ -120,59 +120,61 @@ function contract_pair!(incidence_list, vi, vj, log2_edge_sizes)
     return tc, sc, code
 end
 
-function evaluate_costs(α::TA, incidence_list::IncidenceList{VT,ET}, log2_edge_sizes) where {VT,ET,TA}
+function evaluate_costs(α::TA, incidence_list::IncidenceList{Int,Int}, log2_edge_sizes) where {TA}
     # initialize cost values
-    cost_values = Dict{Tuple{VT,VT},Float64}()
-    for vi = vertices(incidence_list)
+    cost_values = PriorityQueue{Tuple{Int,Int},Float64}()#Dict{Tuple{VT,VT},Float64}()
+    cost_graph = SimpleGraph(nv(incidence_list))
+    for vi in vertices(incidence_list)
         for vj in neighbors(incidence_list, vi)
             if vj > vi
-                cost_values[(vi,vj)] = greedy_loss(α, incidence_list, log2_edge_sizes, vi, vj)
+                enqueue!(cost_values, (vi,vj), greedy_loss(α, incidence_list, log2_edge_sizes, vi, vj))
+                add_edge!(cost_graph, vi, vj)
             end
         end
     end
-    return cost_values
+    return cost_values, cost_graph
 end
 
-function update_costs!(cost_values, va, vb, α::TA, incidence_list::IncidenceList{VT,ET}, log2_edge_sizes) where {VT,ET,TA}
+function update_costs!(cost_values, cost_graph, va, vb, α::TA, incidence_list::IncidenceList{Int,Int}, log2_edge_sizes) where {TA}
     for vj in neighbors(incidence_list, va)
         vx, vy = minmax(vj, va)
-        cost_values[(vx,vy)] = greedy_loss(α, incidence_list, log2_edge_sizes, vx, vy)
-    end
-    for k in keys(cost_values)
-        if vb ∈ k
-            delete!(cost_values, k)
+        if has_edge(cost_graph, vx, vy)
+            delete!(cost_values, (vx,vy))
+            enqueue!(cost_values, (vx,vy), greedy_loss(α, incidence_list, log2_edge_sizes, vx, vy))
+        else
+            @info "haha!"
+            enqueue!(cost_values, (vx,vy), greedy_loss(α, incidence_list, log2_edge_sizes, vx, vy))
+            add_edge!(cost_graph, vx, vy)
         end
     end
-end
-
-function find_best_cost(temperature::TT, cost_values::Dict{PT}) where {PT,TT}
-    length(cost_values) < 1 && error("cost value information missing")
-    if iszero(temperature)
-        minval = minimum(Base.values(cost_values))
-        pairs = PT[]
-        for (k, v) in cost_values
-            if v == minval
-                push!(pairs, k)
-            end
-        end
-        return rand(pairs)
-    else
-        return sample_best_cost(cost_values, temperature)
+    for vj in copy(neighbors(cost_graph, vb))
+        vx, vy = minmax(vj, vb)
+        delete!(cost_values, (vx,vy))
+        rem_edge!(cost_graph, vx, vy)
     end
 end
 
-function sample_best_cost(cost_values::Dict{PT}, t::T) where {PT, T}
+function find_best_cost!(temperature::TT, cost_values::PriorityQueue{PT}, cost_graph) where {PT,TT}
     length(cost_values) < 1 && error("cost value information missing")
-    vals = [v for v in values(cost_values)]
-    prob = exp.( - vals ./ t)
-    vc = [k for (k, v) in cost_values]
-    sample(vc, Weights(prob))
+    !iszero(temperature) && @warn "non-zero temperature is not supported any more, using temperature = 0.0"
+    vx, vy = dequeue!(cost_values)
+    rem_edge!(cost_graph, vx, vy)
+    return vx, vy
+    # return sample_best_cost(cost_values, temperature)
 end
 
-function analyze_contraction(incidence_list::IncidenceList{VT,ET}, vi::VT, vj::VT) where {VT,ET}
+# function sample_best_cost(cost_values::Dict{PT}, t::T) where {PT, T}
+#     length(cost_values) < 1 && error("cost value information missing")
+#     vals = [v for v in values(cost_values)]
+#     prob = exp.( - vals ./ t)
+#     vc = [k for (k, v) in cost_values]
+#     sample(vc, Weights(prob))
+# end
+
+function analyze_contraction(incidence_list::IncidenceList{Int,Int}, vi::Int, vj::Int)
     ei = edges(incidence_list, vi)
     ej = edges(incidence_list, vj)
-    leg012,leg12,leg1,leg2,leg01,leg02 = ET[], ET[], ET[], ET[], ET[], ET[]
+    leg012,leg12,leg1,leg2,leg01,leg02 = Int[], Int[], Int[], Int[], Int[], Int[]
     # external legs
     for leg in ei ∪ ej
         isext = leg ∈ incidence_list.openedges || !all(x->x==vi || x==vj, vertices(incidence_list, leg))
@@ -271,8 +273,21 @@ Greedy optimizing the contraction order and return a `NestedEinsum` object.
 Check the docstring of `tree_greedy` for detailed explaination of other input arguments.
 """
 function optimize_greedy(code::EinCode{L}, size_dict::Dict; α::TA = 0.0, temperature::TT = 0.0, nrepeat=10) where {L,TA,TT}
-    optimize_greedy(getixsv(code), getiyv(code), size_dict; α = α, temperature = temperature, nrepeat=nrepeat)
+    symbols = unique!(reduce(vcat, [getixsv(code)..., getiyv(code)]))
+    symbol2int = Dict(symbols .=> 1:length(symbols))
+    ixs = [symbol2int[i] for i in getixsv(code)]
+    iy = [symbol2int[i] for i in getiyv(code)]
+    size_dict = Dict([k=>size_dict[i] for (i,k) in symbol2int])
+    result = optimize_greedy(ixs, iy, size_dict; α = α, temperature = temperature, nrepeat=nrepeat)
+    inverse_map = Dict([v=>k for (k,v) in symbol2int])
+    result = convert_label(result, inverse_map)
 end
+function convert_label(ne::NestedEinsum, labelmap)
+    isleaf(ne) && return NestedEinsum{L}(labelmap[ne.tensorindex])
+    eins = EinCode([getindex.(Ref(labelmap), ix) for ix in ne.eins.ixs], getindex.(Ref(labelmap), ne.eins.iy))
+    NestedEinsum([convert_label(arg, labelmap) for arg in ne.args], eins)
+end
+
 function optimize_greedy(ixs::AbstractVector{<:AbstractVector}, iy::AbstractVector, size_dict::Dict{L,TI}; α::TA = 0.0, temperature::TT = 0.0, nrepeat=10) where {L, TI, TA, TT}
     if length(ixs) <= 2
         return NestedEinsum(NestedEinsum{L}.(1:length(ixs)), EinCode(ixs, iy))
