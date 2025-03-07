@@ -172,14 +172,6 @@ function find_best_cost!(temperature::TT, cost_values::PriorityQueue{PT}, cost_g
     end
 end
 
-# function sample_best_cost(cost_values::Dict{PT}, t::T) where {PT, T}
-#     length(cost_values) < 1 && error("cost value information missing")
-#     vals = [v for v in values(cost_values)]
-#     prob = exp.( - vals ./ t)
-#     vc = [k for (k, v) in cost_values]
-#     sample(vc, Weights(prob))
-# end
-
 function analyze_contraction(incidence_list::IncidenceList{Int,ET}, vi::Int, vj::Int) where {ET}
     ei = edges(incidence_list, vi)
     ej = edges(incidence_list, vj)
