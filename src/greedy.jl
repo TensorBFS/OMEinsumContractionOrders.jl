@@ -154,11 +154,22 @@ end
 
 function find_best_cost!(temperature::TT, cost_values::PriorityQueue{PT}, cost_graph) where {PT,TT}
     length(cost_values) < 1 && error("cost value information missing")
-    !iszero(temperature) && @warn "non-zero temperature is not supported any more, using temperature = 0.0"
-    vx, vy = dequeue!(cost_values)
-    rem_edge!(cost_graph, vx, vy)
-    return vx, vy
-    # return sample_best_cost(cost_values, temperature)
+    pair, cost = dequeue_pair!(cost_values)
+    if iszero(temperature) || isempty(cost_values)
+        rem_edge!(cost_graph, pair...)
+        return pair
+    else
+        pair2, cost2 = dequeue_pair!(cost_values)
+        if rand() < exp(-(cost2 - cost) / temperature)   # pick 2
+            enqueue!(cost_values, pair, cost)
+            rem_edge!(cost_graph, pair2...)
+            return pair2
+        else
+            enqueue!(cost_values, pair2, cost2)
+            rem_edge!(cost_graph, pair...)
+            return pair
+        end
+    end
 end
 
 # function sample_best_cost(cost_values::Dict{PT}, t::T) where {PT, T}
@@ -271,14 +282,7 @@ Greedy optimizing the contraction order and return a `NestedEinsum` object.
 Check the docstring of `tree_greedy` for detailed explaination of other input arguments.
 """
 function optimize_greedy(code::EinCode{L}, size_dict::Dict{L, T2}; α::TA = 0.0, temperature::TT = 0.0, nrepeat=10) where {L,TA,TT, T2}
-    symbols = unique!(reduce(vcat, [getixsv(code)..., getiyv(code)]))
-    symbol2int = Dict(symbols .=> 1:length(symbols))
-    #ixs = [Int[symbol2int[i] for i in ix] for ix in getixsv(code)]
-    #iy = Int[symbol2int[i] for i in getiyv(code)]
-    #size_dict = Dict{Int, T2}([k=>size_dict[i] for (i,k) in symbol2int])
-    result = optimize_greedy(getixsv(code), getiyv(code), size_dict; α = α, temperature = temperature, nrepeat=nrepeat)
-    #inverse_map = Dict([v=>k for (k,v) in symbol2int])
-    #result = convert_label(result, inverse_map)
+    optimize_greedy(getixsv(code), getiyv(code), size_dict; α = α, temperature = temperature, nrepeat=nrepeat)
 end
 function convert_label(ne::NestedEinsum, labelmap::Dict{T1,T2}) where {T1,T2}
     isleaf(ne) && return NestedEinsum{T2}(ne.tensorindex)
@@ -328,5 +332,5 @@ The fast but poor greedy optimizer. Input arguments are
 Base.@kwdef struct GreedyMethod{TA, TT} <: CodeOptimizer
     α::TA = 0.0
     temperature::TT = 0.0
-    nrepeat::Int = 10
+    nrepeat::Int = 1
 end
