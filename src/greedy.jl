@@ -14,7 +14,7 @@ struct LegInfo{ET}
 end
 
 """
-    tree_greedy(incidence_list, log2_sizes; α = 0.0, temperature = 0.0, nrepeat=10)
+    tree_greedy(incidence_list, log2_sizes; α = 0.0, temperature = 0.0, nrepeat=1)
 
 Compute greedy order, and the time and space complexities, the rows of the `incidence_list` are vertices and columns are edges.
 `log2_sizes` are defined on edges.
@@ -48,7 +48,7 @@ ae, ak -> ea
       └─ abc
 ```
 """
-function tree_greedy(incidence_list::IncidenceList{Int, ET}, log2_edge_sizes; α::TA = 0.0, temperature::TT = 0.0, nrepeat=10) where {TA,TT, ET}
+function tree_greedy(incidence_list::IncidenceList{Int, ET}, log2_edge_sizes; α::TA = 0.0, temperature::TT = 0.0, nrepeat=1) where {TA,TT, ET}
     @assert nrepeat >= 1
 
     results = Vector{Tuple{ContractionTree, Vector{Float64}, Vector{Float64}}}(undef, nrepeat)
@@ -265,18 +265,18 @@ function parse_tree(ein, vertices)
 end
 
 """
-    optimize_greedy(eincode, size_dict; α = 0.0, temperature = 0.0, nrepeat=10)
+    optimize_greedy(eincode, size_dict; α = 0.0, temperature = 0.0, nrepeat=1)
 
 Greedy optimizing the contraction order and return a `NestedEinsum` object.
 Check the docstring of `tree_greedy` for detailed explaination of other input arguments.
 """
-function optimize_greedy(code::EinCode{L}, size_dict::Dict{L, T2}; α::TA = 0.0, temperature::TT = 0.0, nrepeat=10) where {L,TA,TT, T2}
+function optimize_greedy(code::EinCode{L}, size_dict::Dict{L, T2}; α::TA = 0.0, temperature::TT = 0.0, nrepeat=1) where {L,TA,TT, T2}
     symbols = unique!(reduce(vcat, [getixsv(code)..., getiyv(code)]))
     symbol2int = Dict(symbols .=> 1:length(symbols))
     #ixs = [Int[symbol2int[i] for i in ix] for ix in getixsv(code)]
     #iy = Int[symbol2int[i] for i in getiyv(code)]
     #size_dict = Dict{Int, T2}([k=>size_dict[i] for (i,k) in symbol2int])
-    result = optimize_greedy(getixsv(code), getiyv(code), size_dict; α = α, temperature = temperature, nrepeat=nrepeat)
+    result = optimize_greedy(getixsv(code), getiyv(code), size_dict; α, temperature, nrepeat)
     #inverse_map = Dict([v=>k for (k,v) in symbol2int])
     #result = convert_label(result, inverse_map)
 end
@@ -286,7 +286,7 @@ function convert_label(ne::NestedEinsum, labelmap::Dict{T1,T2}) where {T1,T2}
     NestedEinsum([convert_label(arg, labelmap) for arg in ne.args], eins)
 end
 
-function optimize_greedy(ixs::AbstractVector{<:AbstractVector}, iy::AbstractVector, size_dict::Dict{L}; α::TA = 0.0, temperature::TT = 0.0, nrepeat=10) where {L, TA, TT}
+function optimize_greedy(ixs::AbstractVector{<:AbstractVector}, iy::AbstractVector, size_dict::Dict{L}; α::TA = 0.0, temperature::TT = 0.0, nrepeat=1) where {L, TA, TT}
     if length(ixs) <= 2
         return NestedEinsum(NestedEinsum{L}.(1:length(ixs)), EinCode(ixs, iy))
     end
@@ -295,15 +295,15 @@ function optimize_greedy(ixs::AbstractVector{<:AbstractVector}, iy::AbstractVect
         log2_edge_sizes[k] = log2(v)
     end
     incidence_list = IncidenceList(Dict([i=>ixs[i] for i=1:length(ixs)]); openedges=iy)
-    tree, _, _ = tree_greedy(incidence_list, log2_edge_sizes; α = α, temperature = temperature, nrepeat=nrepeat)
+    tree, _, _ = tree_greedy(incidence_list, log2_edge_sizes; α, temperature, nrepeat)
     parse_eincode!(incidence_list, tree, 1:length(ixs), size_dict)[2]
 end
-function optimize_greedy(code::NestedEinsum, size_dict; α::TA = 0.0, temperature::TT = 0.0, nrepeat=10) where {TT, TA}
+function optimize_greedy(code::NestedEinsum, size_dict; α::TA = 0.0, temperature::TT = 0.0, nrepeat=1) where {TT, TA}
     isleaf(code) && return code
-    args = optimize_greedy.(code.args, Ref(size_dict); α = α, temperature = temperature, nrepeat=nrepeat)
+    args = optimize_greedy.(code.args, Ref(size_dict); α, temperature, nrepeat)
     if length(code.args) > 2
         # generate coarse grained hypergraph.
-        nested = optimize_greedy(code.eins, size_dict; α = α, temperature = temperature, nrepeat=nrepeat)
+        nested = optimize_greedy(code.eins, size_dict; α, temperature, nrepeat)
         replace_args(nested, args)
     else
         NestedEinsum(args, code.eins)
@@ -317,7 +317,7 @@ end
 
 """
     GreedyMethod{MT}
-    GreedyMethod(; α = 0.0, temperature = 0.0, nrepeat=10)
+    GreedyMethod(; α = 0.0, temperature = 0.0, nrepeat=1)
 
 The fast but poor greedy optimizer. Input arguments are
 
@@ -328,5 +328,5 @@ The fast but poor greedy optimizer. Input arguments are
 Base.@kwdef struct GreedyMethod{TA, TT} <: CodeOptimizer
     α::TA = 0.0
     temperature::TT = 0.0
-    nrepeat::Int = 10
+    nrepeat::Int = 1
 end
