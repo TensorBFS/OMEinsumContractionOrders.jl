@@ -41,3 +41,18 @@ using Test, Random
     cc = contraction_complexity(optcode, size_dict)
     @test decorate(eincode)(tensors...) ≈ decorate(optcode)(tensors...)
 end
+
+@testset "tcsc" begin
+    optimizer = ExactTreewidth()
+    size_dict = Dict([c=>2 for (i,c) in enumerate(['a' + (i-1) for i in 1:10])]...)
+
+    eincode = OMEinsumContractionOrders.EinCode([['a', 'b', 'c', 'd', 'e', 'f'], ['e', 'f', 'g', 'h', 'i', 'j'], ['a', 'b', 'c', 'd', 'g', 'h', 'i', 'j']], Vector{Char}())
+    ixs = getixsv(eincode)
+    tensors = [rand([size_dict[j] for j in ix]...) for ix in ixs]
+    optcode = optimize_exact_treewidth(optimizer, eincode, size_dict)
+    incidence_list = IncidenceList(Dict([i=>ix for (i,ix) in enumerate(ixs)] ∪ [(length(ixs) + 1 => eincode.iy)]))
+    lg = OMEinsumContractionOrders.il2lg(incidence_list, collect(keys(size_dict)))
+    tw = OMEinsumContractionOrders.TreeWidthSolver.exact_treewidth(lg)
+    cc = contraction_complexity(optcode, size_dict)
+    @test isapprox(cc.tc, tw + 1, atol=0.9)
+end
