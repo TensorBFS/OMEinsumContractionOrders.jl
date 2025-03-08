@@ -1,7 +1,7 @@
 name = "OMEinsumContractionOrders"
 uuid = "6f22d1fd-8eed-4bb7-9776-e7d684900715"
 authors = ["Jin-Guo Liu", "Pan Zhang"]
-version = "0.9.4"
+version = "0.9.5"
 
 [deps]
 AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
