@@ -136,7 +136,7 @@ end
 
 # legacy interface
 """
-    optimize_kahypar(code, size_dict; sc_target, max_group_size=40, imbalances=0.0:0.01:0.2, greedy_method=MinSpaceOut(), greedy_nrepeat=10)
+    optimize_kahypar(code, size_dict; sc_target, max_group_size=40, imbalances=0.0:0.01:0.2, greedy_method=MinSpaceOut(), greedy_nrepeat=1)
 
 Optimize the einsum `code` contraction order using the KaHyPar + Greedy approach. `size_dict` is a dictionary that specifies leg dimensions. 
 Check the docstring of `KaHyParBipartite` for detailed explaination of other input arguments.
