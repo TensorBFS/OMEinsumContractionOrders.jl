@@ -54,10 +54,10 @@ ab, ab -> a
 
 """
 function exact_treewidth_method(incidence_list::IncidenceList{VT,ET}, log2_edge_sizes; α::TA = 0.0, temperature::TT = 0.0, nrepeat=1) where {VT,ET,TA,TT}
-    indicies = collect(keys(incidence_list.e2v))
+    indices = collect(keys(incidence_list.e2v))
     tensors = collect(keys(incidence_list.v2e))
-    weights = [log2_edge_sizes[e] for e in indicies]
-    line_graph = il2lg(incidence_list, indicies)
+    weights = [log2_edge_sizes[e] for e in indices]
+    line_graph = il2lg(incidence_list, indices)
 
     scalars = [i for i in tensors if isempty(incidence_list.v2e[i])]
     contraction_trees = Vector{Union{ContractionTree, VT}}()
@@ -65,9 +65,21 @@ function exact_treewidth_method(incidence_list::IncidenceList{VT,ET}, log2_edge_
     # avoid the case that the line graph is not connected
     for vertice_ids in connected_components(line_graph)
         lg = induced_subgraph(line_graph, vertice_ids)[1]
-        lg_indicies = indicies[vertice_ids]
+        lg_indices = indices[vertice_ids]
         lg_weights = weights[vertice_ids]
-        eo = elimination_order(lg, labels = lg_indicies, weights = lg_weights)
+
+        # construct tree decomposition
+        alg = RuleReduction(BT()) # reduce graph, then call `TreeWidthSolver.elimination_order`
+        perm, tree = cliquetree(lg_weights, lg; alg) # `tree` is a vector of cliques
+        permute!(lg_indices, perm)                   # `perm` is a permutation
+
+        # construct elimination ordering
+        eo = map(Base.Iterators.reverse(tree)) do clique
+            # the vertices in `res` can be eliminated at the same time
+            res = residual(clique) # `res` is a unit range
+            return @view lg_indices[res]
+        end
+        
         contraction_tree = eo2ct(eo, incidence_list, log2_edge_sizes, α, temperature, nrepeat)
         push!(contraction_trees, contraction_tree)
     end
@@ -93,7 +105,7 @@ function il2lg(incidence_list::IncidenceList{VT, ET}, indicies::Vector{ET}) wher
 end
 
 # transform elimination order to contraction tree
-function eo2ct(elimination_order::Vector{Vector{TL}}, incidence_list::IncidenceList{VT, ET}, log2_edge_sizes, α::TA, temperature::TT, nrepeat) where {TL, VT, ET, TA, TT}
+function eo2ct(elimination_order::Vector{<:AbstractVector{TL}}, incidence_list::IncidenceList{VT, ET}, log2_edge_sizes, α::TA, temperature::TT, nrepeat) where {TL, VT, ET, TA, TT}
     eo = copy(elimination_order)
     incidence_list = copy(incidence_list)
     contraction_tree_nodes = Vector{Union{VT, ContractionTree}}(collect(keys(incidence_list.v2e)))
