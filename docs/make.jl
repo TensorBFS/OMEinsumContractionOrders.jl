@@ -11,7 +11,7 @@ makedocs(;
     sitename="OMEinsumContractionOrders.jl",
     format=Documenter.HTML(;
         canonical="https://GiggleLiu.github.io/OMEinsumContractionOrders.jl",
-        edit_link="main",
+        edit_link="master",
         assets=String[indigo],
     ),
     doctest = ("doctest=true" in ARGS),
@@ -23,5 +23,5 @@ makedocs(;
 
 deploydocs(;
     repo="github.com/GiggleLiu/OMEinsumContractionOrders.jl",
-    devbranch="main",
+    devbranch="master",
 )

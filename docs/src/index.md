@@ -16,9 +16,9 @@ Supported solvers include:
 | Optimizer | Description |
 | :----------- | :------------- |
 | [`GreedyMethod`](@ref) | Fast, but poor resulting order |
-| [`TreeSA`](@ref) | Reliable, local search based optimizer [^Kalachev2021] |
-| [`KaHyParBipartite`](@ref) and [`SABipartite`](@ref) | Graph bipartition based, suited for large tensor networks [^Gray2021] |
-| [`ExactTreewidth`](@ref) | Exact, but takes exponential time [^Bouchitté2001] |
+| [`TreeSA`](@ref) | Reliable, local search based optimizer [^Kalachev2021], but is a bit slow |
+| [`KaHyParBipartite`](@ref) and [`SABipartite`](@ref) | Graph bipartition based, suited for large tensor networks [^Gray2021], requires using [`KaHyPar`](https://github.com/kahypar/KaHyPar.jl) package |
+| [`ExactTreewidth`](@ref) | Exact, but takes exponential time [^Bouchitté2001], based on package [`TreeWidthSolver`](https://github.com/ArrogantGao/TreeWidthSolver.jl) |
 
 Additionally, code simplifiers can be used to preprocess the tensor network to reduce the optimization time:
 
