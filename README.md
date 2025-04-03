@@ -31,107 +31,13 @@ julia> code = random_regular_eincode(200, 3);
 julia> optcode_tree = optimize_code(code, uniformsize(code, 2),
 	TreeSA(sc_target=28, βs=0.1:0.1:10, ntrials=2, niters=100, sc_weight=3.0));
 
-julia> optcode_tree_with_slice = optimize_code(code, uniformsize(code, 2),
-	TreeSA(sc_target=28, βs=0.1:0.1:10, ntrials=2, niters=100, sc_weight=3.0, nslices=5));
-
-julia> optcode_kahypar = optimize_code(code, uniformsize(code, 2), 
-	KaHyParBipartite(sc_target=30, max_group_size=50));
-
-julia> optcode_sa = optimize_code(code, uniformsize(code, 2),
-	SABipartite(sc_target=30, max_group_size=50));
-
-julia> contraction_complexity(code, uniformsize(code, 2))
-Time complexity: 2^200.0
-Space complexity: 2^0.0
-Read-write complexity: 2^10.644757592516257
-
-julia> contraction_complexity(optcode_kahypar, uniformsize(code, 2))
+julia> contraction_complexity(optcode_tree, uniformsize(code, 2))
 Time complexity: 2^39.5938886486877
 Space complexity: 2^28.0
 Read-write complexity: 2^30.39890775966298
-
-julia> contraction_complexity(optcode_sa, uniformsize(code, 2))
-Time complexity: 2^41.17129641027078
-Space complexity: 2^29.0
-Read-write complexity: 2^31.493976190321106
-
-julia> contraction_complexity(optcode_tree, uniformsize(code, 2))
-Time complexity: 2^35.06468305863757
-Space complexity: 2^28.0
-Read-write complexity: 2^30.351552349259258
-
-julia> contraction_complexity(optcode_tree_with_slice, uniformsize(code, 2))
-Time complexity: 2^33.70760100663681
-Space complexity: 2^24.0
-Read-write complexity: 2^32.17575935629581
 ```
 
-## Example 2: Use it in `OMEinsum`
-
-`OMEinsumContractionOrders` is shipped with [`OMEinsum`](https://github.com/under-Peter/OMEinsum.jl) package. You can use it to optimize the contraction order of an `OMEinsum` expression.
-
-```julia
-julia> using OMEinsum
-
-julia> code = ein"ij, jk, kl, il->"
-ij, jk, kl, il -> 
-
-julia> optimized_code = optimize_code(code, uniformsize(code, 2), TreeSA())
-SlicedEinsum{Char, NestedEinsum{DynamicEinCode{Char}}}(Char[], ki, ki -> 
-├─ jk, ij -> ki
-│  ├─ jk
-│  └─ ij
-└─ kl, il -> ki
-   ├─ kl
-   └─ il
-)
-```
-
-## Extensions
-
-### LuxorTensorPlot
-
-`LuxorTensorPlot` is an extension of the `OMEinsumContractionOrders` package that provides a visualization of the contraction order. It is designed to work with the `OMEinsumContractionOrders` package. To use `LuxorTensorPlot`, please follow these steps:
-```julia
-pkg> add OMEinsumContractionOrders, LuxorGraphPlot
-
-julia> using OMEinsumContractionOrders, LuxorGraphPlot
-```
-and then the extension will be loaded automatically.
-
-The extension provides the following to function, `viz_eins` and `viz_contraction`, where the former will plot the tensor network as a graph, and the latter will generate a video or gif of the contraction process.
-Here is an example:
-```julia
-julia> using OMEinsumContractionOrders, LuxorGraphPlot
-
-julia> eincode = OMEinsumContractionOrders.EinCode([['a', 'b'], ['a', 'c', 'd'], ['b', 'c', 'e', 'f'], ['e'], ['d', 'f']], ['a'])
-ab, acd, bcef, e, df -> a
-
-julia> viz_eins(eincode, filename = "eins.png")
-
-julia> nested_eins = optimize_code(eincode, uniformsize(eincode, 2), GreedyMethod())
-ab, ab -> a
-├─ ab
-└─ acf, bcf -> ab
-   ├─ acd, df -> acf
-   │  ├─ acd
-   │  └─ df
-   └─ bcef, e -> bcf
-      ├─ bcef
-      └─ e
-
-
-julia> viz_contraction(nested_code)
-[ Info: Generating frames, 7 frames in total
-[ Info: Creating video at: /var/folders/3y/xl2h1bxj4ql27p01nl5hrrnc0000gn/T/jl_SiSvrH/contraction.mp4
-"/var/folders/3y/xl2h1bxj4ql27p01nl5hrrnc0000gn/T/jl_SiSvrH/contraction.mp4"
-```
-
-The resulting image and video will be saved in the current working directory, and the image is shown below:
-<div style="text-align:center">
-	<img src="examples/eins.png" alt="Image" width="40%" />
-</div>
-The large white nodes represent the tensors, and the small colored nodes represent the indices, red for closed indices and green for open indices.
+`OMEinsumContractionOrders` is shipped with [`OMEinsum`](https://github.com/under-Peter/OMEinsum.jl) package. You can use it to optimize the contraction order of a `OMEinsum` expression.
 
 ## References
 

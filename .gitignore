@@ -1,3 +1,5 @@
 /.vscode/
 /Manifest.toml
 _local/
+docs/build/
+docs/Manifest.toml
