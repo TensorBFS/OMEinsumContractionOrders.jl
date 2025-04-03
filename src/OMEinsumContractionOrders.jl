@@ -9,10 +9,10 @@ using AbstractTrees
 using TreeWidthSolver
 using TreeWidthSolver.Graphs
 using DataStructures: PriorityQueue, enqueue!, dequeue!, peek, dequeue_pair!
-using CliqueTrees: cliquetree, residual, BT, RuleReduction, MF
+using CliqueTrees: cliquetree, residual, EliminationAlgorithm, BFS, MCS, LexBFS, RCMMD, RCMGL, MCSM, LexM, AMF, MF, MMD, BT, MinimalChordal, CompositeRotations, RuleReduction, ComponentReduction
 
 export CodeOptimizer, CodeSimplifier,
-    KaHyParBipartite, GreedyMethod, TreeSA, SABipartite, ExactTreewidth,
+    KaHyParBipartite, GreedyMethod, TreeSA, SABipartite, Treewidth, ExactTreewidth,
     MergeGreedy, MergeVectors,
     uniformsize,
     simplify_code, optimize_code, optimize_permute,

@@ -4,10 +4,10 @@ CurrentModule = OMEinsumContractionOrders
 
 # OMEinsumContractionOrders
 
-This is the documentation for [OMEinsumContractionOrders](https://github.com/GiggleLiu/OMEinsumContractionOrders.jl),
+This is the documentation for [OMEinsumContractionOrders](https://github.com/TensorBFS/OMEinsumContractionOrders.jl),
 a Julia package for the optimization of the contraction order of tensor networks.
 
-**Installation** guide is available in [README.md](https://github.com/GiggleLiu/OMEinsumContractionOrders.jl). You can also access its features in [OMEinsum](https://github.com/under-Peter/OMEinsum.jl), which uses it as the default contraction order optimizer.
+**Installation** guide is available in [README.md](https://github.com/TensorBFS/OMEinsumContractionOrders.jl). You can also access its features in [OMEinsum](https://github.com/under-Peter/OMEinsum.jl), which uses it as the default contraction order optimizer.
 
 ## Example 1: Use it directly
 The contraction order optimizer is implemented in the [`optimize_code`](@ref) function. It takes three arguments: `code`, `size`, and `optimizer`. The `code` argument is the [einsum notation](https://numpy.org/doc/stable/reference/generated/numpy.einsum.html) to be optimized. The `size` argument is the size of the variables in the einsum notation. The `optimizer` argument is the optimizer to be used. The `optimize_code` function returns the optimized contraction order. One can use [`contraction_complexity`](@ref) function to get the time, space and rewrite complexity of returned contraction order.
@@ -18,8 +18,10 @@ Supported solvers include:
 | [`GreedyMethod`](@ref) | Fast, but poor resulting order |
 | [`TreeSA`](@ref) | Reliable, local search based optimizer [^Kalachev2021], but is a bit slow |
 | [`KaHyParBipartite`](@ref) and [`SABipartite`](@ref) | Graph bipartition based, suited for large tensor networks [^Gray2021], requires using [`KaHyPar`](https://github.com/kahypar/KaHyPar.jl) package |
-| [`ExactTreewidth`](@ref) | Exact, but takes exponential time [^Bouchitté2001], based on package [`TreeWidthSolver`](https://github.com/ArrogantGao/TreeWidthSolver.jl) |
+| [`Treewidth`](@ref) | Tree width solver based, based on package [`CliqueTrees`](https://github.com/AlgebraicJulia/CliqueTrees.jl), performance is elimination algorithm dependent |
+| [`ExactTreewidth`](@ref) (alias of `Treewidth{RuleReduction{BT}}`) | Exact, but takes exponential time [^Bouchitté2001], based on package [`TreeWidthSolver`](https://github.com/ArrogantGao/TreeWidthSolver.jl) |
 
+The `KaHyParBipartite` is implemented as an extension. If you have issues in installing `KaHyPar`, please check these issues: [#12](https://github.com/kahypar/KaHyPar.jl/issues/12) and [#19](https://github.com/kahypar/KaHyPar.jl/issues/19).
 Additionally, code simplifiers can be used to preprocess the tensor network to reduce the optimization time:
 
 | Simplifier | Description |
@@ -68,6 +70,8 @@ code = ein"ij, jk, kl, il->"
 optimized_code = optimize_code(code, uniformsize(code, 2), TreeSA())
 ```
 
+For multi-GPU contraction of tensor networks, please check [this Gist](https://gist.github.com/GiggleLiu/d5b66c9883f0c5df41a440589983ab99).
+
 ## Example 3: Visualization
 
 ### LuxorTensorPlot
@@ -109,9 +113,11 @@ julia> viz_contraction(nested_code)
 ```
 
 The resulting image and video will be saved in the current working directory, and the image is shown below:
+```@raw html
 <div style="text-align:center">
 	<img src="assets/eins.png" alt="Image" width="40%" />
 </div>
+```
 The large white nodes represent the tensors, and the small colored nodes represent the indices, red for closed indices and green for open indices.
 
 [^Bouchitté2001]: Bouchitté, V., Todinca, I., 2001. Treewidth and Minimum Fill-in: Grouping the Minimal Separators. SIAM J. Comput. 31, 212–232. https://doi.org/10.1137/S0097539799359683
