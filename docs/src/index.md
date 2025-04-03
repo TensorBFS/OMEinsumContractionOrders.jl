@@ -29,7 +29,7 @@ Additionally, code simplifiers can be used to preprocess the tensor network to r
 | [`MergeVectors`](@ref) | Merges vector tensors with their neighbors |
 | [`MergeGreedy`](@ref) | Greedily merges rank non-increasing tensors |
 
-More details could be found in: https://arrogantgao.github.io/blogs/treewidth/
+More details could be found in [this blog post](https://arrogantgao.github.io/blogs/treewidth/).
 
 ```@repl
 using OMEinsumContractionOrders, Graphs, KaHyPar
