@@ -9,6 +9,7 @@ using AbstractTrees
 using TreeWidthSolver
 using TreeWidthSolver.Graphs
 using DataStructures: PriorityQueue, enqueue!, dequeue!, peek, dequeue_pair!
+using CliqueTrees: cliquetree, residual, BT, RuleReduction
 
 export CodeOptimizer, CodeSimplifier,
     KaHyParBipartite, GreedyMethod, TreeSA, SABipartite, ExactTreewidth,

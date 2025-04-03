@@ -5,6 +5,7 @@ version = "0.9.5"
 
 [deps]
 AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
+CliqueTrees = "60701a23-6482-424a-84db-faee86b9b1f8"
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
@@ -22,6 +23,7 @@ LuxorTensorPlot = ["LuxorGraphPlot"]
 
 [compat]
 AbstractTrees = "0.3, 0.4"
+CliqueTrees = "1.3.0"
 DataStructures = "0.18"
 JSON = "0.21"
 KaHyPar = "0.3"
