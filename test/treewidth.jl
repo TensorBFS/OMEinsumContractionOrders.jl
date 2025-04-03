@@ -2,8 +2,8 @@ using OMEinsumContractionOrders
 using OMEinsumContractionOrders: IncidenceList, optimize_treewidth, getixsv
 using OMEinsumContractionOrders: BFS, MCS, LexBFS, RCMMD, RCMGL, MCSM, LexM, AMF, MF, MMD, BT, MinimalChordal, CompositeRotations, RuleReduction, ComponentReduction
 using OMEinsum: decorate
-
 using Test, Random
+
 @testset "tree width" begin
 
     optimizer = ExactTreewidth()

@@ -29,8 +29,7 @@ Detailed descriptions is available in the [CliqueTrees.jl](https://algebraicjuli
 
 # Example
 ```jldoctest
-julia> optimizer = OMEinsumContractionOrders.Treewidth()
-Treewidth{GreedyMethod{Float64, Float64}}(RuleReduction(BT()), GreedyMethod{Float64, Float64}(0.0, 0.0, 1))
+julia> optimizer = Treewidth();
 
 julia> eincode = OMEinsumContractionOrders.EinCode([['a', 'b'], ['a', 'c', 'd'], ['b', 'c', 'e', 'f'], ['e'], ['d', 'f']], ['a'])
 ab, acd, bcef, e, df -> a
