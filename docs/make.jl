@@ -22,6 +22,6 @@ makedocs(;
 )
 
 deploydocs(;
-    repo="github.com/GiggleLiu/OMEinsumContractionOrders.jl",
+    repo="github.com/TensorBFS/OMEinsumContractionOrders.jl",
     devbranch="master",
 )
