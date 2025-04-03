@@ -7,26 +7,10 @@ A optimizer using the exact tree width solver proved in TreeWidthSolver.jl, the 
 # Fields
 - `greedy_config::GM`: The configuration for the greedy method.
 
-"""
-Base.@kwdef struct ExactTreewidth{GM} <: CodeOptimizer 
-    greedy_config::GM = GreedyMethod(nrepeat=1)
-end
-
-"""
-    exact_treewidth_method(incidence_list::IncidenceList{VT,ET}, log2_edge_sizes; α::TA = 0.0, temperature::TT = 0.0, nrepeat=1) where {VT,ET,TA,TT}
-
-This function calculates the exact treewidth of a graph using TreeWidthSolver.jl. It takes an incidence list representation of the graph (`incidence_list`) and a dictionary of logarithm base 2 edge sizes (`log2_edge_sizes`) as input. The function also accepts optional parameters `α`, `temperature`, and `nrepeat` with default values of 0.0, 0.0, and 1 respectively, which are parameter of the GreedyMethod used in the contraction process as a sub optimizer.
-
-## Arguments
-- `incidence_list`: An incidence list representation of the graph.
-- `log2_edge_sizes`: A dictionary of logarithm base 2 edge sizes.
-
-## Returns
-- The function returns a `ContractionTree` representing the contraction process.
-
-```
+# Example
+```jldoctest
 julia> optimizer = OMEinsumContractionOrders.ExactTreewidth()
-OMEinsumContractionOrders.ExactTreewidth{GreedyMethod{Float64, Float64}}(GreedyMethod{Float64, Float64}(0.0, 0.0, 1))
+ExactTreewidth{GreedyMethod{Float64, Float64}}(GreedyMethod{Float64, Float64}(0.0, 0.0, 1))
 
 julia> eincode = OMEinsumContractionOrders.EinCode([['a', 'b'], ['a', 'c', 'd'], ['b', 'c', 'e', 'f'], ['e'], ['d', 'f']], ['a'])
 ab, acd, bcef, e, df -> a
@@ -42,17 +26,25 @@ Dict{Char, Int64} with 6 entries:
 
 julia> optcode = optimize_code(eincode, size_dict, optimizer)
 ab, ab -> a
-├─ ab
-└─ fac, bcf -> ab
-   ├─ df, acd -> fac
-   │  ├─ df
-   │  └─ acd
-   └─ e, bcef -> bcf
-      ├─ e
-      └─ bcef
+├─ fac, bcf -> ab
+│  ├─ df, acd -> fac
+│  │  ├─ df
+│  │  └─ acd
+│  └─ e, bcef -> bcf
+│     ├─ e
+│     └─ bcef
+└─ ab
 ```
-
 """
+Base.@kwdef struct ExactTreewidth{GM} <: CodeOptimizer 
+    greedy_config::GM = GreedyMethod(nrepeat=1)
+end
+
+# calculates the exact treewidth of a graph using TreeWidthSolver.jl. It takes an incidence list representation of the graph (`incidence_list`) and a dictionary of logarithm base 2 edge sizes (`log2_edge_sizes`) as input. The function also accepts optional parameters `α`, `temperature`, and `nrepeat` with default values of 0.0, 0.0, and 1 respectively, which are parameter of the GreedyMethod used in the contraction process as a sub optimizer.
+# Return: a `ContractionTree` representing the contraction process.
+#
+# - `incidence_list`: An incidence list representation of the graph.
+# - `log2_edge_sizes`: A dictionary of logarithm base 2 edge sizes.
 function exact_treewidth_method(incidence_list::IncidenceList{VT,ET}, log2_edge_sizes; α::TA = 0.0, temperature::TT = 0.0, nrepeat=1) where {VT,ET,TA,TT}
     indices = collect(keys(incidence_list.e2v))
     tensors = collect(keys(incidence_list.v2e))

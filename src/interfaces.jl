@@ -12,23 +12,13 @@ Returns a `NestedEinsum` instance. Input arguments are
 
 ### Examples
 
-```julia
+```jldoctest
 julia> using OMEinsum
 
 julia> code = ein"ij, jk, kl, il->"
 ij, jk, kl, il -> 
-```
 
-```
-julia> optimize_code(code, uniformsize(code, 2), TreeSA())
-SlicedEinsum{Char, NestedEinsum{DynamicEinCode{Char}}}(Char[], ki, ki -> 
-├─ jk, ij -> ki
-│  ├─ jk
-│  └─ ij
-└─ kl, il -> ki
-   ├─ kl
-   └─ il
-)
+julia> optimize_code(code, uniformsize(code, 2), TreeSA());
 ```
 """
 function optimize_code(code::Union{EinCode, NestedEinsum}, size_dict::Dict, optimizer::CodeOptimizer, simplifier=nothing, permute::Bool=true)

@@ -20,33 +20,6 @@ Compute greedy order, and the time and space complexities, the rows of the `inci
 `log2_sizes` are defined on edges.
 `α` is the parameter for the loss function, for pairwise interaction, L = size(out) - α * (size(in1) + size(in2))
 `temperature` is the parameter for sampling, if it is zero, the minimum loss is selected; for non-zero, the loss is selected by the Boltzmann distribution, given by p ~ exp(-loss/temperature).
-
-```julia
-julia> code = ein"(abc,cde),(ce,sf,j),ak->ael"
-aec, ec, ak -> ael
-├─ ce, sf, j -> ec
-│  ├─ sf
-│  ├─ j
-│  └─ ce
-├─ ak
-└─ abc, cde -> aec
-   ├─ cde
-   └─ abc
-
-
-julia> optimize_greedy(code, Dict([c=>2 for c in "abcdefjkls"]))
-ae, ak -> ea
-├─ ak
-└─ aec, ec -> ae
-   ├─ ce,  -> ce
-   │  ├─ sf, j -> 
-   │  │  ├─ j
-   │  │  └─ sf
-   │  └─ ce
-   └─ abc, cde -> aec
-      ├─ cde
-      └─ abc
-```
 """
 function tree_greedy(incidence_list::IncidenceList{Int, ET}, log2_edge_sizes; α::TA = 0.0, temperature::TT = 0.0, nrepeat=1) where {TA,TT, ET}
     @assert nrepeat >= 1

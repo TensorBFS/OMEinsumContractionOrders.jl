@@ -1,5 +1,6 @@
 using OMEinsumContractionOrders
 using Test
+using Documenter
 
 @testset "Core" begin
     include("Core.jl")
@@ -45,3 +46,6 @@ if isdefined(Base, :get_extension)
         include("visualization.jl")
     end
 end
+
+DocMeta.setdocmeta!(OMEinsumContractionOrders, :DocTestSetup, :(using OMEinsumContractionOrders); recursive=true)
+Documenter.doctest(OMEinsumContractionOrders; manual=false, fix=false)
