@@ -25,7 +25,7 @@ function tree_greedy(incidence_list::IncidenceList{Int, ET}, log2_edge_sizes; α
     @assert nrepeat >= 1
 
     results = Vector{Tuple{ContractionTree, Vector{Float64}, Vector{Float64}}}(undef, nrepeat)
-    @threads for i = 1:nrepeat
+    for i = 1:nrepeat
         results[i] = _tree_greedy(incidence_list, log2_edge_sizes; α = α, temperature = temperature)
     end
 
