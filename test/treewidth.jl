@@ -1,6 +1,6 @@
 using OMEinsumContractionOrders
 using OMEinsumContractionOrders: IncidenceList, optimize_treewidth, getixsv
-using OMEinsumContractionOrders: BFS, MCS, LexBFS, RCMMD, RCMGL, MCSM, LexM, AMF, MF, MMD, BT, MinimalChordal, CompositeRotations, RuleReduction, ComponentReduction
+using OMEinsumContractionOrders: BFS, MCS, LexBFS, RCMMD, RCMGL, MCSM, LexM, AMF, MF, MMD, BT, SafeRules
 using OMEinsum: decorate
 using Test, Random
 
@@ -59,7 +59,7 @@ end
 end
 
 @testset "treewidth" begin
-    for alg in [RuleReduction(BT()), MF(), MMD(), AMF(), LexM(), LexBFS(), BFS(), MCS(), RCMMD(), RCMGL(), MCSM()]
+    for alg in [SafeRules(BT()), MF(), MMD(), AMF(), LexM(), LexBFS(), BFS(), MCS(), RCMMD(), RCMGL(), MCSM()]
         optimizer = Treewidth(alg=alg)
         size_dict = Dict([c=>(1<<i) for (i,c) in enumerate(['a', 'b', 'c', 'd', 'e', 'f'])]...)
 

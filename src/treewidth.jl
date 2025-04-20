@@ -1,6 +1,6 @@
 """
     struct Treewidth{EL <: EliminationAlgorithm, GM} <: CodeOptimizer
-    Treewidth(; alg::EL = RuleReduction(BT()), greedy_config::GM = GreedyMethod(nrepeat=1))
+    Treewidth(; alg::EL = SafeRules(BT(), MMW{3}(), MF()), greedy_config::GM = GreedyMethod(nrepeat=1))
 
 Tree width based solver. The solvers are implemented in [CliqueTrees.jl](https://algebraicjulia.github.io/CliqueTrees.jl/stable/) and [TreeWidthSolver.jl](https://github.com/ArrogantGao/TreeWidthSolver.jl). They include:
 
@@ -16,10 +16,6 @@ Tree width based solver. The solvers are implemented in [CliqueTrees.jl](https:/
 | `AMF` | approximate minimum fill | O(mn) | O(m + n) |
 | `MF` | minimum fill | O(mn²) | - |
 | `MMD` | multiple minimum degree | O(mn²) | O(m + n) |
-| `MinimalChordal` | MinimalChordal | - | - |
-| `CompositeRotations` | elimination tree rotation | O(m + n) | O(m + n) |
-| `RuleReduction` | treewith-safe rule-based reduction | - | - |
-| `ComponentReduction` | connected component reduction | - | - |
 
 Detailed descriptions is available in the [CliqueTrees.jl](https://algebraicjulia.github.io/CliqueTrees.jl/stable/api/#Elimination-Algorithms).
 
@@ -56,18 +52,18 @@ ab, ab -> a
 ```
 """
 Base.@kwdef struct Treewidth{EL <: EliminationAlgorithm, GM} <: CodeOptimizer 
-    alg::EL = RuleReduction(BT())
+    alg::EL = SafeRules(BT(), MMW{3}(), MF())
     greedy_config::GM = GreedyMethod(nrepeat=1)
 end
 
 """
-    const ExactTreewidth{GM} = Treewidth{RuleReduction{BT}, GM}
+    const ExactTreewidth{GM} = Treewidth{SafeRules{BT, MMW{3}(), MF}, GM}
     ExactTreewidth(; greedy_config = GreedyMethod(nrepeat=1)) = Treewidth(; greedy_config)
 
-`ExactTreewidth` is a specialization of `Treewidth` for the `RuleReduction` algorithm with the `BT` elimination algorithm.
+`ExactTreewidth` is a specialization of `Treewidth` for the `SafeRules` preprocessing algorithm with the `BT` elimination algorithm.
 The `BT` algorithm is an exact solver for the treewidth problem that implemented in [`TreeWidthSolver.jl`](https://github.com/ArrogantGao/TreeWidthSolver.jl).
 """
-const ExactTreewidth{GM} = Treewidth{RuleReduction{BT}, GM}
+const ExactTreewidth{GM} = Treewidth{SafeRules{BT, MMW{3}, MF}, GM}
 ExactTreewidth(; greedy_config = GreedyMethod(nrepeat=1)) = Treewidth(; greedy_config)
 
 # calculates the exact treewidth of a graph using TreeWidthSolver.jl. It takes an incidence list representation of the graph (`incidence_list`) and a dictionary of logarithm base 2 edge sizes (`log2_edge_sizes`) as input. The function also accepts optional parameters `α`, `temperature`, and `nrepeat` with default values of 0.0, 0.0, and 1 respectively, which are parameter of the GreedyMethod used in the contraction process as a sub optimizer.
