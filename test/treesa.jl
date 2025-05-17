@@ -26,17 +26,16 @@ end
         return OMEinsumContractionOrders.EinCode([ixs..., [[i] for i in Graphs.vertices(g)]...], Int[])
     end
     Random.seed!(2)
-    tree = random_exprtree([[1,2,5], [2,3], [2,4]], [5], 5)
-    @test tree isa ExprTree
-    tree2 = random_exprtree(OMEinsumContractionOrders.EinCode([[1,2,5], [2,3], [2,4]], [5]))
+    tree = random_exprtree([[1,2,5], [2,3], [2,4]], [5], Dict(1=>1, 2=>2, 3=>3, 4=>4, 5=>5), [1.0, 1.0, 1.0, 1.0, 1.0])
     @test tree isa ExprTree
     code = random_regular_eincode(20, 3)
     optcode = optimize_greedy(code, uniformsize(code, 2))
-    tree3 = ExprTree(optcode)
+    forward_map = _label_dict(code)
+    inverse_map = Dict([v=>k for (k,v) in forward_map])
+    tree3 = OMEinsumContractionOrders._exprtree(optcode, forward_map, fill(1.0, 20))
     @test tree isa ExprTree
     println(tree)
-    labelmap = Dict([v=>k for (k,v) in _label_dict(code)])
-    optcode_reconstruct = OMEinsumContractionOrders.NestedEinsum(tree3, labelmap)
+    optcode_reconstruct = OMEinsumContractionOrders.NestedEinsum(tree3, inverse_map)
     @test optcode == optcode_reconstruct
 end
 
@@ -81,14 +80,14 @@ end
     optcode = optimize_greedy(code, uniformsize(code, 2))
     println(code)
     println(optcode)
-    tree = ExprTree(optcode)
+    tree = OMEinsumContractionOrders._exprtree(optcode, Dict(zip(1:n, 1:n)), log2_sizes)
     tc0, sc0, rw0 = tree_timespace_complexity(tree, log2_sizes)
     size_dict = Dict([j=>exp2(log2_sizes[j]) for j=1:length(log2_sizes)])
     cc0 = contraction_complexity(OMEinsumContractionOrders.NestedEinsum(tree), size_dict)
     tc0_, sc0_ = cc0.tc, cc0.sc
     @test tc0 ≈ tc0_ && sc0 ≈ sc0_
     opt_tree = copy(tree)
-    optimize_subtree!(opt_tree, 100.0, log2_sizes, 5, 2.0, 1.0)
+    optimize_subtree!(opt_tree, 100.0, log2_sizes, 5, 1.0, 2.0, 1.0)
     tc1, sc1, rw0 = tree_timespace_complexity(opt_tree, log2_sizes)
     @test sc1 < sc0 || (sc1 == sc0 && tc1 < tc0)
 end
@@ -105,15 +104,15 @@ end
     log2_sizes = ones(ne)
     code = random_regular_eincode(n, 3)
     optcode = optimize_greedy(code, uniformsize(code, 2))
-    tree = ExprTree(optcode)
+    tree = OMEinsumContractionOrders._exprtree(optcode, Dict(zip(1:n, 1:n)), log2_sizes)
     tc0, sc0, rw0 = tree_timespace_complexity(tree, log2_sizes)
     opttree = copy(tree)
-    optimize_tree_sa!(opttree, log2_sizes, Slicer(log2_sizes, 0, []); sc_target=sc0-2.0, βs=0.1:0.1:10.0, niters=100, sc_weight=1.0, rw_weight=1.0)
+    optimize_tree_sa!(opttree, log2_sizes, Slicer(log2_sizes, 0, []); sc_target=sc0-2.0, tc_weight=1.0, βs=0.1:0.1:10.0, niters=100, sc_weight=1.0, rw_weight=1.0)
     tc1, sc1, rw1 = tree_timespace_complexity(opttree, log2_sizes)
     @test sc1 < sc0 || (sc1 == sc0 && tc1 < tc0)
 
     slicer = Slicer(log2_sizes, 5, [])
-    optimize_tree_sa!(opttree, log2_sizes, slicer; sc_target=sc0-2.0, βs=0.1:0.1:10.0, niters=100, sc_weight=1.0, rw_weight=1.0)
+    optimize_tree_sa!(opttree, log2_sizes, slicer; sc_target=sc0-2.0, tc_weight=1.0, βs=0.1:0.1:10.0, niters=100, sc_weight=1.0, rw_weight=1.0)
     tc2, sc2, rw2 = tree_timespace_complexity(opttree, slicer.log2_sizes)
     @test tc2 <= tc1 + 3
     @test sc2 <= sc1 + 3

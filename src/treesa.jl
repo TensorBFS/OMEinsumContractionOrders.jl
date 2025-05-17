@@ -1,10 +1,10 @@
 ################### expression tree ###################
-# `ExprInfo` stores the node information.
-# * `out_dims` is the output dimensions of this tree/subtree.
-# * `tensorid` specifies the tensor index for leaf nodes. It is `-1` is for non-leaf node.
 struct ExprInfo
-    out_dims::Vector{Int}
-    tensorid::Int
+    out_dims::Vector{Int}  # output dimensions of this subtree
+    # tc::Float64   # time complexity of this subtree, in log2, `-Inf` for leaf nodes
+    # sc::Float64   # space complexity of this subtree, in log2 of the maximum intermediate tensor size
+    # rw::Float64   # read-write complexity of this subtree, in log2, `-Inf` for leaf nodes
+    tensorid::Int  # tensor index for leaf nodes, `-1` for non-leaf nodes
 end
 ExprInfo(out_dims::Vector{Int}) = ExprInfo(out_dims, -1)
 
@@ -16,8 +16,8 @@ mutable struct ExprTree
     left::ExprTree
     right::ExprTree
     info::ExprInfo
-    ExprTree(info) = (res = new(); res.info=info; res)
-    ExprTree(left, right, info) = new(left, right, info)
+    ExprTree(info::ExprInfo) = (res = new(); res.info=info; res)
+    ExprTree(left, right, info::ExprInfo) = new(left, right, info)
 end
 function print_expr(io::IO, expr::ExprTree, level=0)
     isleaf(expr) && return print(io, " "^(2*level), labels(expr), " ($(expr.info.tensorid))")
@@ -90,15 +90,9 @@ function get_slices(s::Slicer, inverse_map::Dict{Int,LT}) where LT
 end
 
 ############# random expression tree ###############
-function random_exprtree(code::EinCode)
-    ixs, iy = getixsv(code), getiyv(code)
-    labels = _label_dict(ixs, iy)
-    return random_exprtree([Int[labels[l] for l in ix] for ix in ixs], Int[labels[l] for l in iy], length(labels))
-end
-
-function random_exprtree(ixs::Vector{Vector{Int}}, iy::Vector{Int}, nedge::Int)
-    outercount = zeros(Int, nedge)
-    allcount = zeros(Int, nedge)
+function random_exprtree(ixs::Vector{Vector{Int}}, iy::Vector{Int}, forward_map::Dict, log2_sizes::Vector{T}) where T
+    outercount = zeros(Int, length(forward_map))
+    allcount = zeros(Int, length(forward_map))
     for l in iy
         outercount[l] += 1
         allcount[l] += 1
@@ -108,9 +102,9 @@ function random_exprtree(ixs::Vector{Vector{Int}}, iy::Vector{Int}, nedge::Int)
             allcount[l] += 1
         end
     end
-    _random_exprtree(ixs, collect(1:length(ixs)), outercount, allcount)
+    _random_exprtree(ixs, collect(1:length(ixs)), outercount, allcount, log2_sizes)
 end
-function _random_exprtree(ixs::Vector{Vector{Int}}, xindices, outercount::Vector{Int}, allcount::Vector{Int})
+function _random_exprtree(ixs::Vector{Vector{Int}}, xindices, outercount::Vector{Int}, allcount::Vector{Int}, log2_sizes::Vector{T}) where T
     n = length(ixs)
     if n == 1
         return ExprTree(ExprInfo(ixs[1], xindices[1]))
@@ -120,7 +114,6 @@ function _random_exprtree(ixs::Vector{Vector{Int}}, xindices, outercount::Vector
         i = rand(1:n)
         mask[i] = ~(mask[i])
     end
-    info = ExprInfo(Int[i for i=1:length(outercount) if outercount[i]!=allcount[i] && outercount[i]!=0])
     outercount1, outercount2 = copy(outercount), copy(outercount)
     for i=1:n
         counter = mask[i] ? outercount2 : outercount1
@@ -128,7 +121,14 @@ function _random_exprtree(ixs::Vector{Vector{Int}}, xindices, outercount::Vector
             counter[l] += 1
         end
     end
-    return ExprTree(_random_exprtree(ixs[mask], xindices[mask], outercount1, allcount), _random_exprtree(ixs[(!).(mask)], xindices[(!).(mask)], outercount2, allcount), info)
+    # left and right subtrees
+    left = _random_exprtree(ixs[mask], xindices[mask], outercount1, allcount, log2_sizes)
+    right = _random_exprtree(ixs[(!).(mask)], xindices[(!).(mask)], outercount2, allcount, log2_sizes)
+    # the current contraction step
+    iy = Int[i for i=1:length(outercount) if outercount[i]!=allcount[i] && outercount[i]!=0]
+    # tc, sc, rw = tcscrw(left.info.out_dims, right.info.out_dims, iy, log2_sizes, true)
+    info = ExprInfo(iy)
+    return ExprTree(left, right, info)
 end
 
 
@@ -202,11 +202,8 @@ function optimize_tree(code::AbstractEinsum, size_dict; nslices::Int=0, sc_targe
         return SlicedEinsum(LT[], NestedEinsum(NestedEinsum{LT}.(1:ninputs), EinCode(ixs, iy)))
     end
     ###### Stage 1: preprocessing ######
-    labels = _label_dict(ixs, iy)  # map labels to integers
-    inverse_map = Dict([v=>k for (k,v) in labels])  # the inverse transformation, map integers to labels
-    log2_sizes = [log2.(size_dict[inverse_map[i]]) for i=1:length(labels)]   # use `log2` sizes in computing time
     if ntrials <= 0  # no optimization at all, then 1). initialize an expression tree and 2). convert back to nested einsum.
-        best_tree = _initializetree(code, size_dict, initializer; greedy_method=greedy_method)
+        best_tree, forward_map, inverse_map, log2_sizes = _initializetree(code, size_dict, initializer; greedy_method=greedy_method)
         return SlicedEinsum(LT[], NestedEinsum(best_tree, inverse_map))
     end
     ###### Stage 2: computing ######
@@ -214,9 +211,9 @@ function optimize_tree(code::AbstractEinsum, size_dict; nslices::Int=0, sc_targe
     trees, tcs, scs, rws, slicers = Vector{ExprTree}(undef, ntrials), zeros(ntrials), zeros(ntrials), zeros(ntrials), Vector{Slicer}(undef, ntrials)
     for t = 1:ntrials  # multi-threading on different trials, use `JULIA_NUM_THREADS=5 julia xxx.jl` for setting number of threads.
         # 1). random/greedy initialize a contraction tree.
-        tree = _initializetree(code, size_dict, initializer; greedy_method=greedy_method)
+        tree, forward_map, inverse_map, log2_sizes = _initializetree(code, size_dict, initializer; greedy_method=greedy_method)
         # 2). optimize the `tree` and `slicer` in a inplace manner.
-        slicer = Slicer(log2_sizes, nslices, Int[labels[l] for l in fixed_slices])
+        slicer = Slicer(log2_sizes, nslices, Int[forward_map[l] for l in fixed_slices])
         optimize_tree_sa!(tree, log2_sizes, slicer; sc_target=sc_target, βs=βs, niters=niters, tc_weight=tc_weight, sc_weight=sc_weight, rw_weight=rw_weight)
         # 3). evaluate time-space-readwrite complexities.
         tc, sc, rw = tree_timespace_complexity(tree, slicer.log2_sizes)
@@ -249,14 +246,17 @@ end
 
 # initialize a contraction tree
 function _initializetree(code, size_dict, method; greedy_method)
+    ixs, iy = getixsv(code), getiyv(code)
+    forward_map = _label_dict(ixs, iy)  # map labels to integers
+    inverse_map = Dict([v=>k for (k,v) in forward_map])  # the inverse transformation, map integers to labels
+    log2_sizes = [log2.(size_dict[inverse_map[i]]) for i=1:length(forward_map)]   # use `log2` sizes in computing time
     if method == :greedy
-        labels = _label_dict(code)  # label to int
-        return _exprtree(optimize_greedy(code, size_dict; α = greedy_method.α, temperature = greedy_method.temperature, nrepeat=greedy_method.nrepeat), labels)
+        opt_code = optimize_greedy(code, size_dict; α = greedy_method.α, temperature = greedy_method.temperature, nrepeat=greedy_method.nrepeat)
+        return _exprtree(opt_code, forward_map, log2_sizes), forward_map, inverse_map, log2_sizes
     elseif method == :random
-        return random_exprtree(code)
+        return random_exprtree(ixs, iy, forward_map, log2_sizes), forward_map, inverse_map, log2_sizes
     elseif method == :specified
-        labels = _label_dict(code)  # label to int
-        return _exprtree(code, labels)
+        return _exprtree(code, forward_map, log2_sizes), forward_map, inverse_map, log2_sizes
     else
         throw(ArgumentError("intializier `$method` is not defined!"))
     end
@@ -463,19 +463,24 @@ function _label_dict(ixsv::AbstractVector{<:AbstractVector{LT}}, iyv::AbstractVe
     return labels
 end
 
-# construct the contraction tree recursively from a nested einsum.
-function ExprTree(code::NestedEinsum)
-    _exprtree(code, _label_dict(code))
-end
-function _exprtree(code::NestedEinsum, labels)
+function _exprtree(code::NestedEinsum, forward_map, log2_sizes::Vector{T}) where T
     @assert length(code.args) == 2 "einsum contraction not in the binary form, got number of arguments: $(length(code.args))"
-    ExprTree(map(enumerate(code.args)) do (i,arg)
+    subexprs = map(enumerate(code.args)) do (i,arg)
         if isleaf(arg)  # leaf nodes
-            ExprTree(ExprInfo(getindex.(Ref(labels), getixsv(code.eins)[i]), arg.tensorindex))
+            ix = getindex.(Ref(forward_map), getixsv(code.eins)[i])
+            # sc = sum(i->log2_sizes[i], ix)
+            ExprTree(ExprInfo(ix, arg.tensorindex))
         else
-            res = _exprtree(arg, labels)
+            _exprtree(arg, forward_map, log2_sizes)
         end
-    end..., ExprInfo(Int[labels[i] for i=getiyv(code.eins)]))
+    end
+    iy = getindex.(Ref(forward_map), getiyv(code.eins))
+    # this_tc, this_sc, this_rw = tcscrw(subexprs[1].info.out_dims, subexprs[2].info.out_dims, iy, log2_sizes, true)
+    # tc = fast_log2sumexp2(this_tc, subexprs[1].info.tc, subexprs[2].info.tc)
+    # sc = max(this_sc, subexprs[1].info.sc, subexprs[2].info.sc)
+    # rw = fast_log2sumexp2(this_rw, subexprs[1].info.rw, subexprs[2].info.rw)
+    thisexpr = ExprInfo(iy)
+    return ExprTree(subexprs..., thisexpr)
 end
 
 @inline function fast_log2sumexp2(a, b)
