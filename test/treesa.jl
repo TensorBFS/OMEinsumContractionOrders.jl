@@ -129,7 +129,6 @@ end
         return OMEinsumContractionOrders.EinCode([ixs..., [[i] for i in Graphs.vertices(g)]...], Int[])
     end
     Random.seed!(2)
-    g = random_regular_graph(220, 3)
     code = random_regular_eincode(220, 3)
     res = optimize_greedy(code,uniformsize(code, 2))
     cc = contraction_complexity(res, uniformsize(code, 2))
@@ -234,4 +233,23 @@ end
     code = OMEinsumContractionOrders.EinCode(random_regular_eincode_char(20, 3).ixs, ['3','8','2'])
     code1 = optimize_tree(code, uniformsize(code, 2); ntrials=1, fixed_slices=['7'])
     @test eltype(code1.eins.eins.iy) == Char
+end
+
+@testset "sa tree, fix rw complexity" begin
+    function random_regular_eincode(n, k)
+        g = Graphs.random_regular_graph(n, k)
+        ixs = [[minmax(e.src,e.dst)...] for e in Graphs.edges(g)]
+        return OMEinsumContractionOrders.EinCode([ixs..., [[i] for i in Graphs.vertices(g)]...], Int[])
+    end
+    Random.seed!(2)
+    code = random_regular_eincode(220, 3)
+
+    optcode = optimize_tree(code, uniformsize(code, 2); sc_target=32, βs=0.1:0.05:20.0, ntrials=5, niters=1, sc_weight=1.0, rw_weight=0.0)
+    cc = contraction_complexity(optcode, uniformsize(code, 2))
+    @show cc
+
+    optcode2 = optimize_tree(code, uniformsize(code, 2); sc_target=32, βs=0.1:0.05:20.0, ntrials=5, niters=1, sc_weight=1.0, rw_weight=20.0)
+    cc2 = contraction_complexity(optcode2, uniformsize(code, 2))
+    @show cc2
+    @test cc2.rwc <= cc.rwc
 end

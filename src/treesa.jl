@@ -146,14 +146,20 @@ end
 """
     TreeSA{RT,IT,GM}
     TreeSA(; sc_target=20, βs=collect(0.01:0.05:15), ntrials=10, niters=50,
-        sc_weight=1.0, rw_weight=0.2, initializer=:greedy, greedy_config=GreedyMethod(; nrepeat=1))
+        tc_weight=1.0, sc_weight=1.0, rw_weight=0.2, initializer=:greedy, greedy_config=GreedyMethod(; nrepeat=1))
 
-Optimize the einsum contraction pattern using the simulated annealing on tensor expression tree.
+Optimize the einsum contraction pattern using the simulated annealing on tensor expression tree. The loss function is defined as:
+```
+L(tc, sc, rw) = tc_weight * tc + sc_weight * sc + rw_weight * rw
+```
+where `tc` is the time complexity, `sc` is the space complexity, `rw` is the read-write complexity.
 
+### Fields
 * `sc_target` is the target space complexity,
 * `ntrials`, `βs` and `niters` are annealing parameters, doing `ntrials` indepedent annealings, each has inverse tempteratures specified by `βs`, in each temperature, do `niters` updates of the tree.
-* `sc_weight` is the relative importance factor of space complexity in the loss compared with the time complexity.
-* `rw_weight` is the relative importance factor of memory read and write in the loss compared with the time complexity.
+* `tc_weight` is the importance factor of time complexity in the loss function, default is 1.0.
+* `sc_weight` is the importance factor of space complexity in the loss function, default is 1.0.
+* `rw_weight` is the importance factor of memory read and write in the loss function, default is 0.2.
 * `initializer` specifies how to determine the initial configuration, it can be `:greedy` or `:random`. If it is using `:greedy` method to generate the initial configuration, it also uses two extra arguments `greedy_method` and `greedy_nrepeat`.
 * `nslices` is the number of sliced legs, default is 0.
 * `fixed_slices` is a vector of sliced legs, default is `[]`.
@@ -166,6 +172,7 @@ Base.@kwdef struct TreeSA{RT,IT,GM,LT} <: CodeOptimizer
     βs::IT = 0.01:0.05:15
     ntrials::Int = 10
     niters::Int = 50
+    tc_weight::Float64 = 1.0
     sc_weight::Float64 = 1.0
     rw_weight::Float64 = 0.2
     initializer::Symbol = :greedy
@@ -177,12 +184,12 @@ end
 
 # this is the main function
 """
-    optimize_tree(code, size_dict; sc_target=20, βs=0.1:0.1:10, ntrials=2, niters=100, sc_weight=1.0, rw_weight=0.2, initializer=:greedy, greedy_method=MinSpaceOut(), fixed_slices=[])
+    optimize_tree(code, size_dict; sc_target=20, βs=0.1:0.1:10, ntrials=2, niters=100, tc_weight=1.0, sc_weight=1.0, rw_weight=0.2, initializer=:greedy, greedy_method=MinSpaceOut(), fixed_slices=[])
 
 Optimize the einsum contraction pattern specified by `code`, and edge sizes specified by `size_dict`.
 Check the docstring of [`TreeSA`](@ref) for detailed explaination of other input arguments.
 """
-function optimize_tree(code::AbstractEinsum, size_dict; nslices::Int=0, sc_target=20, βs=0.1:0.1:10, ntrials=20, niters=100, sc_weight=1.0, rw_weight=0.2, initializer=:greedy, greedy_method=GreedyMethod(nrepeat = 1), fixed_slices=[])
+function optimize_tree(code::AbstractEinsum, size_dict; nslices::Int=0, sc_target=20, βs=0.1:0.1:10, ntrials=20, niters=100, tc_weight=1.0, sc_weight=1.0, rw_weight=0.2, initializer=:greedy, greedy_method=GreedyMethod(nrepeat = 1), fixed_slices=[])
     LT = labeltype(code)
     if nslices < length(fixed_slices)
         @warn("Number of slices: $(nslices) is smaller than the number of fixed slices, setting it to: $(length(fixed_slices)).")
@@ -205,12 +212,12 @@ function optimize_tree(code::AbstractEinsum, size_dict; nslices::Int=0, sc_targe
     ###### Stage 2: computing ######
     # create vectors to store optimized 1). expression tree, 2). time complexities, 3). space complexities, 4). read-write complexities and 5). slicing information.
     trees, tcs, scs, rws, slicers = Vector{ExprTree}(undef, ntrials), zeros(ntrials), zeros(ntrials), zeros(ntrials), Vector{Slicer}(undef, ntrials)
-    @threads for t = 1:ntrials  # multi-threading on different trials, use `JULIA_NUM_THREADS=5 julia xxx.jl` for setting number of threads.
+    for t = 1:ntrials  # multi-threading on different trials, use `JULIA_NUM_THREADS=5 julia xxx.jl` for setting number of threads.
         # 1). random/greedy initialize a contraction tree.
         tree = _initializetree(code, size_dict, initializer; greedy_method=greedy_method)
         # 2). optimize the `tree` and `slicer` in a inplace manner.
         slicer = Slicer(log2_sizes, nslices, Int[labels[l] for l in fixed_slices])
-        optimize_tree_sa!(tree, log2_sizes, slicer; sc_target=sc_target, βs=βs, niters=niters, sc_weight=sc_weight, rw_weight=rw_weight)
+        optimize_tree_sa!(tree, log2_sizes, slicer; sc_target=sc_target, βs=βs, niters=niters, tc_weight=tc_weight, sc_weight=sc_weight, rw_weight=rw_weight)
         # 3). evaluate time-space-readwrite complexities.
         tc, sc, rw = tree_timespace_complexity(tree, slicer.log2_sizes)
         @debug "trial $t, time complexity = $tc, space complexity = $sc, read-write complexity = $rw."
@@ -220,7 +227,7 @@ function optimize_tree(code::AbstractEinsum, size_dict; nslices::Int=0, sc_targe
     # compare and choose the best solution
     best_tree, best_tc, best_sc, best_rw, best_slicer = first(trees), first(tcs), first(scs), first(rws), first(slicers)
     for i=2:ntrials
-        if scs[i] < best_sc || (scs[i] == best_sc && exp2(tcs[i]) + rw_weight * exp2(rws[i]) < exp2(best_tc) + rw_weight * exp2(rws[i]))
+        if is_better(scs[i], tcs[i], rws[i], best_sc, best_tc, best_rw, sc_target, rw_weight)
             best_tree, best_tc, best_sc, best_rw, best_slicer = trees[i], tcs[i], scs[i], rws[i], slicers[i]
         end
     end
@@ -230,6 +237,14 @@ function optimize_tree(code::AbstractEinsum, size_dict; nslices::Int=0, sc_targe
     end
     # returns a sliced einsum we need to map the sliced dimensions back from integers to labels.
     return SlicedEinsum(get_slices(best_slicer, inverse_map), NestedEinsum(best_tree, inverse_map))
+end
+
+function is_better(sc, tc, rw, scold, tcold, rwold, sc_target, rw_weight)
+    if scold < sc_target   # prioritize space complexity
+        return sc < scold
+    else
+        return exp2(tc) + rw_weight * exp2(rw) < exp2(tcold) + rw_weight * exp2(rwold)
+    end
 end
 
 # initialize a contraction tree
@@ -248,10 +263,9 @@ function _initializetree(code, size_dict, method; greedy_method)
 end
 
 # use simulated annealing to optimize a contraction tree
-function optimize_tree_sa!(tree::ExprTree, log2_sizes, slicer::Slicer; βs, niters, sc_target, sc_weight, rw_weight)
-    @assert rw_weight >= 0
-    @assert sc_weight >= 0
-    log2rw_weight = log2(rw_weight)
+function optimize_tree_sa!(tree::ExprTree, log2_sizes, slicer::Slicer; βs, niters, sc_target, tc_weight, sc_weight, rw_weight)
+    @assert tc_weight >= 0 && rw_weight >= 0 && sc_weight >= 0 "all weights must be non-negative, got: tc_weight = $tc_weight, rw_weight = $rw_weight, sc_weight = $sc_weight."
+    log2tc_weight, log2rw_weight = log2(tc_weight), log2(rw_weight)
     for β in βs
         @debug begin
             tc, sc, rw = tree_timespace_complexity(tree, log2_sizes)
@@ -286,7 +300,7 @@ function optimize_tree_sa!(tree::ExprTree, log2_sizes, slicer::Slicer; βs, nite
         end
         ###### Stage 2: sweep and optimize the contraction tree for `niters` times  ######
         for _ = 1:niters
-            optimize_subtree!(tree, β, slicer.log2_sizes, sc_target, sc_weight, log2rw_weight)  # single sweep
+            optimize_subtree!(tree, β, slicer.log2_sizes, sc_target, log2tc_weight, sc_weight, log2rw_weight)  # single sweep
         end
     end
     return tree, slicer
@@ -338,7 +352,7 @@ end
 end
 
 # optimize a contraction tree recursively
-function optimize_subtree!(tree, β, log2_sizes, sc_target, sc_weight, log2rw_weight)
+function optimize_subtree!(tree, β, log2_sizes, sc_target, log2tc_weight, sc_weight, log2rw_weight)
     # find appliable local rules, at most 4 rules can be applied.
     # Sometimes, not all rules are applicable because either left or right sibling do not have siblings.
     rst = ruleset(tree)
@@ -347,17 +361,17 @@ function optimize_subtree!(tree, β, log2_sizes, sc_target, sc_weight, log2rw_we
         rule = rand(rst)
         optimize_rw = log2rw_weight != -Inf
         # difference in time, space and read-write complexity if the selected rule is applied
-        tc0, tc1, dsc, rw0, rw1, subout = tcsc_diff(tree, rule, log2_sizes, optimize_rw)
-        dtc = optimize_rw ? fast_log2sumexp2(tc1, log2rw_weight + rw1) - fast_log2sumexp2(tc0, log2rw_weight + rw0) : tc1 - tc0
+        tc0, tc1, sc0, sc1, rw0, rw1, subout = tcsc_diff(tree, rule, log2_sizes, optimize_rw)
+        dtc = optimize_rw ? fast_log2sumexp2(log2tc_weight + tc1, log2rw_weight + rw1) - fast_log2sumexp2(log2tc_weight + tc0, log2rw_weight + rw0) : tc1 - tc0
         sc = _sc(tree, rule, log2_sizes)  # current space complexity
 
         # update the loss function
-        dE = (max(sc, sc+dsc) > sc_target ? sc_weight : 0) * dsc + dtc
+        dE = max(sc, sc1) > sc_target ? sc_weight * (sc1 - sc0) + dtc : dtc
         if rand() < exp(-β*dE)  # ACCEPT
             update_tree!(tree, rule, subout)
         end
         for subtree in siblings(tree)  # RECURSE
-            optimize_subtree!(subtree, β, log2_sizes, sc_target, sc_weight, log2rw_weight)
+            optimize_subtree!(subtree, β, log2_sizes, sc_target, log2tc_weight, sc_weight, log2rw_weight)
         end
     end
 end
@@ -405,7 +419,7 @@ function abcacb(a, b, ab, c, d, log2_sizes, optimize_rw)
         end
     end
     tc1, sc1, rw1 = _tcsc_merge(a, c, ac, b, d, log2_sizes, optimize_rw)
-    return tc0, tc1, sc1-sc0, rw0, rw1, ac
+    return tc0, tc1, sc0, sc1, rw0, rw1, ac
 end
 
 # compute complexity for a two-step contraction: (a, b) -> ab, (ab, c) -> d
