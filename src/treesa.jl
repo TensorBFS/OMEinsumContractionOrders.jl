@@ -1,9 +1,6 @@
 ################### expression tree ###################
 struct ExprInfo
     out_dims::Vector{Int}  # output dimensions of this subtree
-    # tc::Float64   # time complexity of this subtree, in log2, `-Inf` for leaf nodes
-    # sc::Float64   # space complexity of this subtree, in log2 of the maximum intermediate tensor size
-    # rw::Float64   # read-write complexity of this subtree, in log2, `-Inf` for leaf nodes
     tensorid::Int  # tensor index for leaf nodes, `-1` for non-leaf nodes
 end
 ExprInfo(out_dims::Vector{Int}) = ExprInfo(out_dims, -1)
@@ -90,7 +87,7 @@ function get_slices(s::Slicer, inverse_map::Dict{Int,LT}) where LT
 end
 
 ############# random expression tree ###############
-function random_exprtree(ixs::Vector{Vector{Int}}, iy::Vector{Int}, forward_map::Dict, log2_sizes::Vector{T}) where T
+function random_exprtree(ixs::Vector{Vector{Int}}, iy::Vector{Int}, forward_map::Dict) where T
     outercount = zeros(Int, length(forward_map))
     allcount = zeros(Int, length(forward_map))
     for l in iy
@@ -102,9 +99,9 @@ function random_exprtree(ixs::Vector{Vector{Int}}, iy::Vector{Int}, forward_map:
             allcount[l] += 1
         end
     end
-    _random_exprtree(ixs, collect(1:length(ixs)), outercount, allcount, log2_sizes)
+    _random_exprtree(ixs, collect(1:length(ixs)), outercount, allcount)
 end
-function _random_exprtree(ixs::Vector{Vector{Int}}, xindices, outercount::Vector{Int}, allcount::Vector{Int}, log2_sizes::Vector{T}) where T
+function _random_exprtree(ixs::Vector{Vector{Int}}, xindices, outercount::Vector{Int}, allcount::Vector{Int})
     n = length(ixs)
     if n == 1
         return ExprTree(ExprInfo(ixs[1], xindices[1]))
@@ -122,11 +119,10 @@ function _random_exprtree(ixs::Vector{Vector{Int}}, xindices, outercount::Vector
         end
     end
     # left and right subtrees
-    left = _random_exprtree(ixs[mask], xindices[mask], outercount1, allcount, log2_sizes)
-    right = _random_exprtree(ixs[(!).(mask)], xindices[(!).(mask)], outercount2, allcount, log2_sizes)
+    left = _random_exprtree(ixs[mask], xindices[mask], outercount1, allcount)
+    right = _random_exprtree(ixs[(!).(mask)], xindices[(!).(mask)], outercount2, allcount)
     # the current contraction step
     iy = Int[i for i=1:length(outercount) if outercount[i]!=allcount[i] && outercount[i]!=0]
-    # tc, sc, rw = tcscrw(left.info.out_dims, right.info.out_dims, iy, log2_sizes)
     info = ExprInfo(iy)
     return ExprTree(left, right, info)
 end
@@ -224,7 +220,8 @@ function optimize_tree(code::AbstractEinsum, size_dict; nslices::Int=0, sc_targe
     # compare and choose the best solution
     best_tree, best_tc, best_sc, best_rw, best_slicer = first(trees), first(tcs), first(scs), first(rws), first(slicers)
     for i=2:ntrials
-        if is_better(scs[i], tcs[i], rws[i], best_sc, best_tc, best_rw, sc_target, rw_weight)
+        # NOTE: sc_weight is only used for optimization, not for evaluation.
+        if is_better(scs[i], tcs[i], rws[i], best_sc, best_tc, best_rw, sc_target, tc_weight, rw_weight)
             best_tree, best_tc, best_sc, best_rw, best_slicer = trees[i], tcs[i], scs[i], rws[i], slicers[i]
         end
     end
@@ -236,11 +233,11 @@ function optimize_tree(code::AbstractEinsum, size_dict; nslices::Int=0, sc_targe
     return SlicedEinsum(get_slices(best_slicer, inverse_map), NestedEinsum(best_tree, inverse_map))
 end
 
-function is_better(sc, tc, rw, scold, tcold, rwold, sc_target, rw_weight)
+function is_better(sc, tc, rw, scold, tcold, rwold, sc_target, tc_weight, rw_weight)
     if scold < sc_target   # prioritize space complexity
         return sc < scold
     else
-        return exp2(tc) + rw_weight * exp2(rw) < exp2(tcold) + rw_weight * exp2(rwold)
+        return tc_weight * exp2(tc) + rw_weight * exp2(rw) < tc_weight * exp2(tcold) + rw_weight * exp2(rwold)
     end
 end
 
@@ -254,7 +251,7 @@ function _initializetree(code, size_dict, method; greedy_method)
         opt_code = optimize_greedy(code, size_dict; α = greedy_method.α, temperature = greedy_method.temperature, nrepeat=greedy_method.nrepeat)
         return _exprtree(opt_code, forward_map, log2_sizes), forward_map, inverse_map, log2_sizes
     elseif method == :random
-        return random_exprtree(ixs, iy, forward_map, log2_sizes), forward_map, inverse_map, log2_sizes
+        return random_exprtree(ixs, iy, forward_map), forward_map, inverse_map, log2_sizes
     elseif method == :specified
         return _exprtree(code, forward_map, log2_sizes), forward_map, inverse_map, log2_sizes
     else
@@ -369,20 +366,28 @@ function optimize_subtree!(tree, β, log2_sizes, sc_target, log2tc_weight, sc_we
         # update the loss function
         # difference in time, space and read-write complexity if the selected rule is applied
         tc0, tc1, sc0, sc1, rw0, rw1, subout = tcscrw_diff(tree, rule, log2_sizes)
-        flops = exp2(global_tc)
-        readwrite = exp2(global_rw)
-        new_flops = flops - exp2(tc0) + exp2(tc1)
-        new_readwrite = readwrite - exp2(rw0) + exp2(rw1)
-        @assert new_flops > 0 && new_readwrite > 0 "new flops or readwrite is negative, got: new_flops = $new_flops, new_readwrite = $new_readwrite, tc0 = $tc0, tc1 = $tc1, rw0 = $rw0, rw1 = $rw1, global_tc = $global_tc, global_rw = $global_rw."
-        tc_weight, rw_weight = exp2(log2tc_weight), exp2(log2rw_weight)
-        old_cost = log2(tc_weight * flops + rw_weight * readwrite)
-        new_cost = log2(tc_weight * new_flops + rw_weight * new_readwrite)
-        old_cost += sc0 > sc_target ? sc_weight * (sc0 - sc_target) : 0.0
-        new_cost += sc1 > sc_target ? sc_weight * (sc1 - sc_target) : 0.0
-        dE = new_cost - old_cost
+        # tc_weight, rw_weight = exp2(log2tc_weight), exp2(log2rw_weight)
+        # old_cost = log2(tc_weight * flops + rw_weight * readwrite)
+        # new_cost = log2(tc_weight * new_flops + rw_weight * new_readwrite)
+        # old_cost += sc0 > sc_target ? sc_weight * (sc0 - sc_target) : 0.0
+        # new_cost += sc1 > sc_target ? sc_weight * (sc1 - sc_target) : 0.0
+        # dE = new_cost - old_cost
+
+        # dtc = fast_log2sumexp2(log2tc_weight + tc1, log2rw_weight + rw1) - fast_log2sumexp2(log2tc_weight + tc0, log2rw_weight + rw0)
+        dtc = if global_rw + log2rw_weight > global_tc + log2tc_weight  # optimize rw
+            rw1 - rw0
+        else
+            tc1 - tc0
+        end
+        dE = (max(sc0, sc1) > sc_target ? sc_weight : 0) * (sc1 - sc0) + dtc
 
         if rand() < exp(-β*dE)  # ACCEPT
             update_tree!(tree, rule, subout)
+            flops = exp2(global_tc)
+            readwrite = exp2(global_rw)
+            new_flops = flops - exp2(tc0) + exp2(tc1)
+            new_readwrite = readwrite - exp2(rw0) + exp2(rw1)
+            @assert new_flops > 0 && new_readwrite > 0 "new flops or readwrite is negative, got: new_flops = $new_flops, new_readwrite = $new_readwrite, tc0 = $tc0, tc1 = $tc1, rw0 = $rw0, rw1 = $rw1, global_tc = $global_tc, global_rw = $global_rw."
             global_tc = log2(new_flops)
             global_rw = log2(new_readwrite)
         end
@@ -440,7 +445,7 @@ end
 function _tcsc_merge(a, b, ab, c, d, log2_sizes)
     tcl, scl, rwl = tcscrw(a, b, ab, log2_sizes)  # this is correct
     tcr, scr, rwr = tcscrw(ab, c, d, log2_sizes)
-    fast_log2sumexp2(tcl, tcr), max(scl, scr), fast_log2sumexp2(rwl, rwr)
+    fast_log2sumexp2(tcl, tcr), max(scl, scr), scl #fast_log2sumexp2(rwl, rwr)
 end
 
 # apply the update rule
@@ -482,7 +487,6 @@ function _exprtree(code::NestedEinsum, forward_map, log2_sizes::Vector{T}) where
     subexprs = map(enumerate(code.args)) do (i,arg)
         if isleaf(arg)  # leaf nodes
             ix = getindex.(Ref(forward_map), getixsv(code.eins)[i])
-            # sc = sum(i->log2_sizes[i], ix)
             ExprTree(ExprInfo(ix, arg.tensorindex))
         else
             _exprtree(arg, forward_map, log2_sizes)

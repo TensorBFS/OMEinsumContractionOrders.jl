@@ -26,7 +26,7 @@ end
         return OMEinsumContractionOrders.EinCode([ixs..., [[i] for i in Graphs.vertices(g)]...], Int[])
     end
     Random.seed!(2)
-    tree = random_exprtree([[1,2,5], [2,3], [2,4]], [5], Dict(1=>1, 2=>2, 3=>3, 4=>4, 5=>5), [1.0, 1.0, 1.0, 1.0, 1.0])
+    tree = random_exprtree([[1,2,5], [2,3], [2,4]], [5], Dict(1=>1, 2=>2, 3=>3, 4=>4, 5=>5))
     @test tree isa ExprTree
     code = random_regular_eincode(20, 3)
     optcode = optimize_greedy(code, uniformsize(code, 2))
@@ -133,9 +133,10 @@ end
     cc = contraction_complexity(res, uniformsize(code, 2))
     tc, sc = cc.tc, cc.sc
 
-    optcode = optimize_tree(res, uniformsize(code, 2); sc_target=32, βs=exp.(-10:0.1:10.0), ntrials=2, niters=10, sc_weight=100.0, rw_weight=1.0)
-    @test optcode isa OMEinsumContractionOrders.SlicedEinsum
+    @test optimize_tree(res, uniformsize(code, 2); sc_target=32, βs=0.1:0.05:20.0, ntrials=0, niters=10, sc_weight=1.0, rw_weight=1.0) isa OMEinsumContractionOrders.SlicedEinsum
+    optcode = optimize_tree(res, uniformsize(code, 2); sc_target=32, βs=0.1:0.05:20.0, ntrials=2, niters=10, sc_weight=1.0, rw_weight=1.0)
     cc = contraction_complexity(optcode, uniformsize(code, 2))
+    @show cc
     @test cc.sc <= 32
     @test length(optcode.slicing) == 0
 
@@ -247,7 +248,7 @@ end
     cc = contraction_complexity(optcode, uniformsize(code, 2))
     @show cc
 
-    optcode2 = optimize_tree(code, uniformsize(code, 2); sc_target=32, βs=0.1:0.05:20.0, ntrials=5, niters=1, sc_weight=1.0, rw_weight=20.0)
+    optcode2 = optimize_tree(code, uniformsize(code, 2); sc_target=32, βs=0.1:0.05:20.0, ntrials=5, niters=1, sc_weight=1.0, rw_weight=1.3)
     cc2 = contraction_complexity(optcode2, uniformsize(code, 2))
     @show cc2
     @test cc2.rwc <= cc.rwc
