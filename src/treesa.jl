@@ -126,7 +126,7 @@ function _random_exprtree(ixs::Vector{Vector{Int}}, xindices, outercount::Vector
     right = _random_exprtree(ixs[(!).(mask)], xindices[(!).(mask)], outercount2, allcount, log2_sizes)
     # the current contraction step
     iy = Int[i for i=1:length(outercount) if outercount[i]!=allcount[i] && outercount[i]!=0]
-    # tc, sc, rw = tcscrw(left.info.out_dims, right.info.out_dims, iy, log2_sizes, true)
+    # tc, sc, rw = tcscrw(left.info.out_dims, right.info.out_dims, iy, log2_sizes)
     info = ExprInfo(iy)
     return ExprTree(left, right, info)
 end
@@ -266,6 +266,7 @@ end
 function optimize_tree_sa!(tree::ExprTree, log2_sizes, slicer::Slicer; βs, niters, sc_target, tc_weight, sc_weight, rw_weight)
     @assert tc_weight >= 0 && rw_weight >= 0 && sc_weight >= 0 "all weights must be non-negative, got: tc_weight = $tc_weight, rw_weight = $rw_weight, sc_weight = $sc_weight."
     log2tc_weight, log2rw_weight = log2(tc_weight), log2(rw_weight)
+    global_tc, _, global_rw = tree_timespace_complexity(tree, log2_sizes)
     for β in βs
         @debug begin
             tc, sc, rw = tree_timespace_complexity(tree, log2_sizes)
@@ -293,6 +294,8 @@ function optimize_tree_sa!(tree::ExprTree, log2_sizes, slicer::Slicer; βs, nite
                     replace!(slicer, legs[argmin(score)]=>best_not_sliced_label)
                 end
             end
+            # update global information after slicing
+            global_tc, _, global_rw = tree_timespace_complexity(tree, slicer.log2_sizes)
             @debug begin
                 tc, sc, rw = tree_timespace_complexity(tree, log2_sizes)
                 "after slicing: β = $β, tc = $tc, sc = $sc, rw = $rw"
@@ -300,7 +303,7 @@ function optimize_tree_sa!(tree::ExprTree, log2_sizes, slicer::Slicer; βs, nite
         end
         ###### Stage 2: sweep and optimize the contraction tree for `niters` times  ######
         for _ = 1:niters
-            optimize_subtree!(tree, β, slicer.log2_sizes, sc_target, log2tc_weight, sc_weight, log2rw_weight)  # single sweep
+            global_tc, global_rw = optimize_subtree!(tree, β, slicer.log2_sizes, sc_target, log2tc_weight, sc_weight, log2rw_weight, global_tc, global_rw)  # single sweep
         end
     end
     return tree, slicer
@@ -327,18 +330,18 @@ function tree_timespace_complexity(tree::ExprTree, log2_sizes)
     isleaf(tree) && return (-Inf, isempty(labels(tree)) ? 0.0 : sum(i->log2_sizes[i], labels(tree)), -Inf)
     tcl, scl, rwl = tree_timespace_complexity(tree.left, log2_sizes)
     tcr, scr, rwr = tree_timespace_complexity(tree.right, log2_sizes)
-    tc, sc, rw = tcscrw(labels(tree.left), labels(tree.right), labels(tree), log2_sizes, true)
+    tc, sc, rw = tcscrw(labels(tree.left), labels(tree.right), labels(tree), log2_sizes)
     return (fast_log2sumexp2(tc, tcl, tcr), max(sc, scl, scr), fast_log2sumexp2(rw, rwl, rwr))
 end
 
-# returns time complexity, space complexity and read-write complexity (0 if `compute_rw` is false)
+# returns time complexity, space complexity and read-write complexity
 # `ix1` and `ix2` are vectors of labels for the first and second input tensors.
 # `iy` is a vector of labels for the output tensors.
 # `log2_sizes` is the log2 size of labels (note labels are integers, we do not need dict to index label sizes).\
-@inline function tcscrw(ix1, ix2, iy, log2_sizes::Vector{T}, compute_rw) where T
+@inline function tcscrw(ix1, ix2, iy, log2_sizes::Vector{T}) where T
     l1, l2, l3 = ix1, ix2, iy
-    sc1 = (!compute_rw || isempty(l1)) ? zero(T) : sum(i->(@inbounds log2_sizes[i]), l1)
-    sc2 = (!compute_rw || isempty(l2)) ? zero(T) : sum(i->(@inbounds log2_sizes[i]), l2)
+    sc1 = isempty(l1) ? zero(T) : sum(i->(@inbounds log2_sizes[i]), l1)
+    sc2 = isempty(l2) ? zero(T) : sum(i->(@inbounds log2_sizes[i]), l2)
     sc = isempty(l3) ? zero(T) : sum(i->(@inbounds log2_sizes[i]), l3)
     tc = sc
     # Note: assuming labels in `l1` being unique
@@ -347,33 +350,44 @@ end
             tc += log2_sizes[l]
         end
     end
-    rw = compute_rw ? fast_log2sumexp2(sc, sc1, sc2) : 0.0
+    rw = fast_log2sumexp2(sc, sc1, sc2)
     return tc, sc, rw
 end
 
 # optimize a contraction tree recursively
-function optimize_subtree!(tree, β, log2_sizes, sc_target, log2tc_weight, sc_weight, log2rw_weight)
+function optimize_subtree!(tree, β, log2_sizes, sc_target, log2tc_weight, sc_weight, log2rw_weight, global_tc, global_rw)
     # find appliable local rules, at most 4 rules can be applied.
     # Sometimes, not all rules are applicable because either left or right sibling do not have siblings.
     rst = ruleset(tree)
     if !isempty(rst)
+        for subtree in siblings(tree)  # RECURSE
+            global_tc, global_rw = optimize_subtree!(subtree, β, log2_sizes, sc_target, log2tc_weight, sc_weight, log2rw_weight, global_tc, global_rw)
+        end
         # propose a random update rule, TODO: can we have a better selector?
         rule = rand(rst)
-        optimize_rw = log2rw_weight != -Inf
-        # difference in time, space and read-write complexity if the selected rule is applied
-        tc0, tc1, sc0, sc1, rw0, rw1, subout = tcsc_diff(tree, rule, log2_sizes, optimize_rw)
-        dtc = optimize_rw ? fast_log2sumexp2(log2tc_weight + tc1, log2rw_weight + rw1) - fast_log2sumexp2(log2tc_weight + tc0, log2rw_weight + rw0) : tc1 - tc0
-        sc = _sc(tree, rule, log2_sizes)  # current space complexity
 
         # update the loss function
-        dE = max(sc, sc1) > sc_target ? sc_weight * (sc1 - sc0) + dtc : dtc
+        # difference in time, space and read-write complexity if the selected rule is applied
+        tc0, tc1, sc0, sc1, rw0, rw1, subout = tcscrw_diff(tree, rule, log2_sizes)
+        flops = exp2(global_tc)
+        readwrite = exp2(global_rw)
+        new_flops = flops - exp2(tc0) + exp2(tc1)
+        new_readwrite = readwrite - exp2(rw0) + exp2(rw1)
+        @assert new_flops > 0 && new_readwrite > 0 "new flops or readwrite is negative, got: new_flops = $new_flops, new_readwrite = $new_readwrite, tc0 = $tc0, tc1 = $tc1, rw0 = $rw0, rw1 = $rw1, global_tc = $global_tc, global_rw = $global_rw."
+        tc_weight, rw_weight = exp2(log2tc_weight), exp2(log2rw_weight)
+        old_cost = log2(tc_weight * flops + rw_weight * readwrite)
+        new_cost = log2(tc_weight * new_flops + rw_weight * new_readwrite)
+        old_cost += sc0 > sc_target ? sc_weight * (sc0 - sc_target) : 0.0
+        new_cost += sc1 > sc_target ? sc_weight * (sc1 - sc_target) : 0.0
+        dE = new_cost - old_cost
+
         if rand() < exp(-β*dE)  # ACCEPT
             update_tree!(tree, rule, subout)
-        end
-        for subtree in siblings(tree)  # RECURSE
-            optimize_subtree!(subtree, β, log2_sizes, sc_target, log2tc_weight, sc_weight, log2rw_weight)
+            global_tc = log2(new_flops)
+            global_rw = log2(new_readwrite)
         end
     end
+    return global_tc, global_rw
 end
 # if rule ∈ [1, 2], left sibling will be updated, otherwise, right sibling will be updated.
 # we need to compute space complexity for current node and the updated sibling, and return the larger one.
@@ -392,21 +406,21 @@ __sc(tree, log2_sizes) = length(labels(tree))==0 ? 0.0 : sum(l->log2_sizes[l], l
     end
 end
 
-function tcsc_diff(tree::ExprTree, rule, log2_sizes, optimize_rw)
+function tcscrw_diff(tree::ExprTree, rule, log2_sizes)
     if rule == 1 # (a,b), c -> (a,c),b
-        return abcacb(labels(tree.left.left), labels(tree.left.right), labels(tree.left), labels(tree.right), labels(tree), log2_sizes, optimize_rw)
+        return abcacb(labels(tree.left.left), labels(tree.left.right), labels(tree.left), labels(tree.right), labels(tree), log2_sizes)
     elseif rule == 2 # (a,b), c -> (c,b),a
-        return abcacb(labels(tree.left.right), labels(tree.left.left), labels(tree.left), labels(tree.right), labels(tree), log2_sizes, optimize_rw)
+        return abcacb(labels(tree.left.right), labels(tree.left.left), labels(tree.left), labels(tree.right), labels(tree), log2_sizes)
     elseif rule == 3 # a,(b,c) -> b,(a,c)
-        return abcacb(labels(tree.right.right), labels(tree.right.left), labels(tree.right), labels(tree.left), labels(tree), log2_sizes, optimize_rw)
+        return abcacb(labels(tree.right.right), labels(tree.right.left), labels(tree.right), labels(tree.left), labels(tree), log2_sizes)
     else  # a,(b,c) -> c,(b,a)
-        return abcacb(labels(tree.right.left), labels(tree.right.right), labels(tree.right), labels(tree.left), labels(tree), log2_sizes, optimize_rw)
+        return abcacb(labels(tree.right.left), labels(tree.right.right), labels(tree.right), labels(tree.left), labels(tree), log2_sizes)
     end
 end
 
 # compute the time complexity, space complexity and read-write complexity information for the contraction update rule "((a,b),c) -> ((a,c),b)"
-function abcacb(a, b, ab, c, d, log2_sizes, optimize_rw)
-    tc0, sc0, rw0 = _tcsc_merge(a, b, ab, c, d, log2_sizes, optimize_rw)
+function abcacb(a, b, ab, c, d, log2_sizes)
+    tc0, sc0, rw0 = _tcsc_merge(a, b, ab, c, d, log2_sizes)
     ac = Int[]  # labels for contraction result of (a, c)
     for l in a
         if l ∈ b || l ∈ d  # suppose no repeated indices
@@ -418,15 +432,15 @@ function abcacb(a, b, ab, c, d, log2_sizes, optimize_rw)
             push!(ac, l)
         end
     end
-    tc1, sc1, rw1 = _tcsc_merge(a, c, ac, b, d, log2_sizes, optimize_rw)
+    tc1, sc1, rw1 = _tcsc_merge(a, c, ac, b, d, log2_sizes)
     return tc0, tc1, sc0, sc1, rw0, rw1, ac
 end
 
 # compute complexity for a two-step contraction: (a, b) -> ab, (ab, c) -> d
-function _tcsc_merge(a, b, ab, c, d, log2_sizes, optimize_rw)
-    tcl, scl, rwl = tcscrw(a, b, ab, log2_sizes, optimize_rw)  # this is correct
-    tcr, scr, rwr = tcscrw(ab, c, d, log2_sizes, optimize_rw)
-    fast_log2sumexp2(tcl, tcr), max(scl, scr), (optimize_rw ? fast_log2sumexp2(rwl, rwr) : 0.0)
+function _tcsc_merge(a, b, ab, c, d, log2_sizes)
+    tcl, scl, rwl = tcscrw(a, b, ab, log2_sizes)  # this is correct
+    tcr, scr, rwr = tcscrw(ab, c, d, log2_sizes)
+    fast_log2sumexp2(tcl, tcr), max(scl, scr), fast_log2sumexp2(rwl, rwr)
 end
 
 # apply the update rule
@@ -475,33 +489,7 @@ function _exprtree(code::NestedEinsum, forward_map, log2_sizes::Vector{T}) where
         end
     end
     iy = getindex.(Ref(forward_map), getiyv(code.eins))
-    # this_tc, this_sc, this_rw = tcscrw(subexprs[1].info.out_dims, subexprs[2].info.out_dims, iy, log2_sizes, true)
-    # tc = fast_log2sumexp2(this_tc, subexprs[1].info.tc, subexprs[2].info.tc)
-    # sc = max(this_sc, subexprs[1].info.sc, subexprs[2].info.sc)
-    # rw = fast_log2sumexp2(this_rw, subexprs[1].info.rw, subexprs[2].info.rw)
     thisexpr = ExprInfo(iy)
     return ExprTree(subexprs..., thisexpr)
-end
-
-@inline function fast_log2sumexp2(a, b)
-    mm, ms = minmax(a, b)
-    return log2(exp2(mm - ms) + 1) + ms
-end
-
-@inline function fast_log2sumexp2(a, b, c)
-    if a > b
-        if a > c
-            m1, m2, ms = b, c, a
-        else
-            m1, m2, ms = a, b, c
-        end
-    else
-        if b > c
-            m1, m2, ms = c, a, b
-        else
-            m1, m2, ms = b, a, c
-        end
-    end
-    return Base.FastMath.log2(Base.FastMath.exp2(m1 - ms) + Base.FastMath.exp2(m2 - ms) + 1) + ms
 end
 

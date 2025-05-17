@@ -50,7 +50,7 @@ end
     @test ruleset(t3) == 1:0
     @test ruleset(t4) == 1:4
     log2_sizes = ones(5)
-    _tcsc(t, l) = tcscrw(labels(t.left), labels(t.right), labels(t), l, true)
+    _tcsc(t, l) = tcscrw(labels(t.left), labels(t.right), labels(t), l)
     @test all(_tcsc(t1, log2_sizes) .≈ (2.0, 1.0, log2(10)))
     @test all(_tcsc(t2, log2_sizes) .≈ (2.0, 1.0, log2(14)))
     @test all(_tcsc(t3, log2_sizes) .≈ (1.0, 1.0, log2(10)))
@@ -87,7 +87,7 @@ end
     tc0_, sc0_ = cc0.tc, cc0.sc
     @test tc0 ≈ tc0_ && sc0 ≈ sc0_
     opt_tree = copy(tree)
-    optimize_subtree!(opt_tree, 100.0, log2_sizes, 5, 1.0, 2.0, 1.0)
+    optimize_subtree!(opt_tree, 100.0, log2_sizes, 5, 1.0, 2.0, 1.0, tc0, rw0)
     tc1, sc1, rw0 = tree_timespace_complexity(opt_tree, log2_sizes)
     @test sc1 < sc0 || (sc1 == sc0 && tc1 < tc0)
 end
@@ -133,8 +133,8 @@ end
     cc = contraction_complexity(res, uniformsize(code, 2))
     tc, sc = cc.tc, cc.sc
 
-    @test optimize_tree(res, uniformsize(code, 2); sc_target=32, βs=0.1:0.05:20.0, ntrials=0, niters=10, sc_weight=1.0, rw_weight=1.0) isa OMEinsumContractionOrders.SlicedEinsum
-    optcode = optimize_tree(res, uniformsize(code, 2); sc_target=32, βs=0.1:0.05:20.0, ntrials=2, niters=10, sc_weight=1.0, rw_weight=1.0)
+    optcode = optimize_tree(res, uniformsize(code, 2); sc_target=32, βs=exp.(-10:0.1:10.0), ntrials=2, niters=10, sc_weight=100.0, rw_weight=1.0)
+    @test optcode isa OMEinsumContractionOrders.SlicedEinsum
     cc = contraction_complexity(optcode, uniformsize(code, 2))
     @test cc.sc <= 32
     @test length(optcode.slicing) == 0
