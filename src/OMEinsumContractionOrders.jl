@@ -42,6 +42,9 @@ include("treesa.jl")
 # tree width method
 include("treewidth.jl")
 
+# preprocessor
+include("reduction.jl")
+
 # simplification passes
 include("simplify.jl")
 
