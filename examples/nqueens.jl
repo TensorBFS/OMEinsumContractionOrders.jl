@@ -73,6 +73,6 @@ optcode = optimize_code(code, uniformsize(code, 2), Treewidth(alg=MF()))
 @info "contraction complexity (method: MF): $(contraction_complexity(optcode, uniformsize(optcode, 2)))"
 
 import Metis
-optimizer = Treewidth(; alg=IND(MF(), 100, METIS(; ufactor=150)));
+optimizer = Treewidth(; alg=ND(MF(), METISND(; ufactor=150); limit=200, level=6));
 optcode = optimize_code(code, uniformsize(code, 2), optimizer)
 @info "contraction complexity (method: IND+METIS): $(contraction_complexity(optcode, uniformsize(optcode, 2)))"
