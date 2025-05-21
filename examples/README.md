@@ -35,7 +35,7 @@ It will install the dependencies for your examples environment.
     ```bash
     $ julia --project=examples examples/qec.jl
     ```
-    TBW.
+    Source: https://github.com/nzy1997/TensorQEC.jl/blob/main/test/decoding/tndecoder.jl
 
 ### Multi-GPU simulation of a quantum circuit
 
