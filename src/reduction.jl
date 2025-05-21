@@ -1,8 +1,10 @@
+# Reduce a tensor network before applying an `inner` algorithm.
+# The type parameter `S` controls the number of reductions:
 struct Reduction{S, O <: CodeOptimizer} <: CodeOptimizer
     inner::O
 end
 
-function Reduction{S}(inner::O) where {O <: CodeOptimizer}
+function Reduction{S}(inner::O) where {S, O <: CodeOptimizer}
     return Reduction{S, O}(inner)
 end
 
@@ -14,7 +16,7 @@ struct ReductionEA{S, O <: CodeOptimizer} <: CliqueTrees.EliminationAlgorithm
     inner::O
 end
 
-function ReductionEA{S}(inner::O) where {O <: CodeOptimizer}
+function ReductionEA{S}(inner::O) where {S, O <: CodeOptimizer}
     return ReductionEA{S, O}(inner)
 end
 
@@ -29,7 +31,7 @@ function CliqueTrees.permutation(weights::AbstractVector, graph, alg::ReductionE
     # reduce graph
     width = CliqueTrees.lowerbound(weights, graph)
     graph, stack, label, width = CliqueTrees.pr3(weights, graph, width)
-    
+
     # feed reduced graph back to OMEinsumContractionOrders
     code = EinCode(maximal_cliques(graph), Int[])
     sizes = Dict{Int, Int}(v => round(Int, 2^weights[label[v]]) for v in CliqueTrees.vertices(graph))
@@ -52,8 +54,8 @@ end
 function CliqueTrees.permutation(weights::AbstractVector, graph, alg::ReductionEA{2})
     # reduce graph
     width = CliqueTrees.lowerbound(weights, graph)
-    graph, stack, label, width = CliqueTrees.pr4(graph, weights)
-    
+    graph, stack, label, width = CliqueTrees.pr4(weights, graph, width)
+
     # feed reduced graph back to OMEinsumContractionOrders
     code = EinCode(maximal_cliques(graph), Int[])
     sizes = Dict{Int, Int}(v => round(Int, 2^weights[label[v]]) for v in CliqueTrees.vertices(graph))
@@ -78,7 +80,7 @@ function CliqueTrees.permutation(weights::AbstractVector, graph, alg::ReductionE
     # reduce graph
     width = CliqueTrees.lowerbound(weights, graph)
     weights, graph, stack, index, width = CliqueTrees.saferules(weights, graph, width)
-    
+
     # feed reduced graph back to OMEinsumContractionOrders
     code = EinCode(maximal_cliques(CliqueTrees.Graph(graph)), Int[])
     sizes = Dict{Int, Int}(v => round(Int, 2^weights[v]) for v in CliqueTrees.vertices(graph))

@@ -13,7 +13,7 @@ import CliqueTrees
 using CliqueTrees: cliquetree, residual, EliminationAlgorithm, MMW, BFS, MCS, LexBFS, RCMMD, RCMGL, MCSM, LexM, AMF, MF, MMD, MF, BT, SafeRules
 
 export CodeOptimizer, CodeSimplifier,
-    KaHyParBipartite, GreedyMethod, TreeSA, SABipartite, Treewidth, ExactTreewidth, Reduction
+    KaHyParBipartite, GreedyMethod, TreeSA, SABipartite, Treewidth, ExactTreewidth, Reduction,
     MergeGreedy, MergeVectors,
     uniformsize,
     simplify_code, optimize_code, optimize_permute,
