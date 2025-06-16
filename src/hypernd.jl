@@ -32,30 +32,12 @@ The optimizer is implemented using the tree decomposition library
   - `imbalances`: imbalance parameters 
 
 """
-<<<<<<< HEAD
 @kwdef struct HyperND{D, A} <: CodeOptimizer
     dis::D = KaHyParND()
     algs::A = (MF(), MMD())
     level::Int = 6
     width::Int = 120
     imbalances::StepRange{Int, Int} = 130:1:130
-=======
-struct HyperND{D, A} <: CodeOptimizer
-    dis::D
-    algs::A
-    level::Int
-    width::Int
-    imbalances::StepRange{Int, Int}
-end
-
-function HyperND(dis::D=KaHyParND(), algs::A = (MF(), MMD());
-        level::Integer = 6,
-        width::Integer = 120,
-        imbalances::AbstractRange=130:130,
-    ) where{D, A}
-
-    return HyperND{D, A}(dis, algs, level, width, imbalances)
->>>>>>> e48f22a (Add optimizer `HyperND`.)
 end
 
 function optimize_hyper_nd(optimizer::HyperND, code, size_dict)
@@ -84,10 +66,14 @@ end
 
 function Base.show(io::IO, ::MIME"text/plain", optimizer::HyperND{D, A}) where {D, A}
 <<<<<<< HEAD
+<<<<<<< HEAD
     println(io, "HyperND{$D, $A}:")
 =======
     println(io, "HyPar{$D, $A}:")
 >>>>>>> e48f22a (Add optimizer `HyperND`.)
+=======
+    println(io, "HyperND{$D, $A}:")
+>>>>>>> 059085c (Fix printing.)
     show(IOContext(io, :indent => 4), "text/plain", optimizer.dis)
 
     for alg in optimizer.algs
