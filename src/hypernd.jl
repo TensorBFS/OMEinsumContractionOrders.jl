@@ -1,5 +1,7 @@
 """
-    HyperND(dis, algs;
+    HyperND(;
+        dis = KaHyParND(),
+        algs = (MF(), MMD()),
         level = 6,
         width = 120,
         imbalances = 130:130,
@@ -30,21 +32,12 @@ The optimizer is implemented using the tree decomposition library
   - `imbalances`: imbalance parameters 
 
 """
-struct HyperND{D, A} <: CodeOptimizer
-    dis::D
-    algs::A
-    level::Int
-    width::Int
-    imbalances::StepRange{Int, Int}
-end
-
-function HyperND(dis::D=KaHyParND(), algs::A = (MF(), MMD());
-        level::Integer = 6,
-        width::Integer = 120,
-        imbalances::AbstractRange=130:130,
-    ) where{D, A}
-
-    return HyperND{D, A}(dis, algs, level, width, imbalances)
+@kwdef struct HyperND{D, A} <: CodeOptimizer
+    dis::D = KaHyParND()
+    algs::A = (MF(), MMD())
+    level::Int = 6
+    width::Int = 120
+    imbalances::StepRange{Int, Int} = 130:1:130
 end
 
 function optimize_hyper_nd(optimizer::HyperND, code, size_dict)
