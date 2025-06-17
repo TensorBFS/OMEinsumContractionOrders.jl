@@ -65,15 +65,7 @@ function optimize_hyper_nd(optimizer::HyperND, code, size_dict)
 end
 
 function Base.show(io::IO, ::MIME"text/plain", optimizer::HyperND{D, A}) where {D, A}
-<<<<<<< HEAD
-<<<<<<< HEAD
     println(io, "HyperND{$D, $A}:")
-=======
-    println(io, "HyPar{$D, $A}:")
->>>>>>> e48f22a (Add optimizer `HyperND`.)
-=======
-    println(io, "HyperND{$D, $A}:")
->>>>>>> 059085c (Fix printing.)
     show(IOContext(io, :indent => 4), "text/plain", optimizer.dis)
 
     for alg in optimizer.algs
