@@ -1,5 +1,6 @@
 using OMEinsumContractionOrders.CliqueTrees, OMEinsumContractionOrders.Graphs, OMEinsumContractionOrders.AbstractTrees
 using OMEinsumContractionOrders
+using OMEinsumContractionOrders: EinCode
 
 struct TensorNQ
     labels::Vector{Int}
@@ -67,12 +68,11 @@ function generate_3_tensor_network(t9_lattice::TensorNQLattice)
     return EinCode(t3_ixs ∪ [[p] for p in pos10] ∪ [[p] for p in pos01] ∪  [[p] for p in pos11],Int[])
 end
 
-n = 28
-code = generate_3_tensor_network(n)
-optcode = optimize_code(code, uniformsize(code, 2), Treewidth(alg=MF()))
-@info "contraction complexity (method: MF): $(contraction_complexity(optcode, uniformsize(optcode, 2)))"
-
-import Metis
-optimizer = Treewidth(; alg=ND(MF(), METISND(; ufactor=150); limit=200, level=6));
-optcode = optimize_code(code, uniformsize(code, 2), optimizer)
-@info "contraction complexity (method: IND+METIS): $(contraction_complexity(optcode, uniformsize(optcode, 2)))"
+function main(optimizer)
+    @info "Running N-Queens with optimizer: $(optimizer)"
+    n = 28
+    code = generate_3_tensor_network(n)
+    time_elapsed = @elapsed optcode = optimize_code(code, uniformsize(code, 2), optimizer)
+    @info "Contraction complexity: $(contraction_complexity(optcode, uniformsize(optcode, 2))), time cost: $(time_elapsed)s"
+    return contraction_complexity(optcode, uniformsize(optcode, 2))
+end
