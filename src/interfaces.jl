@@ -55,3 +55,7 @@ function _optimize_code(code, size_dict, optimizer::TreeSA)
         sc_weight=optimizer.sc_weight, rw_weight=optimizer.rw_weight, initializer=optimizer.initializer,
         greedy_method=optimizer.greedy_config, fixed_slices=optimizer.fixed_slices)
 end
+function _optimize_code(code, size_dict, optimizer::HyperND)
+    optimize_hyper_nd(optimizer, code, size_dict)
+end
+

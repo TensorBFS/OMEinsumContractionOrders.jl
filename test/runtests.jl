@@ -28,6 +28,10 @@ end
     include("treewidth.jl")
 end
 
+@testset "hypernd" begin
+    include("hypernd.jl")
+end
+
 @testset "simplify" begin
     include("simplify.jl")
 end

@@ -15,7 +15,7 @@ using OMEinsum
     xs = [[randn(2,2) for i=1:150]..., [randn(2) for i=1:100]...]
 
     results = Float64[]
-    for optimizer in [TreeSA(ntrials=1), TreeSA(ntrials=1, nslices=5), GreedyMethod(), SABipartite(sc_target=18, ntrials=1)]
+    for optimizer in [TreeSA(ntrials=1), TreeSA(ntrials=1, nslices=5), GreedyMethod(), SABipartite(sc_target=18, ntrials=1), HyperND()]
         for simplifier in (nothing, MergeVectors(), MergeGreedy())
             @info "optimizer = $(optimizer), simplifier = $(simplifier)"
             res = optimize_code(code,uniformsize(code, 2), optimizer, simplifier)
@@ -42,7 +42,7 @@ using OMEinsum
     xs = [[randn(2,2) for i=1:15]..., [randn(2) for i=1:10]...]
 
     results = Float64[]
-    for optimizer in [TreeSA(ntrials=1), TreeSA(ntrials=1, nslices=5), GreedyMethod(), SABipartite(sc_target=18, ntrials=1), ExactTreewidth()]
+    for optimizer in [TreeSA(ntrials=1), TreeSA(ntrials=1, nslices=5), GreedyMethod(), SABipartite(sc_target=18, ntrials=1), ExactTreewidth(), HyperND()]
         for simplifier in (nothing, MergeVectors(), MergeGreedy())
             @info "optimizer = $(optimizer), simplifier = $(simplifier)"
             res = optimize_code(small_code,uniformsize(small_code, 2), optimizer, simplifier)
