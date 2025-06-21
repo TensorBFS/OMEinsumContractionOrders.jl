@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Tree Width · OMEinsumContractionOrders.jl</title><meta name="title" content="Tree Width · OMEinsumContractionOrders.jl"/><meta property="og:title" content="Tree Width · OMEinsumContractionOrders.jl"/><meta property="twitter:title" content="Tree Width · OMEinsumContractionOrders.jl"/><meta name="description" content="Documentation for OMEinsumContractionOrders.jl."/><meta property="og:description" content="Documentation for OMEinsumContractionOrders.jl."/><meta property="twitter:description" content="Documentation for OMEinsumContractionOrders.jl."/><meta property="og:url" content="https://GiggleLiu.github.io/OMEinsumContractionOrders.jl/treewidth/"/><meta property="twitter:url" content="https://GiggleLiu.github.io/OMEinsumContractionOrders.jl/treewidth/"/><link rel="canonical" href="https://GiggleLiu.github.io/OMEinsumContractionOrders.jl/treewidth/"/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script><link href="../assets/indigo.css" rel="stylesheet" type="text/css"/></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">OMEinsumContractionOrders.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><a class="tocitem" href="../contraction_order/">Contraction Order</a></li><li class="is-active"><a class="tocitem" href>Tree Width</a><ul class="internal"><li><a class="tocitem" href="#Tree-Width-and-Tree-Decomposition"><span>Tree Width and Tree Decomposition</span></a></li><li><a class="tocitem" href="#The-Bouchitté–Todinca-Algorithm-for-Exact-Tree-Width"><span>The Bouchitté–Todinca Algorithm for Exact Tree Width</span></a></li><li><a class="tocitem" href="#A-Julia-Implementation:-TreeWidthSolver.jl"><span>A Julia Implementation: TreeWidthSolver.jl</span></a></li></ul></li><li><a class="tocitem" href="../ref/">Reference</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Tree Width</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Tree Width</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/TensorBFS/OMEinsumContractionOrders.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/TensorBFS/OMEinsumContractionOrders.jl/blob/master/docs/src/treewidth.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Finding-the-Optimal-Tree-Decomposition-with-Minimal-Treewidth"><a class="docs-heading-anchor" href="#Finding-the-Optimal-Tree-Decomposition-with-Minimal-Treewidth">Finding the Optimal Tree Decomposition with Minimal Treewidth</a><a id="Finding-the-Optimal-Tree-Decomposition-with-Minimal-Treewidth-1"></a><a class="docs-heading-anchor-permalink" href="#Finding-the-Optimal-Tree-Decomposition-with-Minimal-Treewidth" title="Permalink"></a></h1><p>This blog detailed introduce the algorithm to find the optimal tree decomposition with minimal treewidth of a given simple graph, and how it is implemented in Julia package <a href="https://github.com/ArrogantGao/TreeWidthSolver.jl">TreeWidthSolver.jl</a>.</p><p>The following is the outline of this blog:</p><ul><li>Tree width and tree decomposition</li><li>The Bouchitté–Todinca algorithm for exact tree width</li><li>A Julia implementation: TreeWidthSolver.jl</li></ul><h2 id="Tree-Width-and-Tree-Decomposition"><a class="docs-heading-anchor" href="#Tree-Width-and-Tree-Decomposition">Tree Width and Tree Decomposition</a><a id="Tree-Width-and-Tree-Decomposition-1"></a><a class="docs-heading-anchor-permalink" href="#Tree-Width-and-Tree-Decomposition" title="Permalink"></a></h2><p>In this section, I will introduce the basic concepts of tree width and tree decomposition.</p><p>Intuitively, a <a href="https://en.wikipedia.org/wiki/Tree_decomposition"><strong>tree decomposition</strong></a> represents the vertices of a given graph <span>$G$</span> as subtrees of a tree, in such a way that vertices in <span>$G$</span> are adjacent only when the corresponding subtrees intersect.</p><p><strong>Defination 1</strong> (tree decomposition): The tree decomposition of a graph is a tree whose nodes are subsets of the vertices of the graph, and the following conditions are satisfied:</p><ol><li>Each vertex of the graph is in at least one node of the tree.</li><li>For each edge of the graph, there is a node of the tree containing both vertices of the edge.</li><li>Bags containing the same vertex have to be connected in the tree.</li></ol><p>An example of tree decomposition is shown in the following figure:</p><p><img src="../assets/treedecomposition.svg" alt/></p><p>where the (b) is the original graph and the (c) is the tree decomposition of the graph.</p><p>The nodes of the tree are called <strong>tree bags</strong>. The width of a tree decomposition is the size of the largest bag minus one, thus the width of the example above is <span>$2$</span>. Clearly, one graph can have multiple tree decompositions, and the <strong>tree width</strong> of a graph is the minimum width of all possible tree decompositions.</p><p>Tree decompositions play an important role in graph theory and combinatorial optimization, many NP-hard problems such as maximum independent set, minimum dominating set, chromatic number, and Hamiltonicity can be solved with dynamic programming over a tree decomposition, with a running time exponential in the width of the decomposition but linear in the size of the graph For our purpose, tree decompositions can be used to optimize the contraction order of tensor networks, which is a key step in many quantum many-body simulations. However, find the optimal tree decomposition with minimal treewidth is also an NP-hard problem. In the following sections, I will introduce an exact algorithm to calculate the treewidth of a graph.</p><p>Another important concept is the <strong>vertex elimination order</strong>, which can be obtained from the tree decomposition. An example is shown below, where the tree decomposition of the graph above is formulated as a tree by selecting one of the tree bag as root. Then a vertex is eliminated if it exists in child bags but not in the parent bag, and the elimination order is the order of the vertices being eliminated, and child of the same parent can be eliminated in arbitrary order. In this example, the elimination order is <span>$\{\{A, B, C\}, \{D\}, \{G\}, \{F\}, \{H\}\}$</span>, where the last is the first to be eliminated.</p><p><img src="../assets/elimination_order.svg" alt/></p><h2 id="The-Bouchitté–Todinca-Algorithm-for-Exact-Tree-Width"><a class="docs-heading-anchor" href="#The-Bouchitté–Todinca-Algorithm-for-Exact-Tree-Width">The Bouchitté–Todinca Algorithm for Exact Tree Width</a><a id="The-Bouchitté–Todinca-Algorithm-for-Exact-Tree-Width-1"></a><a class="docs-heading-anchor-permalink" href="#The-Bouchitté–Todinca-Algorithm-for-Exact-Tree-Width" title="Permalink"></a></h2><p>Various algorithms have been developed to calculate the treewidth of a graph in the past few decades, both exactly and approximately. In this section, I will introduce one of the most basic exact algorithms: the Bouchitté–Todinca (BT) algorithm <a href="https://doi.org/10.1137/S0097539799359683">Bouchitte</a> <a href="https://doi.org/10.1016/S0304-3975(01)00007-X">BouchitteListing</a> <a href="https://tuukkakorhonen.com/papers/msc-thesis.pdf">Tuukka</a>, which makes use of the theory of minimal triangulations, characterizing the minimal triangulations of a graph via objects called minimal separators and potential maximal cliques of the graph.</p><h3 id="Triangulation-and-Minimal-Triangulation"><a class="docs-heading-anchor" href="#Triangulation-and-Minimal-Triangulation">Triangulation and Minimal Triangulation</a><a id="Triangulation-and-Minimal-Triangulation-1"></a><a class="docs-heading-anchor-permalink" href="#Triangulation-and-Minimal-Triangulation" title="Permalink"></a></h3><p>First of all, let&#39;s introduce the concept of triangulation and minimal triangulation.</p><p>Triangulations of graphs are a central graph-theoretic concept in the computation of tree decompositions.  Triangulations are defined via <em>chordality</em> of graphs.  A graph G is chordal if every cycle in <span>$G$</span> with at least <span>$4$</span> vertices contains a chord, which is an edge that is not part of the cycle but connects two vertices of the cycle Correspondingly, a non-chordal graph has at least one chordless cycle, i.e., a cycle with at least <span>$4$</span> vertices that does not have a chord.</p><p><strong>Definition 2</strong> (triangulation). A graph <span>$H$</span> is a triangulation of a graph <span>$G$</span> if <span>$H$</span> is chordal, <span>$V (G) = V (H)$</span>, and <span>$E(G) \subseteq E(H)$</span>.</p><p>Here is an example of a triangulation of a graph:</p><p><img src="../assets/triangulation.svg" alt/></p><p>where the left graph is the original graph and the right one is a triangulation of the graph.</p><h3 id="Minimal-Separator-and-Potential-Maximal-Cliques"><a class="docs-heading-anchor" href="#Minimal-Separator-and-Potential-Maximal-Cliques">Minimal Separator and Potential Maximal Cliques</a><a id="Minimal-Separator-and-Potential-Maximal-Cliques-1"></a><a class="docs-heading-anchor-permalink" href="#Minimal-Separator-and-Potential-Maximal-Cliques" title="Permalink"></a></h3><p>Then we can introduce the concept of minimal separator and potential maximal cliques.</p><p>A set of vertices <span>$S \subseteq V (G)$</span> is an <span>$a,b$</span>-separator of a graph <span>$G$</span> if the vertices <span>$a$</span> and <span>$b$</span> are in different connected components of <span>$G \setminus S$</span>.  In other words, all paths between <span>$a$</span> and <span>$b$</span> go through <span>$S$</span>. The set <span>$S$</span> is a minimal <span>$a,b$</span>-separator of <span>$G$</span> if no subset of <span>$S$</span> is also an <span>$a,b$</span>-separator. The minimal separator of a graph is defined as follows:</p><p><strong>Defination 3</strong> (minimal separator): Let <span>$G$</span> be a graph. A set of vertices <span>$S \subseteq V (G)$</span> is a minimal separator of <span>$G$</span> if it is a minimal <span>$a,b$</span>-separator for some pair <span>$a, b \in V (G)$</span>.</p><p>For example, in the graph shown above, the set <span>$\{B, C\}$</span> is a minimal separator of the graph, which separates the graph into two disconnected parts: <span>$\{A\}$</span> and <span>$\{D, E, F, G, H\}$</span>. It is also easy to see that the set <span>$\{B,C\}$</span> is exactly the intersection of the two neighboring bags <span>$\{A, B, C\}$</span> and <span>$\{B, C, E\}$</span> in the tree decomposition. Actually, all intersection of neighboring bags in a tree decomposition is a separator of the graph.</p><p><img src="../assets/sep_BC.svg" alt/></p><p><strong>Defination 4</strong> (potential maximal clique): A set of vertices <span>$\Omega \subseteq V (G)$</span> is a potential maximal clique of a graph <span>$G$</span> if there is a minimal triangulation <span>$H$</span> of <span>$G$</span> such that <span>$\Omega$</span> is a maximal clique of <span>$H$</span>. A set of vertices is a maximal clique if it is a clique and no strict superset of it is a clique.</p><p>For example, in the graph shown above, the sets <span>$\{B,C,E\}$</span>, <span>$\{B,G,E\}$</span>, <span>$\{B,C,G\}$</span> and <span>$\{C, E, G\}$</span> are all potential maximal cliques of the graph, corresponding to different triangulations of the graph:</p><p><img src="../assets/pmc.svg" alt/></p><h3 id="The-Bouchitté–Todinca-Dynamic-Programming-Algorithm"><a class="docs-heading-anchor" href="#The-Bouchitté–Todinca-Dynamic-Programming-Algorithm">The Bouchitté–Todinca Dynamic Programming Algorithm</a><a id="The-Bouchitté–Todinca-Dynamic-Programming-Algorithm-1"></a><a class="docs-heading-anchor-permalink" href="#The-Bouchitté–Todinca-Dynamic-Programming-Algorithm" title="Permalink"></a></h3><p>The reason that we are interested in minimal separators and potential maximal cliques the following properties of the optimal tree decomposition:</p><ul><li>All tree bags of a tree decomposition with minimal treewidth are potential maximal cliques of the graph.</li><li>The intersection of any two neighboring bags in a tree decomposition is a minimal separator of the graph.</li></ul><p>Based on these properties, the Bouchitté–Todinca algorithm first calculates all minimal separators and potential maximal cliques of the graph, and then uses dynamic programming to find a set of potential maximal cliques that minimizes the width of the tree decomposition.</p><p>In this section, I will introduce the Bouchitté–Todinca algorithm in detail, which can be separated into the following steps:</p><ul><li>List all minimal separators, <span>$\Delta$</span>;</li><li>List all potential maximal cliques, <span>$\Pi$</span>;</li><li>Calculate the treewidth of the graph.</li></ul><h4 id="Step-1:-List-all-minimal-separators"><a class="docs-heading-anchor" href="#Step-1:-List-all-minimal-separators">Step 1: List all minimal separators</a><a id="Step-1:-List-all-minimal-separators-1"></a><a class="docs-heading-anchor-permalink" href="#Step-1:-List-all-minimal-separators" title="Permalink"></a></h4><p>To recognize minimal separators of a graph, we mainly use the following property.</p><p>For a set of vertices <span>$S$</span>, consider the connected components of <span>$G \setminus S$</span>, represented as <span>$\mathcal{C}(G \setminus S)$</span>, which are called the components of <span>$S$</span>. For <span>$C \in \mathcal{C}(G \setminus S)$</span>, if <span>$N(C) = S$</span>, then <span>$C$</span> is called a full-component of <span>$S$</span>.</p><p><strong>Theorem 1</strong> (minimal separator): The set <span>$S$</span> is a minimal separator if and only if it has two or more than two full-components.</p><p>For example, <span>$\{B, C\}$</span> is a minimal separator of the graph shown above, with two full-components <span>$\{A\}$</span> and <span>$\{D, E, F, G, H\}$</span>. While <span>$\{B, C, F\}$</span> is not, since it has only one full-component <span>$\{D, E, G, H\}$</span>.</p><p>It is shown that the following proposition holds:</p><p><strong>Proposition 1</strong>: Let <span>$S$</span> be a minimal separator of a graph <span>$G$</span> and <span>$a$</span> a vertex of <span>$G$</span>, then neighbors of the connected components of <span>$G \setminus (S \cup \{a\})$</span>, i.e. $ \mathcal{R}(S) = {N(C) | C \in \mathcal{C}(G \setminus (S \cup {a}))} $ are all minimal separators of the graph.</p><p>Then we start from all vertices <span>$v$</span> of the graph and theirs neighbor <span>$N(v)$</span>, and repeatedly apply the proposition above to list all minimal separators of the graph.</p><h4 id="Step-2:-List-all-potential-maximal-cliques"><a class="docs-heading-anchor" href="#Step-2:-List-all-potential-maximal-cliques">Step 2: List all potential maximal cliques</a><a id="Step-2:-List-all-potential-maximal-cliques-1"></a><a class="docs-heading-anchor-permalink" href="#Step-2:-List-all-potential-maximal-cliques" title="Permalink"></a></h4><p>In the second step we list all potential maximal cliques of the graph using <span>$\Delta$</span> calculated in the first step. To check a set of vertices <span>$\Omega$</span> is a potential maximal clique, we can use the following property:</p><p><strong>Theorem 2</strong> (potential maximal clique): Let <span>$\Omega$</span> be a set of vertices of a graph <span>$G$</span>. The set <span>$\Omega$</span> is a potential maximal clique if and only if the following conditions hold:</p><ul><li>for any pair of vertices <span>$a, b \in \Omega$</span>, either <span>$a$</span> and <span>$b$</span> are connected by an edge in the graph, or there is a minimal separator <span>$S$</span> such that <span>$a \in S$</span> and <span>$b \in S$</span>;</li><li>no component of <span>$\Omega$</span> is full;</li></ul><p>where the first one is called the <em>cliquish condition</em>, and the second one is called the <em>non-full condition</em>.</p><p>Then, one can use the following rules to list all potential maximal cliques: </p><p><strong>Proposition 2</strong>: Let <span>$\Omega$</span> be a potential maximal clique and <span>$a$</span> a vertex of <span>$G$</span>, and <span>$a$</span> is a vertex of <span>$G$</span>. If <span>$V(G) \geq 2$</span>, one of the following conditions holds:</p><ol><li><p class="math-container">\[\Omega \setminus \{a\} \in \Pi(G \setminus \{a\})\]</p>;</li><li><p class="math-container">\[\Omega \setminus \{a\} \in \Delta(G)\]</p>;</li><li><p class="math-container">\[\Omega = S \cup T \setminus \{a\}\]</p>, where <span>$S$</span> and <span>$T$</span> are minimal separators of <span>$G$</span> such that <span>$a \notin S$</span>, <span>$S \notin \Delta(G \setminus \{a\})$</span> and <span>$a \in T$</span>.</li></ol><p>The proposition indicates that with <span>$\Pi(G \setminus \{a\})$</span>, <span>$\Delta(G \setminus \{a\})$</span> and <span>$\Delta(G)$</span>, one can construct <span>$\Pi(G)$</span> by adding one vertex <span>$a$</span> to the graph.</p><p>Then one can iteratively construct the graph by adding one vertex each time, here we represent the <span>$i$</span>-th graph as <span>$G_i = G(\{v_1, v_2, \cdots, v_i\})$</span>, and then calculate <span>$\Pi(G_i)$</span> using <span>$\Pi(G_{i-1})$</span>, <span>$\Delta(G_{i-1})$</span> and <span>$\Delta(G_i)$</span> according to the proposition above, until <span>$i = N$</span> and all potential maximal cliques are found.</p><h4 id="Step-3:-Calculate-the-treewidth-of-the-graph"><a class="docs-heading-anchor" href="#Step-3:-Calculate-the-treewidth-of-the-graph">Step 3: Calculate the treewidth of the graph</a><a id="Step-3:-Calculate-the-treewidth-of-the-graph-1"></a><a class="docs-heading-anchor-permalink" href="#Step-3:-Calculate-the-treewidth-of-the-graph" title="Permalink"></a></h4><p>Finally, we can calculate the treewidth of the graph using <span>$\Delta$</span> and <span>$\Pi$</span> calculated in the first two steps.</p><p>The BT algorithm is based on the following two ideas: </p><ol><li>all tree bags of the tree decomposition with minimal treewidth are potential maximal cliques of the graph;</li><li>tree width of a graph is larger than that of its subgraphs.</li></ol><p>Then for a given potential maximal clique <span>$\Omega$</span>, the minimal treewidth among all tree decompositions with <span>$\Omega$</span> is given by <span>$tw(\Omega) = \max(|\Omega| - 1, tw(G(C_i \cup S_i))),~C_i \in \mathcal{C}(G \setminus \Omega),~S_i = C_i \cap \Omega,$</span> and the treewidth of the graph is the minimum of <span>$tw(\Omega)$</span> among all potential maximal cliques <span>$\Omega$</span>.</p><p>For example, in the figure below, we assume that the potential maximal clique <span>$\Omega = \{B, C, E\}$</span> with width <span>$2$</span> is in the decomposition, and then we need to compare that against the width of the subgraphs <span>$G(\{A, B, C\})$</span>, <span>$G(\{C, D, E\})$</span> and <span>$G(\{B, E, F, G, H\})$</span>. Since <span>$\{A, B, C\}$</span> and <span>$\{C, D, E\}$</span> are already potential maximal cliques, theirs width is <span>$2$</span>; and for <span>$G(\{B, E, F, G, H\})$</span>, we can apply a similar procedure to calculate the width of the subgraphs, which is also <span>$2$</span>. Thus <span>$tw(\{B, C, E\}) = 2$</span>. By comparing width of all possible choices of <span>$\Omega$</span>, we can find the treewidth of the graph.</p><p>The BT algorithm first calculates all possible <span>$G(C \cup S)$</span> for all <span>$\Omega$</span> and sort the triplets <span>$(\Omega, C, S)$</span> according to size of <span>$C \cup S$</span>. Then with the help of dynamic programming, the algorithm calculate width of subgraph <span>$G(C \cup S)$</span> from the smallest to the largest. In each step, treewidth of all possible subgraphs of the current graph <span>$G(C \cup S)$</span> is already calculated, so that the treewidth of <span>$G(C \cup S)$</span> can be directly obtain by comparing the width of the subgraphs and <span>$|\Omega| - 1$</span>.</p><p>Furthermore, if the choice of <span>$\Omega$</span> of each step is stored, the tree decomposition can be easily obtained by connecting these potential maximal cliques.</p><p>Using the BT algorithm, one can calculate the treewidth of a graph exactly, and the algorithm has a time complexity of <span>$O(|\Pi|nm)$</span>, which are dependent on the graph structure.</p><h2 id="A-Julia-Implementation:-TreeWidthSolver.jl"><a class="docs-heading-anchor" href="#A-Julia-Implementation:-TreeWidthSolver.jl">A Julia Implementation: TreeWidthSolver.jl</a><a id="A-Julia-Implementation:-TreeWidthSolver.jl-1"></a><a class="docs-heading-anchor-permalink" href="#A-Julia-Implementation:-TreeWidthSolver.jl" title="Permalink"></a></h2><p>In this section, I will introduce how the algorithm is implemented in the package <a href="https://github.com/ArrogantGao/TreeWidthSolver.jl">TreeWidthSolver.jl</a>, which is a simple and efficient implementation of the Bouchitté–Todinca algorithm for exact tree width calculation. The package in developed using the Julia Programming Language, which is a high performance programming language develop in the past decade. For readers who are not familiar with Julia, I recommend this article: <a href="https://arxiv.org/pdf/1712.03112.pdf">Effective Extensible Programming: Unleashing Julia on GPUs</a>, which gives a brief introduction to the language and its features.</p><h3 id="Highly-Efficient-Set-Operations-with-BitBasis.jl"><a class="docs-heading-anchor" href="#Highly-Efficient-Set-Operations-with-BitBasis.jl">Highly Efficient Set Operations with BitBasis.jl</a><a id="Highly-Efficient-Set-Operations-with-BitBasis.jl-1"></a><a class="docs-heading-anchor-permalink" href="#Highly-Efficient-Set-Operations-with-BitBasis.jl" title="Permalink"></a></h3><p>In the BT algorithm, the main operations are finding connected components of induced subgraphs, and finding neighbors of a set of vertices. However, in the Julia package <code>Graphs.jl</code>, the vertices are stored as integers, as shown below:</p><pre><code class="language-julia hljs">julia&gt; using Graphs
+
+julia&gt; g = smallgraph(:petersen)
+{10, 15} undirected simple Int64 graph
+
+julia&gt; g.fadjlist
+10-element Vector{Vector{Int64}}:
+ [2, 5, 6]
+ [1, 3, 7]
+ [2, 4, 8]
+ [3, 5, 9]
+ [1, 4, 10]
+ [1, 8, 9]
+ [2, 9, 10]
+ [3, 6, 10]
+ [4, 6, 7]
+ [5, 7, 8]</code></pre><p>If we use a similar data structure and use <code>Vector</code> or <code>Set</code> of integers to represent the vertices set, these operations are easy to implement but will be very slow, due to the slow set operations and huge memory usage.</p><p>To reach a highly efficient implementation, we use the bit array to represent the sets of vertices, based on the <code>LongLongUInt</code> type provided in the package <a href="https://github.com/QuantumBFS/BitBasis.jl">BitBasis.jl</a>, which provides types and operations for basis represented by bits in linear algebra.</p><p>For example, here we show how to use generate a bit array to represent the set of vertices <span>$\{1, 2, ..., 10\}$</span> of a graph:</p><pre><code class="language-julia hljs">julia&gt; using BitBasis
+
+julia&gt; a = bmask(LongLongUInt{1}, 1:10)
+LongLongUInt{1}((0x00000000000003ff,))
+
+julia&gt; typeof(a)
+LongLongUInt{1}
+
+julia&gt; isbitstype(typeof(a))
+true
+
+# vizualize the bit array, not necessary
+julia&gt; BitStr{64}(a)
+0000000000000000000000000000000000000000000000000000001111111111 ₍₂₎</code></pre><p>and of course the set operations are also supported:</p><pre><code class="language-julia hljs">julia&gt; a = bmask(LongLongUInt{1}, 1:10)
+LongLongUInt{1}((0x00000000000003ff,))
+
+julia&gt; b = bmask(LongLongUInt{1}, 8:12)
+LongLongUInt{1}((0x0000000000000f80,))
+
+# for simplicity, we only show the first 15 bits
+julia&gt; BitStr{15}(a)
+000001111111111 ₍₂₎
+
+julia&gt; BitStr{15}(b)
+000111110000000 ₍₂₎
+
+# a ∪ b
+julia&gt; BitStr{15}(a | b)
+000111111111111 ₍₂₎
+
+# a ∩ b
+julia&gt; BitStr{15}(a &amp; b)
+000001110000000 ₍₂₎</code></pre><p>Since they are all bitwise operations, the operations are very fast and memory efficient.</p><pre><code class="language-julia hljs">julia&gt; set_a = Set([1:10...]);
+
+julia&gt; set_b = Set([8:12...]);
+
+julia&gt; @benchmark $set_a ∩ $set_b
+BenchmarkTools.Trial: 10000 samples with 952 evaluations.
+ Range (min … max):   93.269 ns …  52.749 μs  ┊ GC (min … max):  0.00% … 99.77%
+ Time  (median):      95.982 ns               ┊ GC (median):     0.00%
+ Time  (mean ± σ):   111.883 ns ± 533.091 ns  ┊ GC (mean ± σ):  10.14% ±  7.71%
+
+  █▇▄▄▃▃▂▂▂▂▁▁                                                  ▂
+  █████████████▇▇▆▅▅▄▃▁▁▁▄▁▁▃▁▃▁▄▃▁▃▃▃▁▄▁▃▃▄▄▁▁▁▁▁▁▁▃▁▄▁▃▁▁▁▁▁▃ █
+  93.3 ns       Histogram: log(frequency) by time        262 ns &lt;
+
+ Memory estimate: 400 bytes, allocs estimate: 4.
+
+julia&gt; @benchmark $a &amp; $b
+BenchmarkTools.Trial: 10000 samples with 1000 evaluations.
+ Range (min … max):  1.416 ns … 3.666 ns  ┊ GC (min … max): 0.00% … 0.00%
+ Time  (median):     1.500 ns             ┊ GC (median):    0.00%
+ Time  (mean ± σ):   1.486 ns ± 0.036 ns  ┊ GC (mean ± σ):  0.00% ± 0.00%
+
+                    ▁                  █
+  ▂▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█▅▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁█▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▃ ▂
+  1.42 ns        Histogram: frequency by time       1.54 ns &lt;
+
+ Memory estimate: 0 bytes, allocs estimate: 0.
+
+julia&gt; @benchmark $set_a ∪ $set_b
+BenchmarkTools.Trial: 10000 samples with 585 evaluations.
+ Range (min … max):  208.405 ns …  85.538 μs  ┊ GC (min … max): 0.00% … 99.69%
+ Time  (median):     211.538 ns               ┊ GC (median):    0.00%
+ Time  (mean ± σ):   237.770 ns ± 863.046 ns  ┊ GC (mean ± σ):  9.13% ±  8.69%
+
+  █▄▃                                                           ▁
+  ███▇▅▄▅▃▃▃▃▁▃▃▁▁▁▁▁▁▁▁▃▃▁▃▁▁▁▁▃▁▁▁▁▁▁▃▁▁▁▁▁▁▁▃▁▁▁▁▁▁▁▁▁▁▁▁▁▄▄ █
+  208 ns        Histogram: log(frequency) by time       1.31 μs &lt;
+
+ Memory estimate: 880 bytes, allocs estimate: 7.
+
+julia&gt; @benchmark $a | $b
+BenchmarkTools.Trial: 10000 samples with 1000 evaluations.
+ Range (min … max):  1.416 ns … 8.500 ns  ┊ GC (min … max): 0.00% … 0.00%
+ Time  (median):     1.500 ns             ┊ GC (median):    0.00%
+ Time  (mean ± σ):   1.542 ns ± 0.134 ns  ┊ GC (mean ± σ):  0.00% ± 0.00%
+
+     ▆  █   ▇  ▆  ▃   ▁  ▁                          ▂       ▂
+  ▇▁▁█▁▁█▁▁▁█▁▁█▁▁█▁▁▁█▁▁█▁▁▇▁▁▁▇▁▁▇▁▁▅▁▁▁▅▁▁█▁▁▇▁▁▁█▁▁▇▁▁▇ █
+  1.42 ns     Histogram: log(frequency) by time     2.12 ns &lt;
+
+ Memory estimate: 0 bytes, allocs estimate: 0.</code></pre><p>Based on that, we used a self-defined data structure <code>MaskedBitGraph</code> to store the graph, where contains the following information:</p><ul><li>a bit array <code>mask</code> to represent the active vertices of the graph, so that when considering a subgraph, we can simply change the mask instead of creating a new graph;</li><li>for each vertex, both the adjacency list and the bit array representing its neighbors are stored, so that we can easily find the neighbors of a set of vertices and operate on the bit array.</li></ul><pre><code class="language-julia hljs">julia&gt; using TreeWidthSolver, Graphs
+
+julia&gt; g = smallgraph(:petersen)
+{10, 15} undirected simple Int64 graph
+
+julia&gt; bit_g = MaskedBitGraph(g)
+MaskedBitGraph{LongLongUInt{1}}, N: 10, nv: 10, mask: 1111111111 ₍₂₎
+
+julia&gt; bit_g.mask
+0000000000000000000000000000000000000000000000000000001111111111 ₍₂₎
+
+julia&gt; bit_g.fadjlist
+10-element Vector{Vector{Int64}}:
+ [2, 5, 6]
+ [1, 3, 7]
+ [2, 4, 8]
+ [3, 5, 9]
+ [1, 4, 10]
+ [1, 8, 9]
+ [2, 9, 10]
+ [3, 6, 10]
+ [4, 6, 7]
+ [5, 7, 8]
+
+julia&gt; bit_g.bitgraph
+10-element Vector{LongLongUInt{1}}:
+ 0000000000000000000000000000000000000000000000000000000000110010 ₍₂₎
+ 0000000000000000000000000000000000000000000000000000000001000101 ₍₂₎
+ 0000000000000000000000000000000000000000000000000000000010001010 ₍₂₎
+ 0000000000000000000000000000000000000000000000000000000100010100 ₍₂₎
+ 0000000000000000000000000000000000000000000000000000001000001001 ₍₂₎
+ 0000000000000000000000000000000000000000000000000000000110000001 ₍₂₎
+ 0000000000000000000000000000000000000000000000000000001100000010 ₍₂₎
+ 0000000000000000000000000000000000000000000000000000001000100100 ₍₂₎
+ 0000000000000000000000000000000000000000000000000000000001101000 ₍₂₎
+ 0000000000000000000000000000000000000000000000000000000011010000 ₍₂₎</code></pre><p>Based on that, we can achieve high performance graph operations, including finding neighbors of a set of vertices, finding connected components of a subgraph.</p><pre><code class="language-julia hljs">julia&gt; g = random_regular_graph(100, 3)
+{100, 150} undirected simple Int64 graph
+
+julia&gt; @benchmark connected_components($g)
+BenchmarkTools.Trial: 10000 samples with 9 evaluations.
+ Range (min … max):  2.227 μs …  8.521 ms  ┊ GC (min … max):  0.00% … 99.93%
+ Time  (median):     2.495 μs              ┊ GC (median):     0.00%
+ Time  (mean ± σ):   3.530 μs ± 85.207 μs  ┊ GC (mean ± σ):  24.48% ±  1.86%
+
+  █▆ ▂▂
+  ██████▇▆▄▃▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▂▁▁▁▂▂▁▁▂▂▂▂▁▂▂▁▂▂▂▂▂▂▂▂▂▂▂ ▃
+  2.23 μs        Histogram: frequency by time         6.7 μs &lt;
+
+ Memory estimate: 5.38 KiB, allocs estimate: 15.
+
+julia&gt; bit_g = MaskedBitGraph(g)
+MaskedBitGraph{LongLongUInt{2}}, N: 100, nv: 100, mask: 1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111 ₍₂₎
+
+julia&gt; @benchmark TreeWidthSolver.bit_connected_components($bit_g)
+BenchmarkTools.Trial: 10000 samples with 10 evaluations.
+ Range (min … max):  991.600 ns …   6.825 μs  ┊ GC (min … max): 0.00% … 0.00%
+ Time  (median):       1.004 μs               ┊ GC (median):    0.00%
+ Time  (mean ± σ):     1.038 μs ± 145.816 ns  ┊ GC (mean ± σ):  0.00% ± 0.00%
+
+  ▄█▆▃▃▃▂▂▂▃▃▄▃▁▂▁                                              ▂
+  ████████████████▇██▇▆▇▇▅▆▅▅▄▅▅▄▅▅▄▅▅▅▅▄▅▁▅▄▆▅▅▅▄▇▆▅▆▆▇▆▇▇▆▇▇▆ █
+  992 ns        Histogram: log(frequency) by time       1.42 μs &lt;
+
+ Memory estimate: 208 bytes, allocs estimate: 2.</code></pre><h3 id="User-Interface-and-Examples"><a class="docs-heading-anchor" href="#User-Interface-and-Examples">User Interface and Examples</a><a id="User-Interface-and-Examples-1"></a><a class="docs-heading-anchor-permalink" href="#User-Interface-and-Examples" title="Permalink"></a></h3><p>The user interface of this package is quite simple, three functions are provided:</p><ul><li><code>exact_treewidth(g::SimpleGraph{TG}; weights::Vector{TW} = ones(nv(g)), verbose::Bool = false) where {TG, TW}</code>: Compute the exact treewidth of a given graph <code>g</code> using the BT algorithm.</li><li><code>decomposition_tree(g::SimpleGraph{TG}; labels::Vector{TL} = collect(1:nv(g)), weights::Vector{TW} = ones(nv(g)), verbose::Bool = false) where {TG, TW, TL}</code>: Compute the tree decomposition with minimal treewidth of a given graph <code>g</code> using the BT algorithm.</li><li><code>elimination_order(g::SimpleGraph{TG}; labels::Vector{TL} = collect(1:nv(g)), weights::Vector{TW} = ones(nv(g)), verbose::Bool = false) where {TG, TL, TW}</code>: Compute the elimination order of a given graph <code>g</code> using the BT algorithm.</li></ul><p>Here are some examples:</p><pre><code class="language-julia hljs">julia&gt; using TreeWidthSolver, Graphs
+
+julia&gt; g = smallgraph(:petersen)
+{10, 15} undirected simple Int64 graph
+
+# calculate the exact treewidth of the graph
+julia&gt; exact_treewidth(g)
+4.0
+
+# show more information
+julia&gt; exact_treewidth(g, verbose = true)
+[ Info: computing all minimal separators
+[ Info: allminseps: 10, 15
+[ Info: all minimal separators computed, total: 15
+[ Info: computing all potential maximal cliques
+[ Info: vertices: 9, Δ: 15, Π: 0
+[ Info: vertices: 8, Δ: 14, Π: 9
+[ Info: vertices: 7, Δ: 13, Π: 16
+[ Info: vertices: 6, Δ: 9, Π: 24
+[ Info: vertices: 5, Δ: 6, Π: 35
+[ Info: vertices: 4, Δ: 5, Π: 36
+[ Info: vertices: 3, Δ: 2, Π: 43
+[ Info: vertices: 2, Δ: 1, Π: 44
+[ Info: vertices: 1, Δ: 1, Π: 44
+[ Info: computing all potential maximal cliques done, total: 45
+[ Info: computing the exact treewidth using the Bouchitté-Todinca algorithm
+[ Info: precomputation phase
+[ Info: precomputation phase completed, total: 135
+[ Info: computing the exact treewidth done, treewidth: 4.0
+4.0
+
+# construct the tree decomposition
+julia&gt; decomposition_tree(g)
+tree width: 4.0
+tree decomposition:
+Set([5, 6, 7, 3, 1])
+├─ Set([7, 2, 3, 1])
+├─ Set([5, 4, 6, 7, 3])
+│  └─ Set([4, 6, 7, 9])
+└─ Set([5, 6, 7, 10, 3])
+   └─ Set([6, 10, 8, 3])
+
+# similar for the elimination order
+julia&gt; elimination_order(g)
+6-element Vector{Vector{Int64}}:
+ [1, 3, 7, 6, 5]
+ [10]
+ [8]
+ [4]
+ [9]
+ [2]
+
+# one can also assign labels to the vertices
+julia&gt; elimination_order(g, labels = [&#39;a&#39;:&#39;j&#39;...])
+6-element Vector{Vector{Char}}:
+ [&#39;a&#39;, &#39;c&#39;, &#39;g&#39;, &#39;f&#39;, &#39;e&#39;]
+ [&#39;j&#39;]
+ [&#39;h&#39;]
+ [&#39;d&#39;]
+ [&#39;i&#39;]
+ [&#39;b&#39;]</code></pre><h3 id="Performance-Benchmark"><a class="docs-heading-anchor" href="#Performance-Benchmark">Performance Benchmark</a><a id="Performance-Benchmark-1"></a><a class="docs-heading-anchor-permalink" href="#Performance-Benchmark" title="Permalink"></a></h3><p>We benchmarked the package on a set of random graphs with different sizes, including the 3-regular graph, line graph and random tree graph, and the results are shown below:</p><p><img src="https://github.com/ArrogantGao/TreeWidthSolver_benchmark/blob/main/figs/time_cost.png?raw=true" alt/></p><p>where <span>$n$</span> is the number of vertices of the graph, <span>$T$</span> is the time used to calculate the treewidth of the graph. Results for the 3-regular graph and random tree graph are averaged over <span>$10$</span> samples. The results show that for different types of graphs, the time used to calculate the treewidth can be quite different, and the time complexity of the algorithm is dependent on the graph structure. For simple line/tree graphs, the BT algorithm can reach a polynomial time complexity and calculate the treewidth of the graph in a short time, while for more complex graphs, the time used can be much longer. It has been proved that the upper bound of this algorithm is about <span>$O(1.7^n)$</span>.</p><p>For more details about the benchmark, please see this repo: <a href="https://github.com/ArrogantGao/TreeWidthSolver_benchmark">https://github.com/ArrogantGao/TreeWidthSolver_benchmark</a>.</p><h3 id="Future-Work"><a class="docs-heading-anchor" href="#Future-Work">Future Work</a><a id="Future-Work-1"></a><a class="docs-heading-anchor-permalink" href="#Future-Work" title="Permalink"></a></h3><p>This package is still under development, and there are several aspects that can be improved:</p><ul><li>the speed of the current package is still outperformed by the C++ implementation <code>Triangulator</code>, and we are working on improving the performance of the package;</li><li>more algorithm can be implemented in the package, for example the Tamaki&#39;s algorithm for tree width.</li></ul></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../contraction_order/">« Contraction Order</a><a class="docs-footer-nextpage" href="../ref/">Reference »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.13.0 on <span class="colophon-date" title="Saturday 21 June 2025 23:54">Saturday 21 June 2025</span>. Using Julia version 1.11.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
