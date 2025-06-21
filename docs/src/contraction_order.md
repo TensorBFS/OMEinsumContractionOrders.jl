@@ -22,7 +22,7 @@ It is easy to see that the most direct way to calculate the result is to loop ov
 However, such a direct calculation is not efficient.
 Considering the following simple tensor network:
 
-![](assets/ABCD.png)
+![](assets/ABCD.svg)
 
 where the tensors are represented by the circles and the indices are represented by the lines, representing the following contraction to scalar $s$:
 $$s = \sum_{i,j,k,l} A_{ij} B_{ik} C_{jl} D_{lk},$$
@@ -39,7 +39,7 @@ Then the naive way to calculate the result is to loop over all the indices, whic
 
 However, another way to calculate $s$ is shown below:
 
-![](assets/ABCD_contraction.png)
+![](assets/ABCD_contraction.svg)
 
 where we first contract $A$ and $B$ to get $AB$, and contract $C$ and $D$ to get $CD$, which are rank-2 intermediate tensors, and then contract $AB$ with $CD$ to get the scalar $s$.
 That is equivalent to the following Einstein summation formula:
@@ -78,7 +78,7 @@ In this way, a given contraction order can be represented as a binary tree.
 The contraction tree can be represented as a rooted tree, where the leaves are the tensors to be contracted and the internal nodes are the intermediate tensors.
 The contraction tree corresponding to the above example is shown below:
 
-![](assets/ABCD_tree.png)
+![](assets/ABCD_tree.svg)
 
 Generally speaking, our target is to find a binary contraction order, with minimal time complexity or space complexity, which is called the **optimal contraction order**.
 
@@ -129,7 +129,7 @@ The local search method [Kalachev](https://doi.org/10.48550/arXiv.2108.05665) (a
 
 These rules lead to the four possible transforms of the contraction tree as shown in the following figure.
 
-![](assets/treesa.png)
+![](assets/treesa.svg)
 
 The TreeSA method starts from a random contraction tree and then applies the above rules to transform the tree. The cost of the contraction tree is evaluated and the tree is updated according to the Metropolis criterion. During the process, the temperature is gradually decreased, and the process stop when the temperature is low enough.
 The method has already been used in OMEinsumContractionOrders.jl.
@@ -223,7 +223,7 @@ That is, it is the intersection graph of the edges of G, representing each edge 
 For a tensor network, we can construct a hypergraph $G$ whose vertices are the tensors and whose hyperedges are the indices. 
 Then the line graph $L(G)$ of the hypergraph $G$ is the graph whose vertices are the indices and whose edges are the tensors, which is a simple graph, as shown in the following figure:
 
-![Fig.1](assets/linegraph.png)
+![Fig.1](assets/treedecomposition.svg)
 
 Since we are considering a tensor network, dimension of the indices have to be considered. 
 Therefore, for each vertex of the line graph $L(G)$, we define its weight as $\log_2(d)$, where $d$ is the dimension of the index.
@@ -245,7 +245,7 @@ Clearly, one graph can have multiple tree decomposition with different correspon
 
 An example of the optimal tree decomposition is shown in the following figure:
 
-![](assets/treedecomposition_2.png)
+![](assets/linegraph.svg)
 
 where the left graph is the original graph and the right one is the tree decomposition of the graph, and the tree width is 2.
 
@@ -258,16 +258,13 @@ Then how tree decomposition and tree width are related to the contraction order 
 In this sub-section, we will answer the following questions: how to get a contraction order from a tree decomposition? And why the contraction order is optimal if the tree width is minimal?
 
 For the first question, according to the definition of tree decomposition, we can obtain vertices elimination order by traversing the tree decomposition in a bottom-up manner. 
-For each node of the tree decomposition, a vertex can be eliminated if it is in the bag of the node and not in the bags of its parent node, as shown in the figure below:
-
-![](assets/elimination_order2.png)
-
-and the order is $\{\{i, j, l\}, \{k\}, \{m\}, \{n\}\}$, where the last vertex is to be eliminated first.
+For each node of the tree decomposition, a vertex can be eliminated if it is in the bag of the node and not in the bags of its parent node. 
+The order is $\{\{i, j, l\}, \{k\}, \{m\}, \{n\}\}$, where the last vertex is to be eliminated first.
 
 The elimination order of the indices can then be used to determine the contraction order of the tensor network, where two tensors are contracted if they share a common index and the index is eliminated.
 According to the elimination order above, the contraction is shown below:
 
-![](assets/elimination.png)
+![](assets/elimination.svg)
 
 Of course, the contraction order is not unique as, by selecting different node as the root of the decomposition tree, different contraction orders can be obtained.
 

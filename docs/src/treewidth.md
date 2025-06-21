@@ -21,9 +21,9 @@ Intuitively, a [**tree decomposition**](https://en.wikipedia.org/wiki/Tree_decom
 
 An example of tree decomposition is shown in the following figure:
 
-![](assets/treedecomposition_square.png)
+![](assets/treedecomposition.svg)
  
-where the left graph is the original graph and the right one is the tree decomposition of the graph.
+where the (b) is the original graph and the (c) is the tree decomposition of the graph.
 
 The nodes of the tree are called **tree bags**.
 The width of a tree decomposition is the size of the largest bag minus one, thus the width of the example above is $2$.
@@ -39,7 +39,7 @@ An example is shown below, where the tree decomposition of the graph above is fo
 Then a vertex is eliminated if it exists in child bags but not in the parent bag, and the elimination order is the order of the vertices being eliminated, and child of the same parent can be eliminated in arbitrary order.
 In this example, the elimination order is $\{\{A, B, C\}, \{D\}, \{G\}, \{F\}, \{H\}\}$, where the last is the first to be eliminated.
 
-![](assets/elimination_order.png)
+![](assets/elimination_order.svg)
 
 ## The Bouchitté–Todinca Algorithm for Exact Tree Width
 
@@ -59,7 +59,7 @@ Correspondingly, a non-chordal graph has at least one chordless cycle, i.e., a c
 
 Here is an example of a triangulation of a graph:
 
-![](assets/triangulation.png)
+![](assets/triangulation.svg)
 
 where the left graph is the original graph and the right one is a triangulation of the graph.
 
@@ -78,13 +78,13 @@ For example, in the graph shown above, the set $\{B, C\}$ is a minimal separator
 It is also easy to see that the set $\{B,C\}$ is exactly the intersection of the two neighboring bags $\{A, B, C\}$ and $\{B, C, E\}$ in the tree decomposition.
 Actually, all intersection of neighboring bags in a tree decomposition is a separator of the graph.
 
-![](assets/sep_BC.png)
+![](assets/sep_BC.svg)
 
 **Defination 4** (potential maximal clique): A set of vertices $\Omega \subseteq V (G)$ is a potential maximal clique of a graph $G$ if there is a minimal triangulation $H$ of $G$ such that $\Omega$ is a maximal clique of $H$. A set of vertices is a maximal clique if it is a clique and no strict superset of it is a clique.
 
 For example, in the graph shown above, the sets $\{B,C,E\}$, $\{B,G,E\}$, $\{B,C,G\}$ and $\{C, E, G\}$ are all potential maximal cliques of the graph, corresponding to different triangulations of the graph:
 
-![](assets/pmc.png)
+![](assets/pmc.svg)
 
 
 ### The Bouchitté–Todinca Dynamic Programming Algorithm
@@ -158,15 +158,11 @@ Since $\{A, B, C\}$ and $\{C, D, E\}$ are already potential maximal cliques, the
 Thus $tw(\{B, C, E\}) = 2$.
 By comparing width of all possible choices of $\Omega$, we can find the treewidth of the graph.
 
-![](assets/BT_algorithm.png)
-
 The BT algorithm first calculates all possible $G(C \cup S)$ for all $\Omega$ and sort the triplets $(\Omega, C, S)$ according to size of $C \cup S$.
 Then with the help of dynamic programming, the algorithm calculate width of subgraph $G(C \cup S)$ from the smallest to the largest.
 In each step, treewidth of all possible subgraphs of the current graph $G(C \cup S)$ is already calculated, so that the treewidth of $G(C \cup S)$ can be directly obtain by comparing the width of the subgraphs and $|\Omega| - 1$.
 
 Furthermore, if the choice of $\Omega$ of each step is stored, the tree decomposition can be easily obtained by connecting these potential maximal cliques.
-
-<!-- ![](assets/dynamic_programming.png) -->
 
 Using the BT algorithm, one can calculate the treewidth of a graph exactly, and the algorithm has a time complexity of $O(|\Pi|nm)$, which are dependent on the graph structure.
 
