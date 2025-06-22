@@ -29,6 +29,8 @@ L = \text{size}(\text{out}) - α \times (\text{size}(\text{in}_1) + \text{size}(
 ```
 where $\text{out}$ is the output tensor, and $\text{in}_1$ and $\text{in}_2$ are the input tensors. $α$ is a hyperparameter, which is set to $0.0$ by default, meaning that we greedily select the pair of tensors with the smallest size of the output tensor. For $\alpha = 1$, the size increase in each step is greedily optimized.
 
+The greedy method implemented in this package uses the priority queue to select the pair of tensors with the smallest cost to contract at each step. The time complexity is $O(n^2 \log n)$ for $n$ tensors, since in each of the $n$ steps, we pick the pair with the smallest cost in $O(n \log n)$ time.
+
 ## [`TreeSA`](@id Sec_TreeSA)
 
 Implemented as [`TreeSA`](@ref) in the package.
@@ -58,10 +60,10 @@ p_{\text{accept}} = \min(1, e^{-\beta \Delta \mathcal{L}}),
 ```
 where $\beta$ is the inverse temperature, and $\Delta \mathcal{L}$ is the difference of the cost of the new and old contraction trees.
 During the process, the temperature is gradually decreased, and the process stop when the temperature is low enough.
-Additionally, the `TreeSA` method supports the slicing technique.
-When the space complexity is too large, one can loop over a subset of indices, and then contract the intermediate results in the end.
-Such technique can reduce the space complexity, but slicing $n$ indices will increase the time complexity by $2^n$.
 
+This simple algorithm is flexible and works suprisingly well in most cases. Given enough time, it almost always finds the contraction order with the lowest cost.
+The only weakness is the runtime. It usually takes minutes to optimize a network with 1k tensors.
+Additionally, the `TreeSA` method supports using the [slicing](@ref "Reduce space complexity by slicing") technique to reduce the space complexity.
 
 ## [`HyperND`](@id Sec_HyperND)
 
@@ -82,7 +84,7 @@ The algorithm is implemented in the package [KaHyPar.jl](https://github.com/kahy
 <img src="https://cloud.githubusercontent.com/assets/484403/25314222/3a3bdbda-2840-11e7-9961-3bbc59b59177.png" alt="alt text" width="50%" height="50%"><img src="https://cloud.githubusercontent.com/assets/484403/25314225/3e061e42-2840-11e7-860c-028a345d1641.png" alt="alt text" width="50%" height="50%">
 ```
 
-The `KaHyPar` binary still have some issues in installation, please refer to [#12](https://github.com/kahypar/KaHyPar.jl/issues/12) and [#19](https://github.com/kahypar/KaHyPar.jl/issues/19).
+Some platforms may have some issues in installation of `KaHyPar`, please refer to [#12](https://github.com/kahypar/KaHyPar.jl/issues/12) and [#19](https://github.com/kahypar/KaHyPar.jl/issues/19).
 The [`SABipartite`](@ref) is a simulated annealing based alternative to [`KaHyParBipartite`](@ref), it can produce similar results while being much more costly.
 
 Note: Benchmarks (to be added) show that the later implementation of [`HyperND`](@ref) method is better and faster. These two methods are no longer the first choice.
