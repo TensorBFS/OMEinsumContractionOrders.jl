@@ -4,12 +4,12 @@ Supported solvers include:
 
 | Optimizer | Description |
 | :----------- | :------------- |
-| [`GreedyMethod`](@ref) | Fast, but poor contraction order |
-| [`TreeSA`](@ref) | Reliable, local search based optimizer [^Kalachev2021], but is a bit slow |
-| [`HyperND`](@ref) | Nested dissection algorithm, similar to [`KaHyParBipartite`](@ref). Requires importing either [`KaHyPar`](https://github.com/kahypar/KaHyPar.jl) or [`Metis`](https://github.com/JuliaSparse/Metis.jl). |
-| [`KaHyParBipartite` and `SABipartite`](@ref) | Graph bipartition based, suited for large tensor networks [^Gray2021], requires using [`KaHyPar`](https://github.com/kahypar/KaHyPar.jl) package. Alternatively, a simulated annealing bipartition method is provided in [`SABipartite`](@ref). |
-| [`ExactTreewidth`](@ref) (alias of `Treewidth{RuleReduction{BT}}`) | Exact, but takes exponential time [^Bouchitté2001], based on package [`TreeWidthSolver`](https://github.com/ArrogantGao/TreeWidthSolver.jl). |
-| [`Treewidth`](@ref) | Tree width solver based, based on package [`CliqueTrees`](https://github.com/AlgebraicJulia/CliqueTrees.jl), performance is elimination algorithm dependent. |
+| [`GreedyMethod`](@ref Sec_GreedyMethod) | Fast, but poor contraction order |
+| [`TreeSA`](@ref Sec_TreeSA) | Reliable, local search based optimizer [^Kalachev2021], but is a bit slow |
+| [`HyperND`](@ref Sec_HyperND) | Nested dissection algorithm, similar to [`KaHyParBipartite`](@ref). Requires importing either [`KaHyPar`](https://github.com/kahypar/KaHyPar.jl) or [`Metis`](https://github.com/JuliaSparse/Metis.jl). |
+| [`KaHyParBipartite` and `SABipartite`](@ref Sec_Bipartite) | Graph bipartition based, suited for large tensor networks [^Gray2021], requires using [`KaHyPar`](https://github.com/kahypar/KaHyPar.jl) package. Alternatively, a simulated annealing bipartition method is provided in [`SABipartite`](@ref). |
+| [`ExactTreewidth`](@ref Sec_ExactTreewidth) (alias of `Treewidth{RuleReduction{BT}}`) | Exact, but takes exponential time [^Bouchitté2001], based on package [`TreeWidthSolver`](https://github.com/ArrogantGao/TreeWidthSolver.jl). |
+| [`Treewidth`](@ref Sec_Treewidth) | Tree width solver based, based on package [`CliqueTrees`](https://github.com/AlgebraicJulia/CliqueTrees.jl), performance is elimination algorithm dependent. |
 
 The `KaHyParBipartite` is implemented as an extension. If you have issues in installing `KaHyPar`, please check these issues: [#12](https://github.com/kahypar/KaHyPar.jl/issues/12) and [#19](https://github.com/kahypar/KaHyPar.jl/issues/19).
 
@@ -22,8 +22,8 @@ The only limitation is that it is a bit slow.
 For application sensitive to overhead, the `GreedyMethod` and `Treewidth` method (blue region) are recommended.
 The `Treewidth` method is a zoo of methods provided by the package [`CliqueTrees`](https://github.com/AlgebraicJulia/CliqueTrees.jl), which is a collection of methods for finding the approximate tree decomposition of a graph. Most of them have similar performance with the `GreedyMethod`, and most of them are very efficient. The `HyperND` method has a very good overall performance in benchmarks (to be added), and it is much faster than the `TreeSA` method. It relies on the `KaHyPar` package, which is platform picky.
 
-## `GreedyMethod`
-
+## [`GreedyMethod`](@id Sec_GreedyMethod)
+Implemented as [`GreedyMethod`](@ref) in the package.
 The Greedy method is one of the simplest and fastest method for optimizing the contraction order. The idea is to greedily select the pair of tensors with the smallest cost to contract at each step.
 The cost is defined as:
 ```math
@@ -31,23 +31,26 @@ L = \text{size}(\text{out}) - α \times (\text{size}(\text{in}_1) + \text{size}(
 ```
 where $\text{out}$ is the output tensor, and $\text{in}_1$ and $\text{in}_2$ are the input tensors. $α$ is a hyperparameter, which is set to $0.0$ by default, meaning that we greedily select the pair of tensors with the smallest size of the output tensor. For $\alpha = 1$, the size increase in each step is greedily optimized.
 
-## `TreeSA`
+## [`TreeSA`](@id Sec_TreeSA)
 
+Implemented as [`TreeSA`](@ref) in the package.
 The local search method [^Kalachev2021] is a heuristic method based on the idea of simulated annealing.
 The method starts from a random contraction order and then applies the following four possible transforms as shown in the following figure
+
 ![](assets/treesa.svg)
+
 They correspond to the different ways to contract three sub-networks:
 ```math
 (A * B) * C = (A * C) * B = (C * B) * A, \\
 A * (B * C) = B * (A * C) = C * (B * A),
 ```
-where we slightly abuse the notation ``$*$'' to denote the tensor contraction, and $A, B, C$ are the sub-networks to be contracted.
+where we slightly abuse the notation "$*$" to denote the tensor contraction, and $A, B, C$ are the sub-networks to be contracted.
 Due to the commutative property of the tensor contraction, such transformations do not change the result of the contraction.
 Even through these transformations are simple, all possible contraction orders can be reached from any initial contraction order.
 The local search method starts from a random contraction tree.
 In each step, the above rules are randomly applied to transform the tree and then the cost of the new tree is evaluated, which is defined as
 ```math
-cal(L) = \text{tc} + w_s \times \text{sc} + w_{\text{rw}} \times \text{rwc},
+\mathcal{L} = \text{tc} + w_s \times \text{sc} + w_{\text{rw}} \times \text{rwc},
 ```
 where $w_s$ and $w_{\text{rw}}$ are the weights of the space complexity and read-write complexity compared to the time complexity, respectively.
 The optimal choice of weights depends on the specific device and tensor contraction algorithm. One can freely tune the weights to achieve a best performance for their specific problem.
@@ -62,32 +65,20 @@ When the space complexity is too large, one can loop over a subset of indices, a
 Such technique can reduce the space complexity, but slicing $n$ indices will increase the time complexity by $2^n$.
 
 
-The local search method [Kalachev](https://doi.org/10.48550/arXiv.2108.05665) (also called the tree simulated annealing) is another type of the optimization method based on local search and simulating annealing. TreeSA is based on the following rules:
+## [`HyperND`](@id Sec_HyperND)
 
-* Associativity: $T \times (S \times R) = (T \times S) \times R$,
-* Commutativity: $T \times S = S \times T$.
-
-These rules lead to the four possible transforms of the contraction tree as shown in the following figure.
-
-![](assets/treesa.svg)
-
-The TreeSA method starts from a random contraction tree and then applies the above rules to transform the tree. The cost of the contraction tree is evaluated and the tree is updated according to the Metropolis criterion. During the process, the temperature is gradually decreased, and the process stop when the temperature is low enough.
-The method has already been used in OMEinsumContractionOrders.jl.
+Implemented as [`HyperND`](@ref) in the package.
 
 
-The method listed above are powerful and efficient, which can be used to find great contraction orders of various tensor networks.
-However, the methods above except exhaustive search are heuristic methods and may not guarantee to find the optimal contraction order, while the exhaustive search can be too slow for large tensor networks.
-In the following sections, we will introduce a method to find the optimal contraction order based on the optimal tree decomposition.
 
-## `HyperND`
+## [`KaHyParBipartite` and `SABipartite`](@id Sec_Bipartite)
 
+Implemented as [`KaHyParBipartite`](@ref) and [`SABipartite`](@ref) in the package.
+A given tensor network can be regarded as a hypergraph, where the tensors are the vertices and the shared indices are the hyperedges, and the cost of contracting a hyper edge can be encoded as its weight. The binary partition method is to partition the hypergraph into two parts, and then recursively partition each part. Cost of each partition can be evaluated by the sum of the weights of the hyperedges cut by the partition, while we prefer to make the partition as balanced as possible (balance means size of the subgraph should be similar). Thus, the problem is reduced to a balanced min cut problem on a hypergraph. In the past few decades, the graph community has developed many algorithms for the balanced min cut problem and provided the corresponding software packages, such as KaHyPar[^Schlag2021].
 
-## `KaHyParBipartite` and `SABipartite`
+## [`ExactTreewidth`](@id Sec_ExactTreewidth)
 
-A given tensor network can be regarded as a hypergraph, where the tensors are the vertices and the shared indices are the hyperedges, and the cost of contracting a hyper edge can be encoded as its weight. The binary partition method is to partition the hypergraph into two parts, and then recursively partition each part. Cost of each partition can be evaluated by the sum of the weights of the hyperedges cut by the partition, while we prefer to make the partition as balanced as possible (balance means size of the subgraph should be similar). Thus, the problem is reduced to a balanced min cut problem on a hypergraph. In the past few decades, the graph community has developed many algorithms for the balanced min cut problem and provided the corresponding software packages, such as [KaHyPar](https://kahypar.org) [kahypar](https://doi.org/10.1145/3529090), which has already been used in both OMEinsumContractionOrders.jl and Cotengra. 
-
-## `ExactTreewidth`
-
+Implemented as [`ExactTreewidth`](@ref) in the package.
 This method is a technical note for the [Google Summer of Code 2024](https://summerofcode.withgoogle.com) project ["Tensor network contraction order optimization and visualization"](https://summerofcode.withgoogle.com/programs/2024/projects/B8qSy9dO) released by **The Julia Language**, where I developed a package [TreeWidthSolver.jl](https://github.com/ArrogantGao/TreeWidthSolver.jl) for calculating the tree decomposition with minimal treewidth of a given simple graph and made it a backend of [OMEinsumContracionOrders.jl](https://github.com/TensorBFS/OMEinsumContractionOrders.jl).
 
 
@@ -287,7 +278,9 @@ Furthermore, if the choice of $\Omega$ of each step is stored, the tree decompos
 Using the BT algorithm, one can calculate the treewidth of a graph exactly, and the algorithm has a time complexity of $O(|\Pi|nm)$, which are dependent on the graph structure.
 
 
-## `Treewidth`
+## [`Treewidth`](@id Sec_Treewidth)
+
+Implemented as [`Treewidth`](@ref) in the package.
 
 ## Exhaustive Search (planned)
 
@@ -326,3 +319,4 @@ For more details, please see the benchmark repo: [https://github.com/ArrogantGao
 [^Gray2021]: Gray, Johnnie, and Stefanos Kourtis. "Hyper-optimized tensor network contraction." Quantum 5 (2021): 410.
 [^Kalachev2021]: Kalachev, Gleb, Pavel Panteleev, and Man-Hong Yung. "Recursive multi-tensor contraction for XEB verification of quantum circuits." arXiv preprint arXiv:2108.05665 (2021).
 [^Robert2014]: Pfeifer, R.N.C., Haegeman, J., Verstraete, F., 2014. Faster identification of optimal contraction sequences for tensor networks. Phys. Rev. E 90, 033315. https://doi.org/10.1103/PhysRevE.90.033315
+[^Schlag2021]: Schlag, S., Heuer, T., Gottesbüren, L., Akhremtsev, Y., Schulz, C., Sanders, P., 2021. High-Quality Hypergraph Partitioning. https://doi.org/10.48550/arXiv.2106.08696
