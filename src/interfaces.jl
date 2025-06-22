@@ -4,13 +4,14 @@
 Optimize the einsum contraction code and reduce the time/space complexity of tensor network contraction.
 Returns a `NestedEinsum` instance. Input arguments are
 
-* `eincode` is an einsum contraction code instance, one of `DynamicEinCode`, `StaticEinCode` or `NestedEinsum`.
-* `size` is a dictionary of "edge label=>edge size" that contains the size information, one can use `uniformsize(eincode, 2)` to create a uniform size.
-* `optimizer` is a `CodeOptimizer` instance, should be one of `GreedyMethod`, `Treewidth`, `KaHyParBipartite`, `SABipartite` or `TreeSA`. Check their docstrings for details.
-* `simplifier` is one of `MergeVectors` or `MergeGreedy`.
-* optimize the permutation if `permute` is true.
+# Arguments
+- `eincode` is an einsum contraction code instance, one of `DynamicEinCode`, `StaticEinCode` or `NestedEinsum`.
+- `size` is a dictionary of "edge label=>edge size" that contains the size information, one can use `uniformsize(eincode, 2)` to create a uniform size.
+- `optimizer` is a `CodeOptimizer` instance, should be one of `GreedyMethod`, `Treewidth`, `KaHyParBipartite`, `SABipartite` or `TreeSA`. Check their docstrings for details.
+- `simplifier` is one of `MergeVectors` or `MergeGreedy`.
+- `permute` is a boolean flag to indicate whether to optimize the permutation of the contraction order.
 
-### Examples
+# Examples
 
 ```jldoctest
 julia> using OMEinsum
@@ -33,9 +34,6 @@ function optimize_code(code::Union{EinCode, NestedEinsum}, size_dict::Dict, opti
         optimize_permute(optcode, 0)
     end
 end
-
-simplify_code(code::Union{EinCode, NestedEinsum}, size_dict, ::MergeVectors) = merge_vectors(code)
-simplify_code(code::Union{EinCode, NestedEinsum}, size_dict, method::MergeGreedy) = merge_greedy(code, size_dict; threshhold=method.threshhold)
 
 function _optimize_code(code, size_dict, optimizer::KaHyParBipartite)
     recursive_bipartite_optimize(optimizer, code, size_dict)

@@ -8,14 +8,15 @@ This program first recursively cuts the tensors into several groups using KaHyPa
 with maximum group size specifed by `max_group_size` and maximum space complexity specified by `sc_target`,
 Then finds the contraction order inside each group with the greedy search algorithm. Other arguments are
 
-* `sc_target` is the target space complexity, defined as `log2(number of elements in the largest tensor)`,
-* `imbalances` is a KaHyPar parameter that controls the group sizes in hierarchical bipartition,
-* `max_group_size` is the maximum size that allowed to used greedy search,
-* `greedy_config` is a greedy optimizer.
+# Fields
+- `sc_target` is the target space complexity, defined as `log2(number of elements in the largest tensor)`,
+- `imbalances` is a KaHyPar parameter that controls the group sizes in hierarchical bipartition,
+- `max_group_size` is the maximum size that allowed to used greedy search,
+- `sub_optimizer` is the sub-optimizer used to find the contraction order when the group size is small enough.
 
-### References
-* [Hyper-optimized tensor network contraction](https://arxiv.org/abs/2002.01935)
-* [Simulating the Sycamore quantum supremacy circuits](https://arxiv.org/abs/2103.03074)
+# References
+- [Hyper-optimized tensor network contraction](https://arxiv.org/abs/2002.01935)
+- [Simulating the Sycamore quantum supremacy circuits](https://arxiv.org/abs/2103.03074)
 """
 Base.@kwdef struct KaHyParBipartite{RT,IT,SO} <: CodeOptimizer
     sc_target::RT

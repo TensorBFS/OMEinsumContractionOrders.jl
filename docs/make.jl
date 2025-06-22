@@ -17,8 +17,9 @@ makedocs(;
     doctest = ("doctest=true" in ARGS),
     pages=[
         "Home" => "index.md",
-        "Contraction Order" => "contraction_order.md",
-        "Tree Width" => "treewidth.md",
+        "Background Knowledge" => "background.md",
+        "Tutorial" => "tutorial.md",
+        "Choosing Optimizers" => "optimizers.md",
         "Reference" => "ref.md",
     ],
 )
