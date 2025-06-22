@@ -1,6 +1,59 @@
+
+############### Simplifier and optimizer types #################
+"""
+    CodeSimplifier
+
+Abstract type for code simplifiers.
+"""
+abstract type CodeSimplifier end
+
+"""
+    MergeGreedy <: CodeSimplifier
+    MergeGreedy(; threshhold=-1e-12)
+
+Contraction code simplifier (in order to reduce the time of calling optimizers) that
+merges tensors greedily if the space complexity of merged tensors is reduced (difference smaller than the `threshhold`).
+"""
+Base.@kwdef struct MergeGreedy <: CodeSimplifier
+    threshhold::Float64=-1e-12
+end
+
+"""
+    MergeVectors <: CodeSimplifier
+    MergeVectors()
+
+Contraction code simplifier (in order to reduce the time of calling optimizers) that merges vectors to closest tensors.
+"""
+struct MergeVectors <: CodeSimplifier end
+
+"""
+    NetworkSimplifier{LT}
+
+A network simplifier that contains a list of operations that can be applied to a tensor network to reduce the number of tensors.
+It is generated from a proprocessor, such as [`MergeVectors`](@ref) or [`MergeGreedy`](@ref).
+
+# Fields
+- `operations`: a list of `NestedEinsum` objects.
+"""
 struct NetworkSimplifier{LT}
     operations::Vector{NestedEinsum{LT}}
 end
+
+"""
+    simplify_code(code::Union{EinCode, NestedEinsum}, size_dict, method::CodeSimplifier)
+
+Simplify the contraction code by preprocessing the code with a simplifier.
+
+# Arguments
+- `code`: the contraction code to simplify.
+- `size_dict`: the size dictionary of the contraction code.
+- `method`: the simplifier to use, which can be [`MergeVectors`](@ref) or [`MergeGreedy`](@ref).
+
+# Returns
+- A tuple of `(NetworkSimplifier, newcode)`, where `newcode` is a new `EinCode` object.
+"""
+simplify_code(code::Union{EinCode, NestedEinsum}, size_dict, ::MergeVectors) = merge_vectors(code)
+simplify_code(code::Union{EinCode, NestedEinsum}, size_dict, method::MergeGreedy) = merge_greedy(code, size_dict; threshhold=method.threshhold)
 
 function merge_vectors(code::EinCode{LT}) where LT
     ixs = getixsv(code)
@@ -61,7 +114,22 @@ function _buildsimplifier(tree, incidence_list)
     NetworkSimplifier([tree[v] for v in vertices]), EinCode(ixs, iy)
 end
 
-function embed_simplifier(code::NestedEinsum, simplifier)
+"""
+    embed_simplifier(code::NestedEinsum, simplifier::NetworkSimplifier)
+
+Embed the simplifier into the contraction code. A typical workflow is:
+(i) generate a simplifier with [`simplify_code`](@ref), (ii) then optimize the simplified code with [`optimize_code`](@ref)
+and (iii) post-process the optimized code with [`embed_simplifier`](@ref) to produce correct contraction order for the original code.
+This is automatically done in [`optimize_code`](@ref) given the `simplifier` argument is not `nothing`.
+
+# Arguments
+- `code`: the contraction code to embed the simplifier into.
+- `simplifier`: the simplifier to embed, which is a [`NetworkSimplifier`](@ref) object.
+
+# Returns
+- A new `NestedEinsum` object.
+"""
+function embed_simplifier(code::NestedEinsum, simplifier::NetworkSimplifier)
     if isleaf(code)
         op = simplifier.operations[code.tensorindex]
         return op
@@ -71,8 +139,7 @@ function embed_simplifier(code::NestedEinsum, simplifier)
         end, code.eins)
     end
 end
-
-embed_simplifier(code::SlicedEinsum, simplifier) = SlicedEinsum(code.slicing, embed_simplifier(code.eins, simplifier))
+embed_simplifier(code::SlicedEinsum, simplifier::NetworkSimplifier) = SlicedEinsum(code.slicing, embed_simplifier(code.eins, simplifier))
 
 optimize_permute(se::SlicedEinsum, level=0) = SlicedEinsum(se.slicing, se.eins isa EinCode ? se.eins : optimize_permute(se.eins, level))
 function optimize_permute(ne::NestedEinsum{LT}, level=0) where LT

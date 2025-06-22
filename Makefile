@@ -29,6 +29,12 @@ showme-treesa:  # QEC does not work with KaHyPar
 		$(JL) -e "rootdir=\"examples/$${case}\"; using Pkg; Pkg.activate(rootdir); Pkg.develop(path=\".\"); Pkg.instantiate(); include(joinpath(rootdir, \"main.jl\")); main(TreeSA())"; \
 	done
 
+update-examples:  # QEC does not work with KaHyPar
+	for case in inference quantumcircuit nqueens independentset qec; do \
+		echo "Running $${case}"; \
+		$(JL) -e "rootdir=\"examples/$${case}\"; using Pkg; Pkg.activate(rootdir); Pkg.update()"; \
+	done
+
 fig:
 	for entry in "docs/src/assets/"*.typ; do \
 		echo compiling $$entry to $${entry%.typ}.pdf; \

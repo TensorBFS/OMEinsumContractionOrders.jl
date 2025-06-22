@@ -12,15 +12,19 @@ using DataStructures: PriorityQueue, enqueue!, dequeue!, peek, dequeue_pair!
 import CliqueTrees
 using CliqueTrees: cliquetree, residual, EliminationAlgorithm, MMW, BFS, MCS, LexBFS, RCMMD, RCMGL, MCSM, LexM, AMF, MF, MMD, MF, BT, SafeRules, KaHyParND, METISND, ND
 
-export CodeOptimizer, CodeSimplifier,
-    KaHyParBipartite, GreedyMethod, TreeSA, SABipartite, Treewidth, ExactTreewidth, HyperND,
-    MergeGreedy, MergeVectors,
-    uniformsize,
-    simplify_code, optimize_code, optimize_permute,
-    # time space complexity
-    peak_memory, flop, contraction_complexity,
-    label_elimination_order
-    # writejson, readjson are not exported to avoid namespace conflict
+# interfaces
+export simplify_code, optimize_code, optimize_permute, label_elimination_order, uniformsize
+
+# optimizers
+export CodeOptimizer, KaHyParBipartite, GreedyMethod, TreeSA, SABipartite, Treewidth, ExactTreewidth, HyperND
+
+# preprocessing
+export CodeSimplifier, MergeGreedy, MergeVectors
+
+# time space complexity
+export peak_memory, flop, contraction_complexity
+
+# Note: writejson, readjson are not exported to avoid namespace conflict
 
 # visiualization tools provided by extension `LuxorTensorPlot`
 export viz_eins, viz_contraction

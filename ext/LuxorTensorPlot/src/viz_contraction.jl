@@ -39,23 +39,6 @@ function OMEinsumContractionOrders.viz_contraction(code::T, args...; kwargs...) 
     throw(ArgumentError("Only NestedEinsum and SlicedEinsum{T, NestedEinsum{T}} have contraction order"))
 end
 
-"""
-    viz_contraction(code::Union{NestedEinsum, SlicedEinsum}; locs=StressLayout(), framerate=10, filename=tempname() * ".mp4", show_progress=true)
-
-Visualize the contraction process of a tensor network.
-
-### Arguments
-- `code`: The tensor network to visualize.
-
-### Keyword Arguments
-- `locs`: The coordinates or layout algorithm to use for positioning the nodes in the graph. Default is `StressLayout()`.
-- `framerate`: The frame rate of the animation. Default is `10`.
-- `filename`: The name of the output file, with `.gif` or `.mp4` extension. Default is a temporary file with `.mp4` extension.
-- `show_progress`: Whether to show progress information. Default is `true`.
-
-# Returns
-- the path of the generated file.
-"""
 function OMEinsumContractionOrders.viz_contraction(
         code::Union{NestedEinsum, SlicedEinsum}; 
         locs=StressLayout(),
