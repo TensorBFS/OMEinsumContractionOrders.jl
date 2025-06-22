@@ -11,8 +11,6 @@ Supported solvers include:
 | [`ExactTreewidth`](@ref Sec_ExactTreewidth) (alias of `Treewidth{RuleReduction{BT}}`) | Exact, but takes exponential time [^Bouchitté2001], based on package [`TreeWidthSolver`](https://github.com/ArrogantGao/TreeWidthSolver.jl). |
 | [`Treewidth`](@ref Sec_Treewidth) | Tree width solver based, based on package [`CliqueTrees`](https://github.com/AlgebraicJulia/CliqueTrees.jl), performance is elimination algorithm dependent. |
 
-The `KaHyParBipartite` is implemented as an extension. If you have issues in installing `KaHyPar`, please check these issues: [#12](https://github.com/kahypar/KaHyPar.jl/issues/12) and [#19](https://github.com/kahypar/KaHyPar.jl/issues/19).
-
 There is a tradeoff between the time and the quality of the contraction order. The following figure shows the Pareto front of the multi-objective optimization of the time to optimize the contraction order and the time to contract the tensor network.
 
 ![](assets/tradeoff.svg)
@@ -69,214 +67,36 @@ Such technique can reduce the space complexity, but slicing $n$ indices will inc
 
 Implemented as [`HyperND`](@ref) in the package.
 
-
-
 ## [`KaHyParBipartite` and `SABipartite`](@id Sec_Bipartite)
 
-Implemented as [`KaHyParBipartite`](@ref) and [`SABipartite`](@ref) in the package.
-A given tensor network can be regarded as a hypergraph, where the tensors are the vertices and the shared indices are the hyperedges, and the cost of contracting a hyper edge can be encoded as its weight. The binary partition method is to partition the hypergraph into two parts, and then recursively partition each part. Cost of each partition can be evaluated by the sum of the weights of the hyperedges cut by the partition, while we prefer to make the partition as balanced as possible (balance means size of the subgraph should be similar). Thus, the problem is reduced to a balanced min cut problem on a hypergraph. In the past few decades, the graph community has developed many algorithms for the balanced min cut problem and provided the corresponding software packages, such as KaHyPar[^Schlag2021].
+Implemented as [`KaHyParBipartite`](@ref) and [`SABipartite`](@ref) in the package. These two methods are based on the graph bipartition, 
+```math
+\min \sum_{e \in \text{cut}}\omega(e)\\
+\text{s.t.} \quad c(V_i) \leq (1+\epsilon) \left\lceil \frac{c(V)}{2} \right\rceil.
+```
+where $\text{cut}$ is the set of hyperedges cut by the partition, $\omega(e)$ is the weight of the hyperedge $e$, $V_i$ is the $i$-th part of the partition, $c(V)$ is the node weight of the partition, and $\epsilon$ is the imbalance parameter.
+It tries to minimize the cut crossing two blocks, while the size of each block is balanced.
+The algorithm is implemented in the package [KaHyPar.jl](https://github.com/kahypar/KaHyPar.jl)[^Schlag2021], and the implementation in [OMEinsumContractionOrders.jl](https://github.com/TensorBFS/OMEinsumContractionOrders.jl) is mainly based on it.
+
+```@raw html
+<img src="https://cloud.githubusercontent.com/assets/484403/25314222/3a3bdbda-2840-11e7-9961-3bbc59b59177.png" alt="alt text" width="50%" height="50%"><img src="https://cloud.githubusercontent.com/assets/484403/25314225/3e061e42-2840-11e7-860c-028a345d1641.png" alt="alt text" width="50%" height="50%">
+```
+
+The `KaHyPar` binary still have some issues in installation, please refer to [#12](https://github.com/kahypar/KaHyPar.jl/issues/12) and [#19](https://github.com/kahypar/KaHyPar.jl/issues/19).
+The [`SABipartite`](@ref) is a simulated annealing based alternative to [`KaHyParBipartite`](@ref), it can produce similar results while being much more costly.
+
+Note: Benchmarks (to be added) show that the later implementation of [`HyperND`](@ref) method is better and faster. These two methods are no longer the first choice.
 
 ## [`ExactTreewidth`](@id Sec_ExactTreewidth)
 
 Implemented as [`ExactTreewidth`](@ref) in the package.
-This method is a technical note for the [Google Summer of Code 2024](https://summerofcode.withgoogle.com) project ["Tensor network contraction order optimization and visualization"](https://summerofcode.withgoogle.com/programs/2024/projects/B8qSy9dO) released by **The Julia Language**, where I developed a package [TreeWidthSolver.jl](https://github.com/ArrogantGao/TreeWidthSolver.jl) for calculating the tree decomposition with minimal treewidth of a given simple graph and made it a backend of [OMEinsumContracionOrders.jl](https://github.com/TensorBFS/OMEinsumContractionOrders.jl).
+This method is supported by the [Google Summer of Code 2024](https://summerofcode.withgoogle.com) project ["Tensor network contraction order optimization and visualization"](https://summerofcode.withgoogle.com/programs/2024/projects/B8qSy9dO) released by **The Julia Language**.
+In this project, we developed [TreeWidthSolver.jl](https://github.com/ArrogantGao/TreeWidthSolver.jl), which implements the Bouchitté–Todinca algorithm[^Bouchitté2001]. It later becomes a backend of [OMEinsumContracionOrders.jl](https://github.com/TensorBFS/OMEinsumContractionOrders.jl).
 
+The Bouchitté–Todinca (BT) algorithm [^Bouchitté2001] is a method for calculating the treewidth of a graph exactly. It makes use of the theory of minimal triangulations, characterizing the minimal triangulations of a graph via objects called minimal separators and potential maximal cliques of the graph.
+The BT algorithm has a time complexity of $O(|\Pi|nm)$, which are dependent on the graph structure. (TODO: add more details of the algorithm complexity, what is it suited for?).
 
-
-
-In the previous section, we introduce the concept of tensor network and its contraction order, so that now you should understand why the contraction order so important. 
-Then the next question is how to find the optimal contraction order.
-
-In our work, we propose to use the tree decomposition of the line graph of the hypergraph representation of the tensor network to find the optimal contraction order, according to the following well known theorem[Markov](https://doi.org/10.1137/050644756) :
-
-**Theorem 1**. Let $C$ be a quantum circuit with $T$ gates and whose underlying circuit graph is $G_c$. Then $C$ can be simulated deterministically in time $T^{O(1)} e^{O(tw(G_C))}$, where $tw(G_C)$ is the treewidth of $G_C$.
-
-Using the language of tensor network, we can rewrite the above theorem as follows: the bottleneck of time complexity of the contraction of a tensor network is $O(e^{O(tw(L(G)))})$, where $L(G)$ is the line graph of the hypergraph representation of the tensor network. 
-Therefore, if we can find the tree decomposition of the tensor network with minimal treewidth, we can find the optimal contraction order of the tensor network.
-We developed a package [TreeWidthSolver.jl](https://github.com/ArrogantGao/TreeWidthSolver.jl) for finding the optimal tree decomposition of a given simple graph, which can be used as a backend of [OMEinsumContractionOrders.jl](https://github.com/TensorBFS/OMEinsumContractionOrders.jl).
-For more details about the tree decomposition and its relation to the contraction order, please refer to the appendix.
-
-Here is an example of usage:
-```julia
-julia> using OMEinsum, OMEinsumContractionOrders
-
-# define the contraction using Einstein summation
-julia> code = ein"ijl, ikm, jkn, l, m, n -> "
-ijl, ikm, jkn, l, m, n -> 
-
-ulia> optimizer = ExactTreewidth()
-ExactTreewidth{GreedyMethod{Float64, Float64}}(GreedyMethod{Float64, Float64}(0.0, 0.0, 1))
-
-# set the size of the indices
-julia> size_dict = uniformsize(code, 2)
-Dict{Char, Int64} with 6 entries:
-  'n' => 2
-  'j' => 2
-  'i' => 2
-  'l' => 2
-  'k' => 2
-  'm' => 2
-
-julia> optcode = optimize_code(code, size_dict, optimizer)
-n, n -> 
-├─ jk, jkn -> n
-│  ├─ ij, ik -> jk
-│  │  ├─ ijl, l -> ij
-│  │  │  ├─ ijl
-│  │  │  └─ l
-│  │  └─ ikm, m -> ik
-│  │     ├─ ikm
-│  │     └─ m
-│  └─ jkn
-└─ n
-
-# check the complexity
-julia> contraction_complexity(optcode, size_dict)
-Time complexity: 2^5.087462841250339
-Space complexity: 2^2.0
-Read-write complexity: 2^5.882643049361841
-
-# check the results
-julia> A = rand(2, 2, 2); B = rand(2, 2, 2); C = rand(2, 2, 2); D = rand(2); E = rand(2); F = rand(2);
-
-julia> code(A, B, C, D, E, F) ≈ optcode(A, B, C, D, E, F)
-true
-```
-
-This optimizer will be used as an extension of [TensorOperations.jl](https://github.com/Jutho/TensorOperations.jl) in the future, see this [PR](https://github.com/Jutho/TensorOperations.jl/pull/185).
-We compared the performance of this method against the default optimizer of TensorOperations.jl based on exhaustive searching, the results is shown below.
-
-![](https://github.com/ArrogantGao/TreeWidthSolver_benchmark/blob/main/figs/compare_TO.png?raw=true)
-
-The results shown that the tree width based solver is faster for some graph similar to trees.
-For more details, please see the benchmark repo: [https://github.com/ArrogantGao/TreeWidthSolver_benchmark](https://github.com/ArrogantGao/TreeWidthSolver_benchmark).
-
-
-### The Bouchitté–Todinca Algorithm for Exact Tree Width
-
-Various algorithms have been developed to calculate the treewidth of a graph in the past few decades, both exactly and approximately.
-In this section, I will introduce one of the most basic exact algorithms: the Bouchitté–Todinca (BT) algorithm [Bouchitte](https://doi.org/10.1137/S0097539799359683) [BouchitteListing](https://doi.org/10.1016/S0304-3975(01)00007-X) [Tuukka](https://tuukkakorhonen.com/papers/msc-thesis.pdf), which makes use of the theory of minimal triangulations, characterizing the minimal triangulations of a graph via objects called minimal separators and potential maximal cliques of the graph.
-
-### Triangulation and Minimal Triangulation
-
-First of all, let's introduce the concept of triangulation and minimal triangulation.
-
-Triangulations of graphs are a central graph-theoretic concept in the computation of tree decompositions. 
-Triangulations are defined via *chordality* of graphs. 
-A graph G is chordal if every cycle in $G$ with at least $4$ vertices contains a chord, which is an edge that is not part of the cycle but connects two vertices of the cycle
-Correspondingly, a non-chordal graph has at least one chordless cycle, i.e., a cycle with at least $4$ vertices that does not have a chord.
-
-**Definition 2** (triangulation). A graph $H$ is a triangulation of a graph $G$ if $H$ is chordal, $V (G) = V (H)$, and $E(G) \subseteq E(H)$.
-
-Here is an example of a triangulation of a graph:
-
-![](assets/triangulation.svg)
-
-where the left graph is the original graph and the right one is a triangulation of the graph.
-
-
-### Minimal Separator and Potential Maximal Cliques
-
-Then we can introduce the concept of minimal separator and potential maximal cliques.
-
-A set of vertices $S \subseteq V (G)$ is an $a,b$-separator of a graph $G$ if the vertices $a$ and $b$ are in different connected components of $G \setminus S$. 
-In other words, all paths between $a$ and $b$ go through $S$. The set $S$ is a minimal $a,b$-separator of $G$ if no subset of $S$ is also an $a,b$-separator.
-The minimal separator of a graph is defined as follows:
-
-**Defination 3** (minimal separator): Let $G$ be a graph. A set of vertices $S \subseteq V (G)$ is a minimal separator of $G$ if it is a minimal $a,b$-separator for some pair $a, b \in V (G)$.
-
-For example, in the graph shown above, the set $\{B, C\}$ is a minimal separator of the graph, which separates the graph into two disconnected parts: $\{A\}$ and $\{D, E, F, G, H\}$.
-It is also easy to see that the set $\{B,C\}$ is exactly the intersection of the two neighboring bags $\{A, B, C\}$ and $\{B, C, E\}$ in the tree decomposition.
-Actually, all intersection of neighboring bags in a tree decomposition is a separator of the graph.
-
-![](assets/sep_BC.svg)
-
-**Defination 4** (potential maximal clique): A set of vertices $\Omega \subseteq V (G)$ is a potential maximal clique of a graph $G$ if there is a minimal triangulation $H$ of $G$ such that $\Omega$ is a maximal clique of $H$. A set of vertices is a maximal clique if it is a clique and no strict superset of it is a clique.
-
-For example, in the graph shown above, the sets $\{B,C,E\}$, $\{B,G,E\}$, $\{B,C,G\}$ and $\{C, E, G\}$ are all potential maximal cliques of the graph, corresponding to different triangulations of the graph:
-
-![](assets/pmc.svg)
-
-
-### The Bouchitté–Todinca Dynamic Programming Algorithm
-
-The reason that we are interested in minimal separators and potential maximal cliques the following properties of the optimal tree decomposition:
-* All tree bags of a tree decomposition with minimal treewidth are potential maximal cliques of the graph.
-* The intersection of any two neighboring bags in a tree decomposition is a minimal separator of the graph.
-Based on these properties, the Bouchitté–Todinca algorithm first calculates all minimal separators and potential maximal cliques of the graph, and then uses dynamic programming to find a set of potential maximal cliques that minimizes the width of the tree decomposition.
-
-In this section, I will introduce the Bouchitté–Todinca algorithm in detail, which can be separated into the following steps:
-* List all minimal separators, $\Delta$;
-* List all potential maximal cliques, $\Pi$;
-* Calculate the treewidth of the graph.
-
-#### Step 1: List all minimal separators
-
-To recognize minimal separators of a graph, we mainly use the following property.
-
-For a set of vertices $S$, consider the connected components of $G \setminus S$, represented as $\mathcal{C}(G \setminus S)$, which are called the components of $S$.
-For $C \in \mathcal{C}(G \setminus S)$, if $N(C) = S$, then $C$ is called a full-component of $S$.
-
-**Theorem 1** (minimal separator): The set $S$ is a minimal separator if and only if it has two or more than two full-components.
-
-For example, $\{B, C\}$ is a minimal separator of the graph shown above, with two full-components $\{A\}$ and $\{D, E, F, G, H\}$.
-While $\{B, C, F\}$ is not, since it has only one full-component $\{D, E, G, H\}$.
-
-It is shown that the following proposition holds:
-
-**Proposition 1**: Let $S$ be a minimal separator of a graph $G$ and $a$ a vertex of $G$, then neighbors of the connected components of $G \setminus (S \cup \{a\})$, i.e.
-$$ \mathcal{R}(S) = \{N(C) | C \in \mathcal{C}(G \setminus (S \cup \{a\}))\} $$
-are all minimal separators of the graph.
-
-Then we start from all vertices $v$ of the graph and theirs neighbor $N(v)$, and repeatedly apply the proposition above to list all minimal separators of the graph.
-
-#### Step 2: List all potential maximal cliques
-
-In the second step we list all potential maximal cliques of the graph using $\Delta$ calculated in the first step.
-To check a set of vertices $\Omega$ is a potential maximal clique, we can use the following property:
-
-**Theorem 2** (potential maximal clique): Let $\Omega$ be a set of vertices of a graph $G$. The set $\Omega$ is a potential maximal clique if and only if the following conditions hold:
-* for any pair of vertices $a, b \in \Omega$, either $a$ and $b$ are connected by an edge in the graph, or there is a minimal separator $S$ such that $a \in S$ and $b \in S$;
-* no component of $\Omega$ is full;
-where the first one is called the *cliquish condition*, and the second one is called the *non-full condition*.
-
-Then, one can use the following rules to list all potential maximal cliques: 
-
-**Proposition 2**: Let $\Omega$ be a potential maximal clique and $a$ a vertex of $G$, and $a$ is a vertex of $G$.
-If $V(G) \geq 2$, one of the following conditions holds:
-1. $\Omega \setminus \{a\} \in \Pi(G \setminus \{a\})$;
-2. $\Omega \setminus \{a\} \in \Delta(G)$;
-3. $\Omega = S \cup T \setminus \{a\}$, where $S$ and $T$ are minimal separators of $G$ such that $a \notin S$, $S \notin \Delta(G \setminus \{a\})$ and $a \in T$.
-
-The proposition indicates that with $\Pi(G \setminus \{a\})$, $\Delta(G \setminus \{a\})$ and $\Delta(G)$, one can construct $\Pi(G)$ by adding one vertex $a$ to the graph.
-
-Then one can iteratively construct the graph by adding one vertex each time, here we represent the $i$-th graph as $G_i = G(\{v_1, v_2, \cdots, v_i\})$, and then calculate $\Pi(G_i)$ using $\Pi(G_{i-1})$, $\Delta(G_{i-1})$ and $\Delta(G_i)$ according to the proposition above, until $i = N$ and all potential maximal cliques are found.
-
-#### Step 3: Calculate the treewidth of the graph
-
-Finally, we can calculate the treewidth of the graph using $\Delta$ and $\Pi$ calculated in the first two steps.
-
-The BT algorithm is based on the following two ideas: 
-1. all tree bags of the tree decomposition with minimal treewidth are potential maximal cliques of the graph;
-2. tree width of a graph is larger than that of its subgraphs.
-
-Then for a given potential maximal clique $\Omega$, the minimal treewidth among all tree decompositions with $\Omega$ is given by
-$$tw(\Omega) = \max(|\Omega| - 1, tw(G(C_i \cup S_i))),~C_i \in \mathcal{C}(G \setminus \Omega),~S_i = C_i \cap \Omega,$$
-and the treewidth of the graph is the minimum of $tw(\Omega)$ among all potential maximal cliques $\Omega$.
-
-For example, in the figure below, we assume that the potential maximal clique $\Omega = \{B, C, E\}$ with width $2$ is in the decomposition, and then we need to compare that against the width of the subgraphs $G(\{A, B, C\})$, $G(\{C, D, E\})$ and $G(\{B, E, F, G, H\})$.
-Since $\{A, B, C\}$ and $\{C, D, E\}$ are already potential maximal cliques, theirs width is $2$; and for $G(\{B, E, F, G, H\})$, we can apply a similar procedure to calculate the width of the subgraphs, which is also $2$.
-Thus $tw(\{B, C, E\}) = 2$.
-By comparing width of all possible choices of $\Omega$, we can find the treewidth of the graph.
-
-The BT algorithm first calculates all possible $G(C \cup S)$ for all $\Omega$ and sort the triplets $(\Omega, C, S)$ according to size of $C \cup S$.
-Then with the help of dynamic programming, the algorithm calculate width of subgraph $G(C \cup S)$ from the smallest to the largest.
-In each step, treewidth of all possible subgraphs of the current graph $G(C \cup S)$ is already calculated, so that the treewidth of $G(C \cup S)$ can be directly obtain by comparing the width of the subgraphs and $|\Omega| - 1$.
-
-Furthermore, if the choice of $\Omega$ of each step is stored, the tree decomposition can be easily obtained by connecting these potential maximal cliques.
-
-Using the BT algorithm, one can calculate the treewidth of a graph exactly, and the algorithm has a time complexity of $O(|\Pi|nm)$, which are dependent on the graph structure.
-
+The blog post [Finding the Optimal Tree Decomposition with Minimal Treewidth - Xuan-Zhao Gao](https://arrogantgao.github.io/blogs/treewidth/) has a more detailed description of this method.
 
 ## [`Treewidth`](@id Sec_Treewidth)
 
@@ -295,16 +115,6 @@ The method has been implemented in [TensorOperations.jl](https://github.com/Juth
 ## Performance Benchmark
 
 ### Compare `ExactTreewidth` and exhaustive search
-
-We benchmarked the package on a set of random graphs with different sizes, including the 3-regular graph, line graph and random tree graph, and the results are shown below:
-
-![](https://github.com/ArrogantGao/TreeWidthSolver_benchmark/blob/main/figs/time_cost.png?raw=true)
-
-where $n$ is the number of vertices of the graph, $T$ is the time used to calculate the treewidth of the graph.
-Results for the 3-regular graph and random tree graph are averaged over $10$ samples.
-The results show that for different types of graphs, the time used to calculate the treewidth can be quite different, and the time complexity of the algorithm is dependent on the graph structure.
-For simple line/tree graphs, the BT algorithm can reach a polynomial time complexity and calculate the treewidth of the graph in a short time, while for more complex graphs, the time used can be much longer.
-It has been proved that the upper bound of this algorithm is about $O(1.7^n)$.
 
 The following figure shows a comparison with the exhaustive search in TensorOperations.jl:
 
