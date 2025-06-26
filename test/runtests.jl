@@ -1,6 +1,11 @@
 using OMEinsumContractionOrders
 using Test
 using Documenter
+using Aqua
+
+@testset "Aqua" begin
+    Aqua.test_all(OMEinsumContractionOrders)
+end
 
 @testset "Core" begin
     include("Core.jl")
