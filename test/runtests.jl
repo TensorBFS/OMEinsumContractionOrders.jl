@@ -4,7 +4,8 @@ using Documenter
 using Aqua
 
 @testset "Aqua" begin
-    Aqua.test_all(OMEinsumContractionOrders)
+    # Supressor does not pass the stale_deps test
+    Aqua.test_all(OMEinsumContractionOrders; stale_deps = false)
 end
 
 @testset "Core" begin
