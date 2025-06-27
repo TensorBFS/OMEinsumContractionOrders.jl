@@ -1,6 +1,12 @@
 using OMEinsumContractionOrders
 using Test
 using Documenter
+using Aqua
+
+@testset "Aqua" begin
+    # Supressor does not pass the stale_deps test
+    Aqua.test_all(OMEinsumContractionOrders; stale_deps = false)
+end
 
 @testset "Core" begin
     include("Core.jl")
