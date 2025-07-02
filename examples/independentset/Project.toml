@@ -1,0 +1,4 @@
+[deps]
+GenericTensorNetworks = "3521c873-ad32-4bb4-b63d-f4f178f42b49"
+KaHyPar = "2a6221f6-aa48-11e9-3542-2d9e0ef01880"
+OMEinsumContractionOrders = "6f22d1fd-8eed-4bb7-9776-e7d684900715"

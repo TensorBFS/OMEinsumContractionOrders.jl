@@ -61,20 +61,6 @@ function OMEinsumContractionOrders.ein2hypergraph(code::T) where{T <: AbstractEi
     return LabeledHyperGraph(adj, el = edges, oe = open_edges)
 end
 
-"""
-    viz_eins(code::AbstractEinsum; locs=StressLayout(), filename = nothing, kwargs...)
-
-Visualizes an `AbstractEinsum` object by creating a tensor network graph and rendering it using GraphViz.
-
-### Arguments
-- `code::AbstractEinsum`: The `AbstractEinsum` object to visualize.
-
-### Keyword Arguments
-- `locs=StressLayout()`: The coordinates or layout algorithm to use for positioning the nodes in the graph.
-- `filename = nothing`: The name of the file to save the visualization to. If `nothing`, the visualization will be displayed on the screen instead of saving to a file.
-- `config = GraphDisplayConfig()`: The configuration for displaying the graph. Please refer to the documentation of [`GraphDisplayConfig`](https://giggleliu.github.io/LuxorGraphPlot.jl/dev/ref/#LuxorGraphPlot.GraphDisplayConfig) for more information.
-- `kwargs...`: Additional keyword arguments to be passed to the [`GraphViz`](https://giggleliu.github.io/LuxorGraphPlot.jl/dev/ref/#LuxorGraphPlot.GraphViz) constructor.
-"""
 function OMEinsumContractionOrders.viz_eins(code::AbstractEinsum; locs=StressLayout(), filename = nothing, config=LuxorTensorPlot.GraphDisplayConfig(), kwargs...)
     tng = TensorNetworkGraph(ein2hypergraph(code))
     gviz = GraphViz(tng, locs; kwargs...)

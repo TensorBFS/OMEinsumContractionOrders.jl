@@ -1,4 +1,13 @@
 
+"""
+    writejson(filename::AbstractString, ne::Union{NestedEinsum, SlicedEinsum})
+
+Write the contraction order to a JSON file.
+
+# Arguments
+- `filename`: the name of the file to write to.
+- `ne`: the contraction order to write. It can be a [`NestedEinsum`](@ref) or a [`SlicedEinsum`](@ref) object.
+"""
 function writejson(filename::AbstractString, ne::Union{NestedEinsum, SlicedEinsum})
     dict = _todict(ne)
     open(filename, "w") do f
@@ -16,6 +25,15 @@ function _todict(ne::NestedEinsum)
     dict["tree"] = todict(ne)
     return dict
 end
+
+"""
+    readjson(filename::AbstractString)
+
+Read the contraction order from a JSON file.
+
+# Arguments
+- `filename`: the name of the file to read from.
+"""
 function readjson(filename::AbstractString)
     dict = JSON.parsefile(filename)
     return _fromdict(dict)

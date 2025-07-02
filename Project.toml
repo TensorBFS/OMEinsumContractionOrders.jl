@@ -1,10 +1,10 @@
 name = "OMEinsumContractionOrders"
 uuid = "6f22d1fd-8eed-4bb7-9776-e7d684900715"
-authors = ["Jin-Guo Liu", "Pan Zhang"]
-version = "0.9.5"
+version = "0.9.11"
 
 [deps]
 AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
+CliqueTrees = "60701a23-6482-424a-84db-faee86b9b1f8"
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
@@ -22,16 +22,27 @@ LuxorTensorPlot = ["LuxorGraphPlot"]
 
 [compat]
 AbstractTrees = "0.3, 0.4"
+Aqua = "0.8"
+CliqueTrees = "1.5.0"
 DataStructures = "0.18"
+Documenter = "1.10.1"
+Graphs = "1"
 JSON = "0.21"
 KaHyPar = "0.3"
 LuxorGraphPlot = "0.5"
+OMEinsum = "0.8"
+Random = "1"
+SparseArrays = "1"
 StatsBase = "0.34"
 Suppressor = "0.2"
+Test = "1"
 TreeWidthSolver = "0.3"
+TropicalNumbers = "0.6"
 julia = "1.8"
 
 [extras]
+Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 Graphs = "86223c79-3864-5bf0-83f7-82e725a168b6"
 KaHyPar = "2a6221f6-aa48-11e9-3542-2d9e0ef01880"
 LuxorGraphPlot = "1f49bdf2-22a7-4bc4-978b-948dc219fbbc"
@@ -41,4 +52,4 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 TropicalNumbers = "b3a74e9c-7526-4576-a4eb-79c0d4c32334"
 
 [targets]
-test = ["Test", "Random", "Graphs", "TropicalNumbers", "OMEinsum", "KaHyPar", "LuxorGraphPlot"]
+test = ["Test", "Random", "Graphs", "TropicalNumbers", "OMEinsum", "KaHyPar", "LuxorGraphPlot", "Documenter", "Aqua"]

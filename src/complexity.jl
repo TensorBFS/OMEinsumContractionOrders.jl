@@ -145,6 +145,11 @@ function flop(code::SlicedEinsum, size_dict)
     fl * prod(getindex.(Ref(size_dict), code.slicing))
 end
 
+"""
+    uniformsize(code::AbstractEinsum, size::Int) -> Dict
+
+Returns a dictionary that maps each label to the given size.
+"""
 uniformsize(code::AbstractEinsum, size) = Dict([l=>size for l in uniquelabels(code)])
 
 """
@@ -183,9 +188,9 @@ Base.iterate(cc::ContractionComplexity, state) = Base.iterate((cc.tc, cc.sc, cc.
     contraction_complexity(eincode, size_dict) -> ContractionComplexity
 
 Returns the time, space and read-write complexity of the einsum contraction.
-The returned object contains 3 fields:
-* time complexity `tc` defined as `log2(number of element-wise multiplications)`.
-* space complexity `sc` defined as `log2(size of the maximum intermediate tensor)`.
-* read-write complexity `rwc` defined as `log2(the number of read-write operations)`.
+The returned `ContractionComplexity` object contains 3 fields:
+- `tc`: time complexity defined as `log2(number of element-wise multiplications)`.
+- `sc`: space complexity defined as `log2(size of the maximum intermediate tensor)`.
+- `rwc`: read-write complexity defined as `log2(the number of read-write operations)`.
 """
 contraction_complexity(code::AbstractEinsum, size_dict) = ContractionComplexity(__timespacereadwrite_complexity(code, size_dict)...)

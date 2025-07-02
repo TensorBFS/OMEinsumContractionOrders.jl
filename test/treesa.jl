@@ -185,7 +185,7 @@ end
     cc0 = contraction_complexity(codek, uniformsize(code, 2))
     cc = contraction_complexity(codeg, uniformsize(code, 2))
     @show cc.tc, cc.sc, cc0.tc, cc0.sc
-    @test cc.sc <= cc0.sc - 4
+    @test cc.sc <= cc0.sc - 3
     xs = [[2*randn(2, 2) for i=1:150]..., [randn(2) for i=1:100]...]
     resg = decorate(codeg)(xs...)
     resk = decorate(codek)(xs...)

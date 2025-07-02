@@ -1,3 +1,6 @@
 /.vscode/
-/Manifest.toml
+Manifest.toml
 _local/
+docs/build/
+docs/Manifest.toml
+.DS_Store

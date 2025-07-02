@@ -1,5 +1,12 @@
 using OMEinsumContractionOrders
 using Test
+using Documenter
+using Aqua
+
+@testset "Aqua" begin
+    # Supressor does not pass the stale_deps test
+    Aqua.test_all(OMEinsumContractionOrders; stale_deps = false)
+end
 
 @testset "Core" begin
     include("Core.jl")
@@ -27,6 +34,10 @@ end
     include("treewidth.jl")
 end
 
+@testset "hypernd" begin
+    include("hypernd.jl")
+end
+
 @testset "simplify" begin
     include("simplify.jl")
 end
@@ -45,3 +56,6 @@ if isdefined(Base, :get_extension)
         include("visualization.jl")
     end
 end
+
+DocMeta.setdocmeta!(OMEinsumContractionOrders, :DocTestSetup, :(using OMEinsumContractionOrders); recursive=true)
+Documenter.doctest(OMEinsumContractionOrders; manual=false, fix=false)
