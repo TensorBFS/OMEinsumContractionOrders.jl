@@ -36,7 +36,7 @@ using LuxorGraphPlot.Luxor
     nested_code = optimize_code(eincode, uniformsize(eincode, 2), GreedyMethod())
     g2 = ein2hypergraph(nested_code)
 
-    sliced_code = optimize_code(eincode, uniformsize(eincode, 2), TreeSA(nslices = 1))
+    sliced_code = slice_code(nested_code, uniformsize(eincode, 2), TreeSASlicer(sc_target=2))
     g3 = ein2hypergraph(sliced_code)
 
     @test g1 == g2 == g3
@@ -98,7 +98,7 @@ end
     t_gif = viz_contraction(sliced_code, filename = tempgif)
     @test t_gif isa String
 
-    sliced_code2 =  optimize_code(eincode, uniformsize(eincode, 2), TreeSA(nslices = 1))
+    sliced_code2 = slice_code(nested_code, uniformsize(eincode, 2), TreeSASlicer(sc_target=2))
     t_mp4 = viz_contraction(sliced_code2)
     t_mp4_2 = viz_contraction(sliced_code2, filename = tempmp4)
     @test t_mp4 isa String

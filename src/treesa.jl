@@ -48,51 +48,6 @@ function _equal(t1::ExprTree, t2::ExprTree)
 end
 _equal(t1::Vector, t2::Vector) = Set(t1) == Set(t2)
 
-############# Slicer ######################
-struct Slicer
-    log2_sizes::Vector{Float64}   # the size dict after slicing
-    legs::Dict{Int,Float64}   # sliced leg and its original size
-    fixed_slices::Vector{Int}     # number of fixed legs
-end
-function Slicer(log2_sizes::AbstractVector{Float64}, fixed_slices::AbstractVector)
-    slicer = Slicer(collect(log2_sizes), Dict{Int,Float64}(), collect(Int,fixed_slices))
-    for l in fixed_slices
-        push!(slicer, l)
-    end
-    return slicer
-end
-Base.length(s::Slicer) = length(s.legs)
-function Base.replace!(slicer::Slicer, pair::Pair)
-    worst, best = pair
-    @assert worst ∉ slicer.fixed_slices
-    @assert haskey(slicer.legs, worst)
-    @assert !haskey(slicer.legs, best)
-    slicer.log2_sizes[worst] = slicer.legs[worst]       # restore worst size
-    slicer.legs[best] = slicer.log2_sizes[best]  # add best to legs
-    slicer.log2_sizes[best] = 0.0
-    delete!(slicer.legs, worst)                  # remove worst from legs
-    return slicer
-end
-
-function Base.push!(slicer::Slicer, best)
-    @assert !haskey(slicer.legs, best)
-    slicer.legs[best] = slicer.log2_sizes[best]  # add best to legs
-    slicer.log2_sizes[best] = 0.0
-    return slicer
-end
-
-function Base.delete!(slicer::Slicer, worst)
-    @assert haskey(slicer.legs, worst)
-    slicer.log2_sizes[worst] = slicer.legs[worst]
-    delete!(slicer.legs, worst)
-    return slicer
-end
-
-# convert the slicer to a vector of sliced labels
-function get_slices(s::Slicer, inverse_map::Dict{Int,LT}) where LT
-    # we want to keep the order of input fixed slices!
-    LT[[inverse_map[l] for l in s.fixed_slices]..., [inverse_map[l] for (l, sz) in s.legs if l ∉ s.fixed_slices]...]
-end
 
 ############# random expression tree ###############
 function random_exprtree(code::EinCode)
@@ -161,14 +116,12 @@ Optimize the einsum contraction pattern using the simulated annealing on tensor 
 - `sc_weight` is the relative importance factor of space complexity in the loss compared with the time complexity.
 - `rw_weight` is the relative importance factor of memory read and write in the loss compared with the time complexity.
 - `initializer` specifies how to determine the initial configuration, it can be `:greedy` or `:random`. If it is using `:greedy` method to generate the initial configuration, it also uses two extra arguments `greedy_method` and `greedy_nrepeat`.
-- `nslices` is the number of sliced legs, default is 0.
-- `fixed_slices` is a vector of sliced legs, default is `[]`.
 - `greedy_config` is the configuration for the greedy method used for initializing the tree.
 
 # References
 - [Recursive Multi-Tensor Contraction for XEB Verification of Quantum Circuits](https://arxiv.org/abs/2108.05665)
 """
-Base.@kwdef struct TreeSA{RT,IT,GM,LT} <: CodeOptimizer
+Base.@kwdef struct TreeSA{RT,IT,GM} <: CodeOptimizer
     sc_target::RT = 20
     βs::IT = 0.01:0.05:15
     ntrials::Int = 10
@@ -176,62 +129,63 @@ Base.@kwdef struct TreeSA{RT,IT,GM,LT} <: CodeOptimizer
     sc_weight::Float64 = 1.0
     rw_weight::Float64 = 0.2
     initializer::Symbol = :greedy
-    fixed_slices::Vector{LT} = []
     # configure greedy method
     greedy_config::GM = GreedyMethod(nrepeat=1)
 end
 
 # this is the main function
 """
-    optimize_tree(code, size_dict; sc_target=20, βs=0.1:0.1:10, ntrials=2, niters=100, sc_weight=1.0, rw_weight=0.2, initializer=:greedy, greedy_method=MinSpaceOut(), fixed_slices=[])
+    optimize_tree(code, size_dict; sc_target=20, βs=0.1:0.1:10, ntrials=10, niters=50, sc_weight=1.0, rw_weight=0.2, initializer=:greedy, greedy_method=MinSpaceOut())
 
 Optimize the einsum contraction pattern specified by `code`, and edge sizes specified by `size_dict`.
 Check the docstring of [`TreeSA`](@ref) for detailed explaination of other input arguments.
 """
-function optimize_tree(code::AbstractEinsum, size_dict; sc_target=20, βs=0.1:0.1:10, ntrials=20, niters=100, sc_weight=1.0, rw_weight=0.2, initializer=:greedy, greedy_method=GreedyMethod(nrepeat = 1), fixed_slices=[])
+function optimize_tree(code::AbstractEinsum, size_dict; sc_target=20, βs=0.1:0.1:10, ntrials=10, niters=50, sc_weight=1.0, rw_weight=0.2, initializer=:greedy, greedy_method=GreedyMethod(nrepeat = 1))
     LT = labeltype(code)
     # get input labels (`getixsv`) and output labels (`getiyv`) in the einsum code.
     ixs, iy = getixsv(code), getiyv(code)
     ninputs = length(ixs)  # number of input tensors
     if ninputs <= 2  # number of input tensors ≤ 2, can not be optimized
-        return SlicedEinsum(LT[], NestedEinsum(NestedEinsum{LT}.(1:ninputs), EinCode(ixs, iy)))
+        return NestedEinsum(NestedEinsum{LT}.(1:ninputs), EinCode(ixs, iy))
     end
+
     ###### Stage 1: preprocessing ######
     labels = _label_dict(ixs, iy)  # map labels to integers
     inverse_map = Dict([v=>k for (k,v) in labels])  # the inverse transformation, map integers to labels
     log2_sizes = [log2.(size_dict[inverse_map[i]]) for i=1:length(labels)]   # use `log2` sizes in computing time
     if ntrials <= 0  # no optimization at all, then 1). initialize an expression tree and 2). convert back to nested einsum.
         best_tree = _initializetree(code, size_dict, initializer; greedy_method=greedy_method)
-        return SlicedEinsum(LT[], NestedEinsum(best_tree, inverse_map))
+        return NestedEinsum(best_tree, inverse_map)
     end
+
     ###### Stage 2: computing ######
-    # create vectors to store optimized 1). expression tree, 2). time complexities, 3). space complexities, 4). read-write complexities and 5). slicing information.
-    trees, tcs, scs, rws, slicers = Vector{ExprTree}(undef, ntrials), zeros(ntrials), zeros(ntrials), zeros(ntrials), Vector{Slicer}(undef, ntrials)
+    # create vectors to store optimized 1). expression tree, 2). time complexities, 3). space complexities, 4). read-write complexities.
+    trees, tcs, scs, rws = Vector{ExprTree}(undef, ntrials), zeros(ntrials), zeros(ntrials), zeros(ntrials)
     @threads for t = 1:ntrials  # multi-threading on different trials, use `JULIA_NUM_THREADS=5 julia xxx.jl` for setting number of threads.
+
         # 1). random/greedy initialize a contraction tree.
         tree = _initializetree(code, size_dict, initializer; greedy_method=greedy_method)
-        # 2). optimize the `tree` and `slicer` in a inplace manner.
-        slicer = Slicer(log2_sizes, Int[labels[l] for l in fixed_slices])
-        optimize_tree_sa!(tree, log2_sizes, slicer; sc_target=sc_target, βs=βs, niters=niters, sc_weight=sc_weight, rw_weight=rw_weight)
+
+        # 2). optimize the `tree` in a inplace manner.
+        optimize_tree_sa!(tree, log2_sizes; sc_target=sc_target, βs=βs, niters=niters, sc_weight=sc_weight, rw_weight=rw_weight)
+
         # 3). evaluate time-space-readwrite complexities.
-        tc, sc, rw = tree_timespace_complexity(tree, slicer.log2_sizes)
+        tc, sc, rw = tree_timespace_complexity(tree, log2_sizes)
         @debug "trial $t, time complexity = $tc, space complexity = $sc, read-write complexity = $rw."
-        trees[t], tcs[t], scs[t], rws[t], slicers[t] = tree, tc, sc, rw, slicer
+        trees[t], tcs[t], scs[t], rws[t] = tree, tc, sc, rw
     end
+
     ###### Stage 3: postprocessing ######
     # compare and choose the best solution
-    best_tree, best_tc, best_sc, best_rw, best_slicer = first(trees), first(tcs), first(scs), first(rws), first(slicers)
+    best_tree, best_tc, best_sc, best_rw = first(trees), first(tcs), first(scs), first(rws)
     for i=2:ntrials
         if scs[i] < best_sc || (scs[i] == best_sc && exp2(tcs[i]) + rw_weight * exp2(rws[i]) < exp2(best_tc) + rw_weight * exp2(rws[i]))
-            best_tree, best_tc, best_sc, best_rw, best_slicer = trees[i], tcs[i], scs[i], rws[i], slicers[i]
+            best_tree, best_tc, best_sc, best_rw = trees[i], tcs[i], scs[i], rws[i]
         end
     end
     @debug "best space complexities = $best_tc, time complexity = $best_sc, read-write complexity $best_rw."
-    if best_sc > sc_target
-        @warn "target space complexity not found, got: $best_sc, with time complexity $best_tc, read-write complexity $best_rw."
-    end
-    # returns a sliced einsum we need to map the sliced dimensions back from integers to labels.
-    return SlicedEinsum(get_slices(best_slicer, inverse_map), NestedEinsum(best_tree, inverse_map))
+
+    return NestedEinsum(best_tree, inverse_map)
 end
 
 # initialize a contraction tree
@@ -250,80 +204,24 @@ function _initializetree(code, size_dict, method; greedy_method)
 end
 
 # use simulated annealing to optimize a contraction tree
-function optimize_tree_sa!(tree::ExprTree, log2_sizes, slicer::Slicer; βs, niters, sc_target, sc_weight, rw_weight)
+function optimize_tree_sa!(tree::ExprTree, log2_sizes; βs, niters, sc_target, sc_weight, rw_weight)
     @assert rw_weight >= 0
     @assert sc_weight >= 0
     log2rw_weight = log2(rw_weight)
+
+    tc, sc, rw = tree_timespace_complexity(tree, log2_sizes)
+    @debug "Initial tc = $tc, sc = $sc, rw = $rw"
+    
     for β in βs
         for _ = 1:niters
-            optimize_subtree!(tree, β, slicer.log2_sizes, sc_target, sc_weight, log2rw_weight)  # single sweep
+            optimize_subtree!(tree, β, log2_sizes, sc_target, sc_weight, log2rw_weight)  # single sweep
         end
     end
-    tc, sc, rw = tree_timespace_complexity(tree, slicer.log2_sizes)
-    @debug "Initial tc = $tc, sc = $sc, rw = $rw"
-    slicing_loop = 0
-    optimization_length = 2 * (sc - sc_target)
-    while slicing_loop < optimization_length || sc != sc_target
-        # @debug begin
-        #     tc, sc, rw = tree_timespace_complexity(tree, log2_sizes)
-        #     "β = $β, tc = $tc, sc = $sc, rw = $rw"
-        # end
-        ###### Stage 1: add one slice at each temperature  ######
-        # 1). find legs that reduce the dimension the most
-        scs, lbs = Float64[], Vector{Int}[]
-        # space complexities and labels of all intermediate tensors
-        tensor_sizes!(tree, slicer.log2_sizes, scs, lbs)
-        # the set of (intermediate) tensor labels that producing maximum space complexity
-        best_labels = _best_labels(scs, lbs)
 
-        # 2). slice the best not sliced label (it must appear in largest tensors)
-        best_not_sliced_labels = filter(x->!haskey(slicer.legs, x), best_labels)
-        if !isempty(best_not_sliced_labels)
-            #best_not_sliced_label = rand(best_not_sliced_labels)  # random or best
-            best_not_sliced_label = best_not_sliced_labels[findmax(l->count(==(l), best_not_sliced_labels), best_not_sliced_labels)[2]]
-            if sc > sc_target  # if has not reached maximum number of slices, add one slice
-                push!(slicer, best_not_sliced_label)
-            elseif length(slicer.legs) > 0                                 # otherwise replace one slice
-                legs = [l for l in keys(slicer.legs) if l ∉ slicer.fixed_slices]  # only slice over not fixed legs
-                score = [count(==(l), best_labels) for l in legs]
-                # replace!(slicer, legs[argmin(score)]=>best_not_sliced_label)
-                delete!(slicer, legs[argmin(score)])
-            end
-        end
-        # @debug begin
-        #     tc, sc, rw = tree_timespace_complexity(tree, log2_sizes)
-        #     "after slicing: β = $β, tc = $tc, sc = $sc, rw = $rw"
-        # end
-        ###### Stage 2: sweep and optimize the contraction tree for `niters` times  ######
-        for β in βs[end-20:1:end]
-            for _ = 1:niters
-                optimize_subtree!(tree, β, slicer.log2_sizes, sc_target, sc_weight, log2rw_weight)  # single sweep
-            end
-        end
-        tc, sc, rw = tree_timespace_complexity(tree, slicer.log2_sizes)
-        @debug "After optimization: tc = $tc, sc = $sc, rw = $rw, slicing_loop = $slicing_loop, number of slices = $(length(slicer.legs))"
-        slicing_loop += 1
-        # if slicing_loop == optimization_length && sc < sc_target
-        #     slicing_loop -=1
-        # end
-    end
-    return tree, slicer
-end
+    tc, sc, rw = tree_timespace_complexity(tree, log2_sizes)
+    @debug "After optimization: tc = $tc, sc = $sc, rw = $rw"
 
-# here "best" means giving maximum space complexity
-function _best_labels(scs, lbs)
-    max_sc = maximum(scs)
-    return vcat(lbs[scs .> max_sc-0.99]...)
-end
-
-# find tensor sizes and their corresponding labels of all intermediate tensors
-function tensor_sizes!(tree::ExprTree, log2_sizes, scs, lbs)
-    sc = isempty(labels(tree)) ? 0.0 : sum(i->log2_sizes[i], labels(tree))
-    push!(scs, sc)
-    push!(lbs, labels(tree))
-    isleaf(tree) && return
-    tensor_sizes!(tree.left, log2_sizes, scs, lbs)
-    tensor_sizes!(tree.right, log2_sizes, scs, lbs)
+    return tree
 end
 
 # the time-space-readwrite complexity of a contraction tree

@@ -28,6 +28,7 @@ end
 
 @testset "treesa" begin
     include("treesa.jl")
+    include("treesaslicer.jl")
 end
 
 @testset "treewidth" begin
