@@ -40,14 +40,14 @@ Dict{Char, Int64} with 6 entries:
   'b' => 4
 
 julia> optcode = optimize_code(eincode, size_dict, optimizer)
-ab, ab -> a
-├─ fac, bcf -> ab
-│  ├─ df, acd -> fac
-│  │  ├─ df
-│  │  └─ acd
-│  └─ e, bcef -> bcf
-│     ├─ e
-│     └─ bcef
+ba, ab -> a
+├─ bcf, fac -> ba
+│  ├─ e, bcef -> bcf
+│  │  ├─ e
+│  │  └─ bcef
+│  └─ df, acd -> fac
+│     ├─ df
+│     └─ acd
 └─ ab
 ```
 """

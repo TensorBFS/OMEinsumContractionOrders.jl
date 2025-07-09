@@ -1,10 +1,11 @@
 """
     HyperND(;
         dis = KaHyParND(),
-        algs = (MF(), MMD()),
+        algs = (MF(), AMF(), MMD()),
         level = 6,
         width = 120,
         imbalances = 130:130,
+        target=:space,
     )
 
 Nested-dissection based optimizer. Recursively partitions a tensor network, then calls a
@@ -34,10 +35,11 @@ The optimizer is implemented using the tree decomposition library
 """
 @kwdef struct HyperND{D, A} <: CodeOptimizer
     dis::D = KaHyParND()
-    algs::A = (MF(), MMD())
+    algs::A = (MF(), AMF(), MMD())
     level::Int = 6
     width::Int = 120
     imbalances::StepRange{Int, Int} = 130:1:130
+    target::Symbol=:space
 end
 
 function optimize_hyper_nd(optimizer::HyperND, code, size_dict)
@@ -46,18 +48,25 @@ function optimize_hyper_nd(optimizer::HyperND, code, size_dict)
     level = optimizer.level
     width = optimizer.width
     imbalances = optimizer.imbalances
+    target = optimizer.target
 
-    mintc = minsc = minrw = typemax(Float64)
+    minscore = (typemax(Float64), typemax(Float64), typemax(Float64))
     mincode = nothing
 
-    for alg in algs, imbalance in imbalances
-        curalg = SafeRules(ND(alg, dis; imbalance))
+    for imbalance in imbalances
+        curalg = SafeRules(ND(BestWidth(algs), dis; level, width, imbalance))
         curoptimizer = Treewidth(; alg=curalg)
         curcode = _optimize_code(code, size_dict, curoptimizer)
         curtc, cursc, currw = __timespacereadwrite_complexity(curcode, size_dict)
 
-        if minsc > cursc || (minsc == cursc && mintc > curtc) || (minsc == cursc && mintc == curtc && minrw > currw)
-            mintc, minsc, minrw, mincode = curtc, cursc, currw, curcode
+        if target == :space
+            curscore = (cursc, curtc, currw)
+        else
+            curscore = (curtc, cursc, currw)
+        end
+
+        if curscore < minscore
+            minscore, mincode = curscore, curcode
         end
     end
 
@@ -75,5 +84,6 @@ function Base.show(io::IO, ::MIME"text/plain", optimizer::HyperND{D, A}) where {
     println(io, "    level: $(optimizer.level)")
     println(io, "    width: $(optimizer.width)")
     println(io, "    imbalances: $(optimizer.imbalances)")
+    println(io, "    target: $(optimizer.target)")
     return
 end

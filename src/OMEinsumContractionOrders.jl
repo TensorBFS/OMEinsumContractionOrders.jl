@@ -10,7 +10,7 @@ using TreeWidthSolver
 using TreeWidthSolver.Graphs
 using DataStructures: PriorityQueue, enqueue!, dequeue!, peek, dequeue_pair!
 import CliqueTrees
-using CliqueTrees: cliquetree, residual, EliminationAlgorithm, MMW, BFS, MCS, LexBFS, RCMMD, RCMGL, MCSM, LexM, AMF, MF, MMD, MF, BT, SafeRules, KaHyParND, METISND, ND
+using CliqueTrees: cliquetree, residual, EliminationAlgorithm, MMW, BFS, MCS, LexBFS, RCMMD, RCMGL, MCSM, LexM, AMF, MF, MMD, MF, BT, SafeRules, KaHyParND, METISND, ND, BestWidth
 
 # interfaces
 export simplify_code, optimize_code, optimize_permute, label_elimination_order, uniformsize
