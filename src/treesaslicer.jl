@@ -72,7 +72,7 @@ Base.@kwdef struct TreeSASlicer{RT,IT,LT} <: CodeSlicer
     optimization_ratio::Float64 = 2.0
 end
 
-function slice_tree(code::NestedEinsum, size_dict::Dict{LT,Int}; sc_target=30, βs=14:0.05:15, ntrials=10, niters=10, sc_weight=1.0, rw_weight=0.2, fixed_slices=[], optimization_ratio=2.0) where LT
+function slice_tree(code::NestedEinsum, size_dict::Dict{LT,Int}; sc_target=30, βs=14:0.05:15, ntrials=10, niters=10, sc_weight=1.0, rw_weight=0.2, fixed_slices=LT[], optimization_ratio=2.0) where LT
     ixs, iy = getixsv(code), getiyv(code)
     ninputs = length(ixs)
     if ninputs <= 2
@@ -86,7 +86,7 @@ function slice_tree(code::NestedEinsum, size_dict::Dict{LT,Int}; sc_target=30, �
     labels = _label_dict(code)
 
     if ntrials <= 0
-        return SlicedEinsum(Int[labels[l] for l in fixed_slices], code)
+        return SlicedEinsum(fixed_slices, code)
     end
 
     ###### Stage 2: computing ######
