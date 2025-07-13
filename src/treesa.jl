@@ -120,6 +120,10 @@ Optimize the einsum contraction pattern using the simulated annealing on tensor 
 
 # References
 - [Recursive Multi-Tensor Contraction for XEB Verification of Quantum Circuits](https://arxiv.org/abs/2108.05665)
+
+# Breaking changes:
+- `nslices` is removed, since the slicing part is now separated from the optimization part, see `slice_code` function and `TreeSASlicer`.
+
 """
 Base.@kwdef struct TreeSA{RT,IT,GM} <: CodeOptimizer
     sc_target::RT = 20
@@ -140,7 +144,7 @@ end
 Optimize the einsum contraction pattern specified by `code`, and edge sizes specified by `size_dict`.
 Check the docstring of [`TreeSA`](@ref) for detailed explaination of other input arguments.
 """
-function optimize_tree(code::AbstractEinsum, size_dict; sc_target=20, βs=0.1:0.1:10, ntrials=10, niters=50, sc_weight=1.0, rw_weight=0.2, initializer=:greedy, greedy_method=GreedyMethod(nrepeat = 1))
+function optimize_tree(code::AbstractEinsum, size_dict; sc_target, βs, ntrials, niters, sc_weight, rw_weight, initializer, greedy_method)
     LT = labeltype(code)
     # get input labels (`getixsv`) and output labels (`getiyv`) in the einsum code.
     ixs, iy = getixsv(code), getiyv(code)
@@ -177,12 +181,7 @@ function optimize_tree(code::AbstractEinsum, size_dict; sc_target=20, βs=0.1:0.
 
     ###### Stage 3: postprocessing ######
     # compare and choose the best solution
-    best_tree, best_tc, best_sc, best_rw = first(trees), first(tcs), first(scs), first(rws)
-    for i=2:ntrials
-        if scs[i] < best_sc || (scs[i] == best_sc && exp2(tcs[i]) + rw_weight * exp2(rws[i]) < exp2(best_tc) + rw_weight * exp2(rws[i]))
-            best_tree, best_tc, best_sc, best_rw = trees[i], tcs[i], scs[i], rws[i]
-        end
-    end
+    best_tree, best_tc, best_sc, best_rw = best_tree(trees, tcs, scs, rws, ntrials, rw_weight, true)
     @debug "best space complexities = $best_tc, time complexity = $best_sc, read-write complexity $best_rw."
 
     return NestedEinsum(best_tree, inverse_map)
