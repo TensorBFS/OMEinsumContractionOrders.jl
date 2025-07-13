@@ -181,7 +181,7 @@ function optimize_tree(code::AbstractEinsum, size_dict; sc_target, βs, ntrials,
 
     ###### Stage 3: postprocessing ######
     # compare and choose the best solution
-    best_tree, best_tc, best_sc, best_rw = best_tree(trees, tcs, scs, rws, ntrials, rw_weight, sc_target)
+    best_tree, best_tc, best_sc, best_rw = find_best_tree(trees, tcs, scs, rws, ntrials, rw_weight, sc_target)
     @debug "best space complexities = $best_tc, time complexity = $best_sc, read-write complexity $best_rw."
 
     return NestedEinsum(best_tree, inverse_map)

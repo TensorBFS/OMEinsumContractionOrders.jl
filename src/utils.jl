@@ -7,7 +7,7 @@ end
 # sc_target = 0: get the tree with the smallest space complexity. (reducing space complexity)
 # sc_target is a normal number: get the tree with `sc <= sc_target` first, then consider the time-space-readwrite complexity. (optimization with a target)
 # sc_target = Inf: get the tree with the smallest time-space-readwrite complexity. (slicing)
-function best_tree(trees, tcs, scs, rws, ntrials, rw_weight, sc_target)
+function find_best_tree(trees, tcs, scs, rws, ntrials, rw_weight, sc_target)
     best_tree, best_tc, best_sc, best_rw = first(trees), first(tcs), first(scs), first(rws)
     
     for i in 2:ntrials
