@@ -67,12 +67,7 @@ Slice the einsum contraction code to reduce the space complexity, returns a `Sli
 - `size_dict` is a dictionary of "edge label=>edge size" that contains the size information, one can use `uniformsize(eincode, 2)` to create a uniform size.
 - `slicer` is a `CodeSlicer` instance, currently only `TreeSASlicer` is supported.
 """
-function slice_code(code::NestedEinsum, size_dict::Dict, slicer::CodeSlicer)
-    sliced_code = _slice_code(code, size_dict, slicer)
-    return sliced_code
-end
-
-function _slice_code(code, size_dict, slicer::TreeSASlicer)
+function slice_code(code, size_dict, slicer::TreeSASlicer)
     slice_tree(code, size_dict; sc_target=slicer.sc_target, βs=slicer.βs,
         ntrials=slicer.ntrials, niters=slicer.niters,
         sc_weight=slicer.sc_weight, rw_weight=slicer.rw_weight, optimization_ratio=slicer.optimization_ratio)
