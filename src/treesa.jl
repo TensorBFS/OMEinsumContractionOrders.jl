@@ -144,7 +144,7 @@ end
 Optimize the einsum contraction pattern specified by `code`, and edge sizes specified by `size_dict`.
 Check the docstring of [`TreeSA`](@ref) for detailed explaination of other input arguments.
 """
-function optimize_tree(code::AbstractEinsum, size_dict; sc_target, βs, ntrials, niters, sc_weight, rw_weight, initializer, greedy_method)
+function optimize_tree(code::AbstractEinsum, size_dict; sc_target = 20, βs = 0.01:0.05:15, ntrials = 10, niters = 50, sc_weight = 1.0, rw_weight = 0.2, initializer = :greedy, greedy_method = GreedyMethod(nrepeat = 1))
     LT = labeltype(code)
     # get input labels (`getixsv`) and output labels (`getiyv`) in the einsum code.
     ixs, iy = getixsv(code), getiyv(code)
