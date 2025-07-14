@@ -102,7 +102,8 @@ function slice_tree(code::NestedEinsum, size_dict::Dict{LT,Int}; sc_target=30, Î
     end
 
     ###### Stage 3: postprocessing ######
-    best_tree, best_tc, best_sc, best_rw, best_slicer = find_best_tree(trees, tcs, scs, rws, ntrials, rw_weight, Inf)
+    best_id = find_best_tree(tcs, scs, rws, ntrials, rw_weight, Inf)
+    best_tree, best_tc, best_sc, best_rw, best_slicer = trees[best_id], tcs[best_id], scs[best_id], rws[best_id], slicers[best_id]
     @debug "best space complexities = $best_tc, time complexity = $best_sc, read-write complexity $best_rw."
 
     # returns a sliced einsum we need to map the sliced dimensions back from integers to labels.
