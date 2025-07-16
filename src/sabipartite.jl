@@ -182,8 +182,7 @@ function initialize_greedy(adj, vertices, log2_sizes)
     end
     incidence_list = IncidenceList(v2e; openedges=openedges)
     log2_edge_sizes = Dict([i=>log2_sizes[i] for i=1:length(log2_sizes)])
-    # nrepeat=3 because there are overheads
-    tree, _, _ = tree_greedy(incidence_list, log2_edge_sizes; nrepeat=3)
+    tree, _, _ = tree_greedy(incidence_list, log2_edge_sizes)
 
     # build configuration from the tree
     res = ones(Int, size(adj, 1))

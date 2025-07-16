@@ -6,7 +6,7 @@ using Test, OMEinsumContractionOrders
         OMEinsumContractionOrders.EinCode([['a','b'], ['b','c'], ['c','d']], ['a','d'])
     ]
         code0 = optimize_code(code, uniformsize(code, 2), GreedyMethod())
-        code1 = slice_code(code0, uniformsize(code, 2), TreeSASlicer(sc_target=2))
+        code1 = slice_code(code0, uniformsize(code, 2), TreeSASlicer(score=ScoreFunction(sc_target=2)))
         for optcode in [code0, code1]
             filename = tempname()
             OMEinsumContractionOrders.writejson(filename, optcode)

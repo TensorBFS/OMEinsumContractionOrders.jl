@@ -15,7 +15,7 @@ Pages = ["complexity.jl"]
 ## Contraction order optimizers
 ```@autodocs
 Modules = [OMEinsumContractionOrders]
-Pages = ["interfaces.jl", "greedy.jl", "treesa.jl", "treewidth.jl", "hypernd.jl", "kahypar.jl", "sa.jl"]
+Pages = ["interfaces.jl", "greedy.jl", "treesa.jl", "treewidth.jl", "hypernd.jl", "kahypar.jl", "sabipartite.jl"]
 ```
 
 ## Preprocessing code

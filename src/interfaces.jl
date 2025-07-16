@@ -39,7 +39,7 @@ function _optimize_code(code, size_dict, optimizer::KaHyParBipartite)
     recursive_bipartite_optimize(optimizer, code, size_dict)
 end
 function _optimize_code(code, size_dict, optimizer::GreedyMethod)
-    optimize_greedy(code, size_dict; α = optimizer.α, temperature = optimizer.temperature, nrepeat=optimizer.nrepeat)
+    optimize_greedy(code, size_dict; α = optimizer.α, temperature = optimizer.temperature)
 end
 function _optimize_code(code, size_dict, optimizer::Treewidth)
     optimize_treewidth(optimizer, code, size_dict)
@@ -48,10 +48,9 @@ function _optimize_code(code, size_dict, optimizer::SABipartite)
     recursive_bipartite_optimize(optimizer, code, size_dict)
 end
 function _optimize_code(code, size_dict, optimizer::TreeSA)
-    optimize_tree(code, size_dict; sc_target=optimizer.sc_target, βs=optimizer.βs,
+    optimize_tree(code, size_dict; βs=optimizer.βs,
         ntrials=optimizer.ntrials, niters=optimizer.niters,
-        sc_weight=optimizer.sc_weight, rw_weight=optimizer.rw_weight, initializer=optimizer.initializer,
-        greedy_method=optimizer.greedy_config)
+        initializer=optimizer.initializer, score=optimizer.score)
 end
 function _optimize_code(code, size_dict, optimizer::HyperND)
     optimize_hyper_nd(optimizer, code, size_dict)
@@ -68,7 +67,7 @@ Slice the einsum contraction code to reduce the space complexity, returns a `Sli
 - `slicer` is a `CodeSlicer` instance, currently only `TreeSASlicer` is supported.
 """
 function slice_code(code, size_dict, slicer::TreeSASlicer)
-    slice_tree(code, size_dict; sc_target=slicer.sc_target, βs=slicer.βs,
+    slice_tree(code, size_dict; score=slicer.score, βs=slicer.βs,
         ntrials=slicer.ntrials, niters=slicer.niters,
-        sc_weight=slicer.sc_weight, rw_weight=slicer.rw_weight, optimization_ratio=slicer.optimization_ratio)
+        optimization_ratio=slicer.optimization_ratio)
 end

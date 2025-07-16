@@ -46,33 +46,29 @@ function get_slices(s::Slicer, inverse_map::Dict{Int,LT}) where LT
 end
 
 """
-    TreeSASlicer{RT, IT, LT} <: CodeSlicer
+    TreeSASlicer{IT, LT} <: CodeSlicer
 
 A structure for configuring the Tree Simulated Annealing (TreeSA) slicing algorithm.
 
 # Fields
-- `sc_target::RT`: The target space complexity. Default is 30.
 - `ntrials`, `βs` and `niters` are annealing parameters, doing `ntrials` indepedent annealings, each has inverse tempteratures specified by `βs`, in each temperature, do `niters` updates of the tree.
-- `sc_weight::Float64`: The weight for space complexity in the optimization. Default is 1.0.
-- `rw_weight::Float64`: The weight for read-write complexity in the optimization. Default is 0.2.
 - `fixed_slices::Vector{LT}`: A vector of fixed slices that should not be altered. Default is an empty vector.
-- `optimization_ratio::Float64`: The ratio used for optimization. Default is 2.0.
+- `optimization_ratio::Float64`: A constant used for determining the number of iterations for slicing. Default is 2.0. i.e. if the current space complexity is 30, and the target space complexity is 20, then the number of iterations for slicing is (30 - 20) x `optimization_ratio`.
+- `score::ScoreFunction`: A function to evaluate the quality of the contraction tree. Default is `ScoreFunction(sc_target=30.0)`.
 
 # References
 - [Recursive Multi-Tensor Contraction for XEB Verification of Quantum Circuits](https://arxiv.org/abs/2108.05665)
 """
-Base.@kwdef struct TreeSASlicer{RT,IT,LT} <: CodeSlicer
-    sc_target::RT = 30
+Base.@kwdef struct TreeSASlicer{IT,LT} <: CodeSlicer
     βs::IT = 14:0.05:15
     ntrials::Int = 10
     niters::Int = 10
-    sc_weight::Float64 = 1.0
-    rw_weight::Float64 = 0.2
     fixed_slices::Vector{LT} = []
     optimization_ratio::Float64 = 2.0
+    score::ScoreFunction = ScoreFunction(sc_target=30.0)
 end
 
-function slice_tree(code::NestedEinsum, size_dict::Dict{LT,Int}; sc_target=30, βs=14:0.05:15, ntrials=10, niters=10, sc_weight=1.0, rw_weight=0.2, fixed_slices=LT[], optimization_ratio=2.0) where LT
+function slice_tree(code::NestedEinsum, size_dict::Dict{LT,Int}; βs=14:0.05:15, ntrials=10, niters=10, fixed_slices=LT[], optimization_ratio=2.0, score=ScoreFunction(sc_target=30.0)) where LT
     ixs, iy = getixsv(code), getiyv(code)
     ninputs = length(ixs)
     if ninputs <= 2
@@ -83,45 +79,40 @@ function slice_tree(code::NestedEinsum, size_dict::Dict{LT,Int}; sc_target=30, �
     labels = _label_dict(ixs, iy)  # map labels to integers
     inverse_map = Dict([v=>k for (k,v) in labels])  # the inverse transformation, map integers to labels
     log2_sizes = [log2.(size_dict[inverse_map[i]]) for i=1:length(labels)]   # use `log2` sizes in computing time
-    labels = _label_dict(code)
 
     if ntrials <= 0
         return SlicedEinsum(fixed_slices, code)
     end
 
     ###### Stage 2: computing ######
-    trees, tcs, scs, rws, slicers = Vector{ExprTree}(undef, ntrials), zeros(ntrials), zeros(ntrials), zeros(ntrials), Vector{Slicer}(undef, ntrials)
+    local best_tree, best_tc, best_sc, best_rw, best_slicer
     @threads for t = 1:ntrials  # multi-threading on different trials, use `julia -t 5 xxx.jl` for setting number of threads.
         tree = _exprtree(code, labels)
         slicer = Slicer(log2_sizes, Int[labels[l] for l in fixed_slices])
         
-        treesa_slice!(tree, log2_sizes, slicer; βs=βs, niters=niters, sc_target=sc_target, sc_weight=sc_weight, rw_weight=rw_weight, optimization_ratio=optimization_ratio)
+        treesa_slice!(tree, log2_sizes, slicer; βs, niters, score, optimization_ratio)
         tc, sc, rw = tree_timespace_complexity(tree, log2_sizes)
         @debug "trial $t, time complexity = $tc, space complexity = $sc, read-write complexity = $rw."
-        trees[t], tcs[t], scs[t], rws[t], slicers[t] = tree, tc, sc, rw, slicer
+        if t == 1 || score(tc, sc, rw) < score(best_tc, best_sc, best_rw)
+            best_tree, best_tc, best_sc, best_rw, best_slicer = tree, tc, sc, rw, slicer
+        end
     end
 
     ###### Stage 3: postprocessing ######
-    best_id = find_best_tree(tcs, scs, rws, ntrials, rw_weight, Inf)
-    best_tree, best_tc, best_sc, best_rw, best_slicer = trees[best_id], tcs[best_id], scs[best_id], rws[best_id], slicers[best_id]
     @debug "best space complexities = $best_tc, time complexity = $best_sc, read-write complexity $best_rw."
-
-    # returns a sliced einsum we need to map the sliced dimensions back from integers to labels.
     return SlicedEinsum(get_slices(best_slicer, inverse_map), NestedEinsum(best_tree, inverse_map))
 end
 
-function treesa_slice!(tree::ExprTree, log2_sizes, slicer::Slicer; βs, niters, sc_target, sc_weight, rw_weight, optimization_ratio)
-    @assert rw_weight >= 0
-    @assert sc_weight >= 0
-    log2rw_weight = log2(rw_weight)
+function treesa_slice!(tree::ExprTree, log2_sizes, slicer::Slicer; βs, niters, score, optimization_ratio)
+    log2rw_weight = log2(score.rw_weight)
     tc, sc, rw = tree_timespace_complexity(tree, slicer.log2_sizes)
     @debug "Initial tc = $tc, sc = $sc, rw = $rw"
 
     # determine the number of iterations for slicing
-    optimization_length = Int(ceil(optimization_ratio * (sc - sc_target)))
+    optimization_length = Int(ceil(optimization_ratio * (sc - score.sc_target)))
     slicing_loop = 0
 
-    while slicing_loop < optimization_length || sc > sc_target
+    while slicing_loop < optimization_length || sc > score.sc_target
 
         ###### Stage 1: add one slice at each loop  ######
         # 1). find legs that reduce the dimension the most
@@ -136,14 +127,14 @@ function treesa_slice!(tree::ExprTree, log2_sizes, slicer::Slicer; βs, niters, 
         if !isempty(best_not_sliced_labels)
             #best_not_sliced_label = rand(best_not_sliced_labels)  # random or best
             best_not_sliced_label = best_not_sliced_labels[findmax(l->count(==(l), best_not_sliced_labels), best_not_sliced_labels)[2]]
-            if sc > sc_target  # if has not reached maximum number of slices, add one slice
+            if sc > score.sc_target  # if has not reached maximum number of slices, add one slice
                 push!(slicer, best_not_sliced_label)
             elseif length(slicer.legs) > 0                                 # otherwise replace one slice
                 legs = [l for l in keys(slicer.legs) if l ∉ slicer.fixed_slices]  # only slice over not fixed legs
                 if !isempty(legs)
-                    score = [count(==(l), best_labels) for l in legs]
+                    scores = [count(==(l), best_labels) for l in legs]
                     # replace!(slicer, legs[argmin(score)]=>best_not_sliced_label)
-                    delete!(slicer, legs[argmin(score)])
+                    delete!(slicer, legs[argmin(scores)])
                 end
             end
         end
@@ -151,7 +142,7 @@ function treesa_slice!(tree::ExprTree, log2_sizes, slicer::Slicer; βs, niters, 
         ###### Stage 2: refine the tree with the revised slices  ######
         for β in βs
             for _ = 1:niters
-                optimize_subtree!(tree, β, slicer.log2_sizes, sc_target, sc_weight, log2rw_weight)  # single sweep
+                optimize_subtree!(tree, β, slicer.log2_sizes, score.sc_target, score.sc_weight, log2rw_weight)  # single sweep
             end
         end
         tc, sc, rw = tree_timespace_complexity(tree, slicer.log2_sizes)

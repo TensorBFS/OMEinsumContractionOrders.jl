@@ -5,7 +5,7 @@
         level = 6,
         width = 120,
         imbalances = 130:130,
-        target=:space,
+        score = ScoreFunction(),
     )
 
 Nested-dissection based optimizer. Recursively partitions a tensor network, then calls a
@@ -26,12 +26,12 @@ The optimizer is implemented using the tree decomposition library
 
 # Arguments
 
-  - `dis`: [graph partitioning algorithm](https://algebraicjulia.github.io/CliqueTrees.jl/stable/api/#CliqueTrees.DissectionAlgorithm)
-  - `algs`: tuple of [elimination algorithms](https://algebraicjulia.github.io/CliqueTrees.jl/stable/api/#Elimination-Algorithms).
-  - `level`: maximum level
-  - `width`: minimum width
-  - `imbalances`: imbalance parameters 
-
+- `dis`: [graph partitioning algorithm](https://algebraicjulia.github.io/CliqueTrees.jl/stable/api/#CliqueTrees.DissectionAlgorithm)
+- `algs`: tuple of [elimination algorithms](https://algebraicjulia.github.io/CliqueTrees.jl/stable/api/#Elimination-Algorithms).
+- `level`: maximum level
+- `width`: minimum width
+- `imbalances`: imbalance parameters 
+- `score`: a function to evaluate the quality of the contraction tree. Default is `ScoreFunction()`.
 """
 @kwdef struct HyperND{D, A} <: CodeOptimizer
     dis::D = KaHyParND()
@@ -39,7 +39,7 @@ The optimizer is implemented using the tree decomposition library
     level::Int = 6
     width::Int = 120
     imbalances::StepRange{Int, Int} = 130:1:130
-    target::Symbol=:space
+    score::ScoreFunction = ScoreFunction()
 end
 
 function optimize_hyper_nd(optimizer::HyperND, code, size_dict)
@@ -48,10 +48,10 @@ function optimize_hyper_nd(optimizer::HyperND, code, size_dict)
     level = optimizer.level
     width = optimizer.width
     imbalances = optimizer.imbalances
-    target = optimizer.target
+    score = optimizer.score
 
-    minscore = (typemax(Float64), typemax(Float64), typemax(Float64))
-    mincode = nothing
+    minscore = typemax(Float64)
+    local mincode
 
     for imbalance in imbalances
         curalg = SafeRules(ND(BestWidth(algs), dis; level, width, imbalance))
@@ -59,14 +59,8 @@ function optimize_hyper_nd(optimizer::HyperND, code, size_dict)
         curcode = _optimize_code(code, size_dict, curoptimizer)
         curtc, cursc, currw = __timespacereadwrite_complexity(curcode, size_dict)
 
-        if target == :space
-            curscore = (cursc, curtc, currw)
-        else
-            curscore = (curtc, cursc, currw)
-        end
-
-        if curscore < minscore
-            minscore, mincode = curscore, curcode
+        if score(curtc, cursc, currw) < minscore
+            minscore, mincode = score(curtc, cursc, currw), curcode
         end
     end
 

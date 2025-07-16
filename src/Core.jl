@@ -90,6 +90,39 @@ abstract type CodeSlicer end
 
 
 """
+    ScoreFunction
+
+A function to compute the score of a contraction code:
+
+```
+score = tc_weight * 2^tc + rw_weight * 2^rw + (sc < sc_target ? sc_weight : 0) * 2^sc
+```
+
+# Fields
+- `tc_weight`: the weight of the time complexity, default is 1.0.
+- `sc_weight`: the weight of the space complexity (the size of the largest tensor), default is 1.0.
+- `rw_weight`: the weight of the read-write complexity, default is 0.0.
+- `sc_target`: the target space complexity, below which the `sc_weight` will be set to 0 automatically, default is 0.0.
+"""
+struct ScoreFunction
+    tc_weight::Float64
+    sc_weight::Float64
+    rw_weight::Float64
+    sc_target::Float64
+    function ScoreFunction(; tc_weight=1.0, sc_weight=1.0, rw_weight=0.0, sc_target=0.0)
+        @assert tc_weight >= 0
+        @assert sc_weight >= 0
+        @assert rw_weight >= 0
+        @assert sc_target >= 0
+        new(Float64(tc_weight), Float64(sc_weight), Float64(rw_weight), Float64(sc_target))
+    end
+end
+
+function (score::ScoreFunction)(tc, sc, rw)
+    return score.tc_weight * exp2(tc) + score.rw_weight * exp2(rw) + (sc < score.sc_target ? score.sc_weight : 0.0) * exp2(sc)
+end
+
+"""
     NestedEinsum{LT} <: AbstractEinsum
     NestedEinsum(args::Vector{NestedEinsum}, eins::EinCode)
 

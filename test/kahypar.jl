@@ -77,7 +77,7 @@ end
     code = random_regular_eincode(50, 3)
     codeg = optimize_kahypar(code, uniformsize(code, 2); max_group_size=10, sc_target=10)
     codet = optimize_kahypar(code, uniformsize(code, 2); max_group_size=10, sc_target=10, sub_optimizer = TreeSA())
-    codek = optimize_greedy(code, uniformsize(code, 2))
+    codek = optimize_greedy(code, uniformsize(code, 2); α=0.0, temperature=0.0)
 
     cc_kg = contraction_complexity(codeg, uniformsize(code, 2))
     cc_kt = contraction_complexity(codet, uniformsize(code, 2))
@@ -95,7 +95,7 @@ end
     Random.seed!(2)
     code = random_regular_eincode(220, 3)
     codeg_auto = optimize_kahypar_auto(code, uniformsize(code, 2), sub_optimizer=GreedyMethod())
-    codet_auto = optimize_kahypar_auto(code, uniformsize(code, 2), sub_optimizer=TreeSA(ntrials = 1, sc_weight = 0.1))
+    codet_auto = optimize_kahypar_auto(code, uniformsize(code, 2), sub_optimizer=TreeSA(ntrials = 1, score=ScoreFunction(sc_weight = 0.1)))
     ccg = contraction_complexity(codeg_auto, uniformsize(code, 2))
     @show ccg.sc, ccg.tc
     cct = contraction_complexity(codet_auto, uniformsize(code, 2))
@@ -108,7 +108,7 @@ end
     code = random_regular_open_eincode(50, 3, 3)
     codeg = optimize_kahypar(code, uniformsize(code, 2); max_group_size=10, sc_target=10)
     codet = optimize_kahypar(code, uniformsize(code, 2); max_group_size=10, sc_target=10, sub_optimizer = TreeSA())
-    codek = optimize_greedy(code, uniformsize(code, 2))
+    codek = optimize_greedy(code, uniformsize(code, 2); α=0.0, temperature=0.0)
 
     xs = [[2*randn(2, 2) for i=1:75]..., [randn(2) for i=1:50]...]
     resg = decorate(codeg)(xs...)

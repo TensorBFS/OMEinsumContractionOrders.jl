@@ -98,7 +98,7 @@ end
 function coarse_grained_optimize(adj, parts, log2_sizes, sub_optimizer)
     incidence_list = get_coarse_grained_graph(adj, parts)
     log2_edge_sizes = Dict([i=>log2_sizes[i] for i=1:length(log2_sizes)])
-    tree, _, _ = tree_greedy(incidence_list, log2_edge_sizes; α = sub_optimizer.α, temperature = sub_optimizer.temperature, nrepeat=sub_optimizer.nrepeat)
+    tree, _, _ = tree_greedy(incidence_list, log2_edge_sizes; α = sub_optimizer.α, temperature = sub_optimizer.temperature)
     return tree
 end
 

@@ -1,6 +1,6 @@
 """
     struct Treewidth{EL <: EliminationAlgorithm, GM} <: CodeOptimizer
-    Treewidth(; alg::EL = SafeRules(BT(), MMW{3}(), MF()), greedy_config::GM = GreedyMethod(nrepeat=1))
+    Treewidth(; alg::EL = SafeRules(BT(), MMW{3}(), MF()))
 
 Tree width based solver. The solvers are implemented in [CliqueTrees.jl](https://algebraicjulia.github.io/CliqueTrees.jl/stable/) and [TreeWidthSolver.jl](https://github.com/ArrogantGao/TreeWidthSolver.jl). They include:
 
@@ -21,7 +21,6 @@ Detailed descriptions is available in the [CliqueTrees.jl](https://algebraicjuli
 
 # Fields
 - `alg::EL`: The algorithm to use for the treewidth calculation. Available elimination algorithms are listed above.
-- `greedy_config::GM`: The configuration for the greedy method.
 
 # Example
 ```jldoctest
@@ -51,28 +50,27 @@ ba, ab -> a
 └─ ab
 ```
 """
-Base.@kwdef struct Treewidth{EL <: EliminationAlgorithm, GM} <: CodeOptimizer 
+Base.@kwdef struct Treewidth{EL <: EliminationAlgorithm} <: CodeOptimizer 
     alg::EL = SafeRules(BT(), MMW{3}(), MF())
-    greedy_config::GM = GreedyMethod(nrepeat=1)
 end
 
 """
-    const ExactTreewidth{GM} = Treewidth{SafeRules{BT, MMW{3}(), MF}, GM}
-    ExactTreewidth(; greedy_config = GreedyMethod(nrepeat=1)) = Treewidth(; greedy_config)
+    const ExactTreewidth = Treewidth{SafeRules{BT, MMW{3}(), MF}}
+    ExactTreewidth() = Treewidth()
 
 `ExactTreewidth` is a specialization of `Treewidth` for the `SafeRules` preprocessing algorithm with the `BT` elimination algorithm.
 The `BT` algorithm is an exact solver for the treewidth problem that implemented in [`TreeWidthSolver.jl`](https://github.com/ArrogantGao/TreeWidthSolver.jl).
 """
-const ExactTreewidth{GM} = Treewidth{SafeRules{BT, MMW{3}, MF}, GM}
-ExactTreewidth(; greedy_config = GreedyMethod(nrepeat=1)) = Treewidth(; greedy_config)
+const ExactTreewidth = Treewidth{SafeRules{BT, MMW{3}, MF}}
+ExactTreewidth() = Treewidth()
 
-# calculates the exact treewidth of a graph using TreeWidthSolver.jl. It takes an incidence list representation of the graph (`incidence_list`) and a dictionary of logarithm base 2 edge sizes (`log2_edge_sizes`) as input. The function also accepts optional parameters `α`, `temperature`, and `nrepeat` with default values of 0.0, 0.0, and 1 respectively, which are parameter of the GreedyMethod used in the contraction process as a sub optimizer.
+# calculates the exact treewidth of a graph using TreeWidthSolver.jl. It takes an incidence list representation of the graph (`incidence_list`) and a dictionary of logarithm base 2 edge sizes (`log2_edge_sizes`) as input.
 # Return: a `ContractionTree` representing the contraction process.
 #
 # - `incidence_list`: An incidence list representation of the graph.
 # - `log2_edge_sizes`: A dictionary of logarithm base 2 edge sizes.
 # - `alg`: The algorithm to use for the treewidth calculation.
-function treewidth_method(incidence_list::IncidenceList{VT,ET}, log2_edge_sizes, alg; α::TA = 0.0, temperature::TT = 0.0, nrepeat=1) where {VT,ET,TA,TT}
+function treewidth_method(incidence_list::IncidenceList{VT,ET}, log2_edge_sizes, alg) where {VT,ET}
     indices = collect(keys(incidence_list.e2v))
     tensors = collect(keys(incidence_list.v2e))
     weights = [log2_edge_sizes[e] for e in indices]
@@ -98,7 +96,7 @@ function treewidth_method(incidence_list::IncidenceList{VT,ET}, log2_edge_sizes,
             return @view lg_indices[res]
         end
         
-        contraction_tree = eo2ct(eo, incidence_list, log2_edge_sizes, α, temperature, nrepeat)
+        contraction_tree = eo2ct(eo, incidence_list, log2_edge_sizes)
         push!(contraction_trees, contraction_tree)
     end
 
@@ -123,7 +121,7 @@ function il2lg(incidence_list::IncidenceList{VT, ET}, indicies::Vector{ET}) wher
 end
 
 # transform elimination order to contraction tree
-function eo2ct(elimination_order::Vector{<:AbstractVector{TL}}, incidence_list::IncidenceList{VT, ET}, log2_edge_sizes, α::TA, temperature::TT, nrepeat) where {TL, VT, ET, TA, TT}
+function eo2ct(elimination_order::Vector{<:AbstractVector{TL}}, incidence_list::IncidenceList{VT, ET}, log2_edge_sizes) where {TL, VT, ET}
     eo = copy(elimination_order)
     incidence_list = copy(incidence_list)
     contraction_tree_nodes = Vector{Union{VT, ContractionTree}}(collect(keys(incidence_list.v2e)))
@@ -142,7 +140,7 @@ function eo2ct(elimination_order::Vector{<:AbstractVector{TL}}, incidence_list::
             sub_list_open_indices = setdiff(sub_list_indices, eliminated_vertices) # the vertices connected to the tensors to be contracted but not eliminated
             vmap = Dict([i => incidence_list.v2e[v] for (i, v) in enumerate(vs)])
             sub_list = IncidenceList(vmap; openedges=sub_list_open_indices) # the subgraph of the contracted tensors
-            sub_tree, scs, tcs = tree_greedy(sub_list, log2_edge_sizes; nrepeat=nrepeat, α=α, temperature=temperature) # optmize the subgraph with greedy method
+            sub_tree, scs, tcs = tree_greedy(sub_list, log2_edge_sizes; α=0.0, temperature=0.0) # optmize the subgraph with greedy method
             sub_tree = expand_indices(sub_tree, Dict([i => v for (i, v) in enumerate(vs)]))
             vi = contract_tree!(incidence_list, sub_tree, log2_edge_sizes, scs, tcs) # insert the contracted tensors back to the total graph
             contraction_tree_nodes[tensors_list[vi]] = st2ct(sub_tree, tensors_list, contraction_tree_nodes)
@@ -175,10 +173,10 @@ end
 Optimizing the contraction order via solve the exact tree width of the line graph corresponding to the eincode and return a `NestedEinsum` object.
 Check the docstring of `treewidth_method` for detailed explaination of other input arguments.
 """
-function optimize_treewidth(optimizer::Treewidth{EL, GM}, code::AbstractEinsum, size_dict::Dict) where {GM, EL}
+function optimize_treewidth(optimizer::Treewidth{EL}, code::AbstractEinsum, size_dict::Dict) where {EL}
     optimize_treewidth(optimizer, getixsv(code), getiyv(code), size_dict)
 end
-function optimize_treewidth(optimizer::Treewidth{EL, GM}, ixs::AbstractVector{<:AbstractVector}, iy::AbstractVector, size_dict::Dict{L,TI}) where {L, TI, GM, EL}
+function optimize_treewidth(optimizer::Treewidth{EL}, ixs::AbstractVector{<:AbstractVector}, iy::AbstractVector, size_dict::Dict{L,TI}) where {L, TI, EL}
     if length(ixs) <= 2
         return NestedEinsum(NestedEinsum{L}.(1:length(ixs)), EinCode(ixs, iy))
     end
@@ -189,10 +187,7 @@ function optimize_treewidth(optimizer::Treewidth{EL, GM}, ixs::AbstractVector{<:
     # complete all open edges as a clique, connected with a dummy tensor
     incidence_list = IncidenceList(Dict([i=>ixs[i] for i=1:length(ixs)] ∪ [(length(ixs) + 1 => iy)]))
 
-    α = optimizer.greedy_config.α
-    temperature = optimizer.greedy_config.temperature
-    nrepeat = optimizer.greedy_config.nrepeat
-    tree = treewidth_method(incidence_list, log2_edge_sizes, optimizer.alg; α = α, temperature = temperature, nrepeat=nrepeat)
+    tree = treewidth_method(incidence_list, log2_edge_sizes, optimizer.alg)
 
     # remove the dummy tensor added for open edges
     optcode = parse_eincode!(incidence_list, tree, 1:length(ixs) + 1, size_dict)[2]

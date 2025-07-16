@@ -56,7 +56,7 @@ end
     # contraction test
     code = random_regular_eincode(50, 3)
     codeg = optimize_sa(code, uniformsize(code, 2); sc_target=12, βs=βs, ntrials=1, initializer=:greedy)
-    codek = optimize_greedy(code, uniformsize(code, 2))
+    codek = optimize_greedy(code, uniformsize(code, 2); α=0.0, temperature=0.0)
     cc = contraction_complexity(codek, uniformsize(code, 2))
     @test cc.sc <= 12
     xs = [[2*randn(2, 2) for i=1:75]..., [randn(2) for i=1:50]...]

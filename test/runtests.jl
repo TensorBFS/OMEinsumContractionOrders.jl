@@ -16,8 +16,8 @@ end
     include("greedy.jl")
 end
 
-@testset "sa" begin
-    include("sa.jl")
+@testset "sabipartite" begin
+    include("sabipartite.jl")
 end
 
 if isdefined(Base, :get_extension)
@@ -28,6 +28,9 @@ end
 
 @testset "treesa" begin
     include("treesa.jl")
+end
+
+@testset "treesaslicer" begin
     include("treesaslicer.jl")
 end
 
