@@ -16,8 +16,10 @@ using KaHyPar
     # contraction test
     Random.seed!(2)
     code = random_regular_eincode(100, 3)
-    
-    for code0 in [optimize_greedy(code, uniformsize(code, 2)), optimize_tree(code, uniformsize(code, 2)), optimize_hyper_nd(HyperND(), code, uniformsize(code, 2))]
+
+    for code0 in [optimize_greedy(code, uniformsize(code, 2)),
+            optimize_tree(code, uniformsize(code, 2); initializer=:greedy, greedy_method=GreedyMethod(nrepeat=1), sc_target=10, βs=0.1:0.05:20.0, ntrials=2, niters=10, sc_weight=1.0, rw_weight=1.0),
+            optimize_hyper_nd(HyperND(), code, uniformsize(code, 2))]
 
         codet = slice_tree(code0, uniformsize(code, 2); sc_target = 10)
         @test codet isa SlicedEinsum

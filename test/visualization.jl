@@ -22,7 +22,7 @@ using Test, OMEinsumContractionOrders
     @test_throws ArgumentError begin
         eincode = OMEinsumContractionOrders.EinCode([['a', 'b'], ['a', 'c', 'd'], ['b', 'c', 'e', 'f'], ['e'], ['d', 'f']], Vector{Char}())
         nested_code = optimize_code(eincode, uniformsize(eincode, 2), GreedyMethod())
-        viz_contraction(nested_code, pathname = "")
+        viz_contraction(nested_code)
     end
 end
 
