@@ -49,11 +49,26 @@ function _optimize_code(code, size_dict, optimizer::SABipartite)
 end
 function _optimize_code(code, size_dict, optimizer::TreeSA)
     optimize_tree(code, size_dict; sc_target=optimizer.sc_target, βs=optimizer.βs,
-        ntrials=optimizer.ntrials, niters=optimizer.niters, nslices=optimizer.nslices,
+        ntrials=optimizer.ntrials, niters=optimizer.niters,
         sc_weight=optimizer.sc_weight, rw_weight=optimizer.rw_weight, initializer=optimizer.initializer,
-        greedy_method=optimizer.greedy_config, fixed_slices=optimizer.fixed_slices)
+        greedy_method=optimizer.greedy_config)
 end
 function _optimize_code(code, size_dict, optimizer::HyperND)
     optimize_hyper_nd(optimizer, code, size_dict)
 end
 
+"""
+    slice_code(code, size_dict, slicer) -> sliced_code
+
+Slice the einsum contraction code to reduce the space complexity, returns a `SlicedEinsum` instance.
+
+# Arguments
+- `code` is a `NestedEinsum` instance.
+- `size_dict` is a dictionary of "edge label=>edge size" that contains the size information, one can use `uniformsize(eincode, 2)` to create a uniform size.
+- `slicer` is a `CodeSlicer` instance, currently only `TreeSASlicer` is supported.
+"""
+function slice_code(code, size_dict, slicer::TreeSASlicer)
+    slice_tree(code, size_dict; sc_target=slicer.sc_target, βs=slicer.βs,
+        ntrials=slicer.ntrials, niters=slicer.niters,
+        sc_weight=slicer.sc_weight, rw_weight=slicer.rw_weight, optimization_ratio=slicer.optimization_ratio)
+end

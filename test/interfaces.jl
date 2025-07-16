@@ -15,7 +15,7 @@ using OMEinsum
     xs = [[randn(2,2) for i=1:150]..., [randn(2) for i=1:100]...]
 
     results = Float64[]
-    for optimizer in [TreeSA(ntrials=1), TreeSA(ntrials=1, nslices=5), GreedyMethod(), SABipartite(sc_target=18, ntrials=1), HyperND()]
+    for optimizer in [TreeSA(ntrials=1), GreedyMethod(), SABipartite(sc_target=18, ntrials=1), HyperND()]
         for simplifier in (nothing, MergeVectors(), MergeGreedy())
             @info "optimizer = $(optimizer), simplifier = $(simplifier)"
             res = optimize_code(code,uniformsize(code, 2), optimizer, simplifier)
@@ -42,7 +42,7 @@ using OMEinsum
     xs = [[randn(2,2) for i=1:15]..., [randn(2) for i=1:10]...]
 
     results = Float64[]
-    for optimizer in [TreeSA(ntrials=1), TreeSA(ntrials=1, nslices=5), GreedyMethod(), SABipartite(sc_target=18, ntrials=1), ExactTreewidth(), HyperND()]
+    for optimizer in [TreeSA(ntrials=1), GreedyMethod(), SABipartite(sc_target=18, ntrials=1), ExactTreewidth(), HyperND()]
         for simplifier in (nothing, MergeVectors(), MergeGreedy())
             @info "optimizer = $(optimizer), simplifier = $(simplifier)"
             res = optimize_code(small_code,uniformsize(small_code, 2), optimizer, simplifier)
@@ -70,8 +70,7 @@ end
     sne = StaticNestedEinsum((StaticNestedEinsum{Char}(1),), code)
     dne = DynamicNestedEinsum((DynamicNestedEinsum{Char}(1),), DynamicEinCode(code))
     @test optimize_code(code, sizes, GreedyMethod()) == sne
-    @test optimize_code(code, sizes, TreeSA()) == SlicedEinsum(Char[], dne)
-    @test optimize_code(code, sizes, TreeSA(nslices=2)) == SlicedEinsum(Char[], dne)
+    @test optimize_code(code, sizes, TreeSA()) == dne
     isdefined(Base, :get_extension) &&  (@test optimize_code(code, sizes, KaHyParBipartite(sc_target=25)) == dne)
     @test optimize_code(code, sizes, SABipartite(sc_target=25)) == dne
 end
@@ -88,15 +87,20 @@ end
     end
     code = random_regular_eincode(50, 3)
     @test peak_memory(code, uniformsize(code, 5)) == (25 * 75 + 5 * 50)
+    
     code1 = optimize_code(code, uniformsize(code, 5), GreedyMethod())
     pm1 = peak_memory(code1, uniformsize(code, 5))
     tc1, sc1, rw1 = timespacereadwrite_complexity(code1, uniformsize(code, 5))
-    code2 = optimize_code(code, uniformsize(code, 5), TreeSA(ntrials=1, nslices=5))
-    pm2 = peak_memory(code2, uniformsize(code, 5))
-    tc2, sc2, rw2 = timespacereadwrite_complexity(code2, uniformsize(code, 5))
     @test 10 * 2^sc1 > pm1 > 2^sc1
-    @test 10 * 2^sc2 > pm2 > 2^sc2
+
+    # code2 = slice_code(code1, uniformsize(code, 5), TreeSASlicer(sc_target=10))
+    # pm2 = peak_memory(code2, uniformsize(code, 5))
+    # tc2, sc2, rw2 = timespacereadwrite_complexity(code2, uniformsize(code, 5))
+    # @test sc2 <= 10
+    # @test 10 * 2^sc2 > pm2 > 2^sc2
 end
+
+
 
 if isdefined(Base, :get_extension)
     @testset "kahypar regression test" begin

@@ -82,6 +82,14 @@ Abstract type for code optimizers.
 abstract type CodeOptimizer end
 
 """
+    CodeSlicer
+
+Abstract type for code slicers.
+"""
+abstract type CodeSlicer end
+
+
+"""
     NestedEinsum{LT} <: AbstractEinsum
     NestedEinsum(args::Vector{NestedEinsum}, eins::EinCode)
 
