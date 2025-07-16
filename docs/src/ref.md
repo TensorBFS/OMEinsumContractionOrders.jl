@@ -18,6 +18,12 @@ Modules = [OMEinsumContractionOrders]
 Pages = ["interfaces.jl", "greedy.jl", "treesa.jl", "treewidth.jl", "hypernd.jl", "kahypar.jl", "sabipartite.jl"]
 ```
 
+## Slicing
+```@autodocs
+Modules = [OMEinsumContractionOrders]
+Pages = ["treesaslicer.jl"]
+```
+
 ## Preprocessing code
 Some optimizers (e.g. [`TreeSA`](@ref)) are too costly to run. We provide a preprocessing step to reduce the time of calling optimizers.
 ```@autodocs
