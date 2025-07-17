@@ -109,7 +109,7 @@ struct ScoreFunction
     sc_weight::Float64
     rw_weight::Float64
     sc_target::Float64
-    function ScoreFunction(; tc_weight=1.0, sc_weight=1.0, rw_weight=0.0, sc_target=0.0)
+    function ScoreFunction(; tc_weight=1.0, sc_weight=1.0, rw_weight=0.0, sc_target=20.0)
         @assert tc_weight >= 0
         @assert sc_weight >= 0
         @assert rw_weight >= 0

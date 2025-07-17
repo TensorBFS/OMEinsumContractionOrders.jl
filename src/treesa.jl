@@ -122,7 +122,6 @@ Optimize the einsum contraction pattern using the simulated annealing on tensor 
 - `greedy_method` is removed. If you want to have detailed control of the initializer, please pre-optimize the code with another method and then use `:specified` to initialize the tree.
 """
 Base.@kwdef struct TreeSA{IT} <: CodeOptimizer
-    sc_target = 0.0
     βs::IT = 0.01:0.05:15
     ntrials::Int = 10
     niters::Int = 50
