@@ -95,7 +95,7 @@ abstract type CodeSlicer end
 A function to compute the score of a contraction code:
 
 ```
-score = tc_weight * 2^tc + rw_weight * 2^rw + (sc < sc_target ? sc_weight : 0) * 2^sc
+score = tc_weight * 2^tc + rw_weight * 2^rw + sc_weight * max(0, 2^sc - 2^sc_target)
 ```
 
 # Fields
@@ -119,7 +119,7 @@ struct ScoreFunction
 end
 
 function (score::ScoreFunction)(tc, sc, rw)
-    return score.tc_weight * exp2(tc) + score.rw_weight * exp2(rw) + (sc < score.sc_target ? score.sc_weight : 0.0) * exp2(sc)
+    return score.tc_weight * exp2(tc) + score.rw_weight * exp2(rw) + score.sc_weight * max(0.0, exp2(sc) - exp2(score.sc_target))
 end
 
 """
