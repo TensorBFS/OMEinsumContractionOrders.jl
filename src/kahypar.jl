@@ -185,34 +185,6 @@ recursive_flatten(obj::Tuple) = vcat(recursive_flatten.(obj)...)
 recursive_flatten(obj::AbstractVector) = vcat(recursive_flatten.(obj)...)
 recursive_flatten(obj) = obj
 
-"""
-    optimize_kahypar_auto(code, size_dict; max_group_size=40, sub_optimizer = GreedyMethod())
-
-Find the optimal contraction order automatically by determining the `sc_target` with bisection.
-It can fail if the tree width of your graph is larger than `100`.
-"""
-function optimize_kahypar_auto(code::EinCode, size_dict; max_group_size=40, effort=500, sub_optimizer=GreedyMethod())
-    sc_high = 100
-    sc_low = 1
-    order_high = optimize_kahypar(code, size_dict; sc_target=sc_high, max_group_size=max_group_size, imbalances=0.0:0.6/effort*(sc_high-sc_low):0.6, sub_optimizer = sub_optimizer)
-    _optimize_kahypar_auto(code, size_dict, sc_high, order_high, sc_low, max_group_size, effort, sub_optimizer)
-end
-function _optimize_kahypar_auto(code::EinCode, size_dict, sc_high, order_high, sc_low, max_group_size, effort, sub_optimizer)
-    if sc_high <= sc_low + 1
-        order_high
-    else
-        sc_mid = (sc_high + sc_low) ÷ 2
-        order_mid = optimize_kahypar(code, size_dict; sc_target=sc_mid, max_group_size=max_group_size, imbalances=0.0:0.6/effort*(sc_high-sc_low):0.6, sub_optimizer = sub_optimizer)
-        cc = contraction_complexity(order_mid, size_dict)
-        if cc.sc > sc_high
-            order_high, sc_high = order_mid, sc_mid
-        else
-            sc_low = sc_mid
-        end
-        _optimize_kahypar_auto(code, size_dict, sc_high, order_high, sc_low, max_group_size, effort, sub_optimizer)
-    end
-end
-
 function recursive_construct_nestedeinsum(ixs::AbstractVector{<:AbstractVector}, iy::AbstractVector{L}, parts::AbstractVector, size_dict, level, sub_optimizer) where L
     if length(parts) == 2
         # code is a nested einsum

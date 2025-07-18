@@ -3,7 +3,7 @@ using Test, Random
 using SparseArrays
 using OMEinsumContractionOrders
 using OMEinsumContractionOrders: get_coarse_grained_graph, _connected_components, bipartite_sc, group_sc, coarse_grained_optimize,
-    map_tree_to_parts, ContractionTree, optimize_greedy, optimize_kahypar, optimize_kahypar_auto
+    map_tree_to_parts, ContractionTree, optimize_greedy, optimize_kahypar
 using KaHyPar
 using OMEinsum: decorate
 
@@ -91,18 +91,6 @@ end
     resg = decorate(codeg)(xs...)
     resk = decorate(codek)(xs...)
     @test resg ≈ resk
-
-    Random.seed!(2)
-    code = random_regular_eincode(220, 3)
-    codeg_auto = optimize_kahypar_auto(code, uniformsize(code, 2), sub_optimizer=GreedyMethod())
-    codet_auto = optimize_kahypar_auto(code, uniformsize(code, 2), sub_optimizer=TreeSA(ntrials = 1, score=ScoreFunction(sc_weight = 0.1)))
-    ccg = contraction_complexity(codeg_auto, uniformsize(code, 2))
-    @show ccg.sc, ccg.tc
-    cct = contraction_complexity(codet_auto, uniformsize(code, 2))
-    @show cct.sc, cct.tc
-
-    @test ccg.sc <= 30
-    @test cct.sc <= 30
 
     Random.seed!(2)
     code = random_regular_open_eincode(50, 3, 3)
