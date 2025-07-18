@@ -149,18 +149,6 @@ function adjacency_matrix(ixs::AbstractVector)
     return sparse(rows, cols, ones(Int, length(rows)), length(ixs), length(edges)), edges
 end
 
-# legacy interface
-"""
-    optimize_kahypar(code, size_dict; sc_target, max_group_size=40, imbalances=0.0:0.01:0.2, greedy_method=MinSpaceOut(), greedy_nrepeat=1)
-
-Optimize the einsum `code` contraction order using the KaHyPar + Greedy approach. `size_dict` is a dictionary that specifies leg dimensions. 
-Check the docstring of `KaHyParBipartite` for detailed explaination of other input arguments.
-"""
-function optimize_kahypar(code::EinCode, size_dict; sc_target, max_group_size=40, imbalances=0.0:0.01:0.2, sub_optimizer=GreedyMethod())
-    bipartiter = KaHyParBipartite(; sc_target=sc_target, max_group_size=max_group_size, imbalances=imbalances, sub_optimizer = sub_optimizer)
-    recursive_bipartite_optimize(bipartiter, code, size_dict)
-end
-
 function recursive_bipartite_optimize(bipartiter, code::AbstractEinsum, size_dict)
     ixs, iy = getixsv(code), getiyv(code)
     ixv = [ixs..., iy]

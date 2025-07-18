@@ -3,7 +3,7 @@ using Test, Random
 using SparseArrays
 using OMEinsumContractionOrders
 using OMEinsumContractionOrders: get_coarse_grained_graph, _connected_components, bipartite_sc, group_sc, coarse_grained_optimize,
-    map_tree_to_parts, ContractionTree, optimize_greedy, optimize_kahypar
+    map_tree_to_parts, ContractionTree, optimize_greedy, recursive_bipartite_optimize
 using KaHyPar
 using OMEinsum: decorate
 
@@ -69,14 +69,14 @@ end
     @test group_sc(graph, res.part2, log2_sizes) <= sc_target
 
     code = random_regular_eincode(220, 3)
-    res = optimize_kahypar(code,uniformsize(code, 2); max_group_size=50, sc_target=30)
+    res = recursive_bipartite_optimize(KaHyParBipartite(sc_target=30, max_group_size=50), code, uniformsize(code, 2))
     cc = contraction_complexity(res, uniformsize(code, 2))
     @test cc.sc <= 30
 
     # contraction test
     code = random_regular_eincode(50, 3)
-    codeg = optimize_kahypar(code, uniformsize(code, 2); max_group_size=10, sc_target=10)
-    codet = optimize_kahypar(code, uniformsize(code, 2); max_group_size=10, sc_target=10, sub_optimizer = TreeSA())
+    codeg = recursive_bipartite_optimize(KaHyParBipartite(sc_target=10, max_group_size=10), code, uniformsize(code, 2))
+    codet = recursive_bipartite_optimize(KaHyParBipartite(sc_target=10, max_group_size=10, sub_optimizer = TreeSA()), code, uniformsize(code, 2))
     codek = optimize_greedy(code, uniformsize(code, 2); α=0.0, temperature=0.0)
 
     cc_kg = contraction_complexity(codeg, uniformsize(code, 2))
@@ -94,8 +94,8 @@ end
 
     Random.seed!(2)
     code = random_regular_open_eincode(50, 3, 3)
-    codeg = optimize_kahypar(code, uniformsize(code, 2); max_group_size=10, sc_target=10)
-    codet = optimize_kahypar(code, uniformsize(code, 2); max_group_size=10, sc_target=10, sub_optimizer = TreeSA())
+    codeg = recursive_bipartite_optimize(KaHyParBipartite(sc_target=10, max_group_size=10), code, uniformsize(code, 2))
+    codet = recursive_bipartite_optimize(KaHyParBipartite(sc_target=10, max_group_size=10, sub_optimizer = TreeSA()), code, uniformsize(code, 2))
     codek = optimize_greedy(code, uniformsize(code, 2); α=0.0, temperature=0.0)
 
     xs = [[2*randn(2, 2) for i=1:75]..., [randn(2) for i=1:50]...]
@@ -124,7 +124,7 @@ end
 
     Random.seed!(2)
     code = random_regular_open_eincode(50, 3, 3)
-    codeg = optimize_kahypar(code, uniformsize(code, 2); max_group_size=10, sc_target=5)
+    codeg = recursive_bipartite_optimize(KaHyParBipartite(sc_target=5, max_group_size=10), code, uniformsize(code, 2))
     codek = optimize_greedy(code, uniformsize(code, 2); α=0.0, temperature=0.0)
 
     xs = [[2*randn(2, 2) for i=1:75]..., [randn(2) for i=1:50]...]
