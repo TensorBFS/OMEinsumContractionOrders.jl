@@ -11,8 +11,8 @@ using OMEinsum: decorate
     ws = fill(log2(2), ne(g))
     vertices = 1:110
     b = SABipartite(βs=0.1:0.2:20.0, niters=1000, ntrials=100, sc_target=40, initializer=:random)
-    g1, g2 = bipartite_sc(b, adj, vertices, ws)
-    @test length(g1) + length(g2) == 110
+    res = bipartite_sc(b, adj, vertices, ws)
+    @test length(res.part1) + length(res.part2) == 110
 end
 
 @testset "sa" begin
@@ -35,13 +35,13 @@ end
     log2_sizes = fill(1, size(graph, 2))
     βs = 0.01:0.05:10.0
     b = SABipartite(βs=βs, niters=1000, ntrials=100, sc_target=28)
-    group1, group2 = bipartite_sc(b, graph, collect(1:size(graph, 1)), log2_sizes)
-    @test group_sc(graph, group1, log2_sizes) <= sc_target+2
-    @test group_sc(graph, group2, log2_sizes) <= sc_target+2
+    res = bipartite_sc(b, graph, collect(1:size(graph, 1)), log2_sizes)
+    @test group_sc(graph, res.part1, log2_sizes) <= sc_target+2
+    @test group_sc(graph, res.part2, log2_sizes) <= sc_target+2
     sc_target = 27.0
-    group11, group12 = bipartite_sc(b, graph, group1, log2_sizes)
-    @test group_sc(graph, group11, log2_sizes) <= sc_target+2
-    @test group_sc(graph, group12, log2_sizes) <= sc_target+2
+    res = bipartite_sc(b, graph, res.part1, log2_sizes)
+    @test group_sc(graph, res.part1, log2_sizes) <= sc_target+2
+    @test group_sc(graph, res.part2, log2_sizes) <= sc_target+2
 
     code = random_regular_eincode(220, 3)
     res = optimize_sa(code,uniformsize(code, 2); sc_target=30, βs=βs)

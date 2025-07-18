@@ -36,6 +36,19 @@ function convert2int(sizes::AbstractVector)
     round.(Int, sizes .* 100)
 end
 
+"""
+    BipartiteResult{RT}
+    BipartiteResult(part1, part2, sc, valid)
+
+Result of the bipartite optimization. `part1` and `part2` are the two parts of the bipartition, `sc` is the space complexity of the bipartition, `valid` is a boolean indicating whether the bipartition is valid.
+"""
+struct BipartiteResult{RT}
+    part1::Vector{Int}
+    part2::Vector{Int}
+    sc::RT
+    valid::Bool
+end
+
 function bipartite_sc(bipartiter, adj::SparseMatrixCSC, vertices, log2_sizes)
     error("""Guess you are trying to use the `KaHyParBipartite` optimizer.
 Then you need to add `using KaHyPar` first!""")
@@ -50,9 +63,10 @@ end
 
 function bipartition_recursive(bipartiter, adj::SparseMatrixCSC, vertices::AbstractVector{T}, log2_sizes) where T
     if length(vertices) > bipartiter.max_group_size
-        parts = bipartite_sc(bipartiter, adj, vertices, log2_sizes)
+        res = bipartite_sc(bipartiter, adj, vertices, log2_sizes)
+        !res.valid && @warn "fail to find a valid partition for `sc_target = $(bipartiter.sc_target)`, got minimum value `$(res.sc)` (imbalances = $(bipartiter.imbalances))"
         groups = Vector{T}[]
-        for part in parts
+        for part in (res.part1, res.part2)
             for component in _connected_components(adj, part)
                 push!(groups, component)
             end
@@ -152,7 +166,7 @@ function recursive_bipartite_optimize(bipartiter, code::AbstractEinsum, size_dic
     ixv = [ixs..., iy]
     
     adj, edges = adjacency_matrix(ixv)
-    vertices=collect(1:length(ixv))
+    vertices = collect(1:length(ixv))
     parts = bipartition_recursive(bipartiter, adj, vertices, [log2(size_dict[e]) for e in edges])
     optcode = recursive_construct_nestedeinsum(ixv, empty(iy), parts, size_dict, 0, bipartiter.sub_optimizer)
     return pivot_tree(optcode, length(ixs) + 1)
@@ -188,12 +202,11 @@ function _optimize_kahypar_auto(code::EinCode, size_dict, sc_high, order_high, s
         order_high
     else
         sc_mid = (sc_high + sc_low) ÷ 2
-        try
-            order_mid = optimize_kahypar(code, size_dict; sc_target=sc_mid, max_group_size=max_group_size, imbalances=0.0:0.6/effort*(sc_high-sc_low):0.6, sub_optimizer = sub_optimizer)
+        order_mid = optimize_kahypar(code, size_dict; sc_target=sc_mid, max_group_size=max_group_size, imbalances=0.0:0.6/effort*(sc_high-sc_low):0.6, sub_optimizer = sub_optimizer)
+        cc = contraction_complexity(order_mid, size_dict)
+        if cc.sc > sc_high
             order_high, sc_high = order_mid, sc_mid
-            # `sc_target` too high
-        catch
-            # `sc_target` too low
+        else
             sc_low = sc_mid
         end
         _optimize_kahypar_auto(code, size_dict, sc_high, order_high, sc_low, max_group_size, effort, sub_optimizer)

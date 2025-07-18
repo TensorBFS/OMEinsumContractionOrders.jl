@@ -60,13 +60,13 @@ end
     sc_target = 30.0
     log2_sizes = fill(1, size(graph, 2))
     b = KaHyParBipartite(sc_target=sc_target, imbalances=[0.0:0.02:0.8...])
-    group1, group2 = bipartite_sc(b, graph, collect(1:size(graph, 1)), log2_sizes)
-    @test group_sc(graph, group1, log2_sizes) <= sc_target
-    @test group_sc(graph, group2, log2_sizes) <= sc_target
+    res = bipartite_sc(b, graph, collect(1:size(graph, 1)), log2_sizes)
+    @test group_sc(graph, res.part1, log2_sizes) <= sc_target
+    @test group_sc(graph, res.part2, log2_sizes) <= sc_target
     sc_target = 30.0
-    group11, group12 = bipartite_sc(b, graph, group1, log2_sizes)
-    @test group_sc(graph, group11, log2_sizes) <= sc_target
-    @test group_sc(graph, group12, log2_sizes) <= sc_target
+    res = bipartite_sc(b, graph, collect(1:size(graph, 1)), log2_sizes)
+    @test group_sc(graph, res.part1, log2_sizes) <= sc_target
+    @test group_sc(graph, res.part2, log2_sizes) <= sc_target
 
     code = random_regular_eincode(220, 3)
     res = optimize_kahypar(code,uniformsize(code, 2); max_group_size=50, sc_target=30)
@@ -115,5 +115,32 @@ end
     rest = decorate(codet)(xs...)
     resk = decorate(codek)(xs...)
     @test rest ≈ resk
+    @test resg ≈ resk
+end
+
+@testset "kahypar no error" begin
+    function random_regular_open_eincode(n, k, m)
+        g = Graphs.random_regular_graph(n, k)
+        ixs = [[minmax(e.src,e.dst)...] for e in Graphs.edges(g)]
+        iy = Int[]
+        while length(iy) < m
+            v = rand(1:n)
+            if !(v in iy)
+                push!(iy, v)
+            end
+        end
+        sort!(iy)
+        return OMEinsumContractionOrders.EinCode([ixs..., [[i] for i in Graphs.vertices(g)]...], iy)
+    end
+
+
+    Random.seed!(2)
+    code = random_regular_open_eincode(50, 3, 3)
+    codeg = optimize_kahypar(code, uniformsize(code, 2); max_group_size=10, sc_target=5)
+    codek = optimize_greedy(code, uniformsize(code, 2); α=0.0, temperature=0.0)
+
+    xs = [[2*randn(2, 2) for i=1:75]..., [randn(2) for i=1:50]...]
+    resg = decorate(codeg)(xs...)
+    resk = decorate(codek)(xs...)
     @test resg ≈ resk
 end
