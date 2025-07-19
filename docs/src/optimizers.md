@@ -116,14 +116,16 @@ The method has been implemented in [TensorOperations.jl](https://github.com/Juth
 
 ## Performance Benchmark
 
-### Compare `ExactTreewidth` and exhaustive search
+The following figure shows the performance of the different optimizers on the Sycamore 53-20-0 benchmark. This network is for computing the expectation value of a quantum circuit. Its optimal space complexity is known to be 52.
 
-The following figure shows a comparison with the exhaustive search in TensorOperations.jl:
+![](https://raw.githubusercontent.com/TensorBFS/OMEinsumContractionOrdersBenchmark/refs/heads/main/figures/sycamore_53_20_0.svg)
 
-![](https://github.com/ArrogantGao/TreeWidthSolver_benchmark/blob/main/figs/compare_TO.png?raw=true)
+- The x-axis (contraction cost) here is defined by the space complexity (the size of the largest intermediate tensor).
+- The y-axis (time) is the time taken to find the optimal contraction order.
 
-The results shown that the tree width based solver is faster for some graph similar to trees.
-For more details, please see the benchmark repo: [https://github.com/ArrogantGao/TreeWidthSolver_benchmark](https://github.com/ArrogantGao/TreeWidthSolver_benchmark).
+By checking the Pareto front, we can see that the `TreeSA`, `HyperND` and `GreedyMethod` method are among the best. If you want the speed to find the optimal contraction order, the `GreedyMethod` is the best choice. If you want the quality of the contraction order, the `TreeSA` and `HyperND` method are the best choices. `HyperND` is basically a better version of `KaHyParBipartite` method, we are going to deprecate the `KaHyParBipartite` (and also `SABipartite`) method in the future.
+
+More benchmarks, and the platform details can be found in the [benchmark repo](https://github.com/TensorBFS/OMEinsumContractionOrdersBenchmark). Or just check this full report: [Benchmark Report](https://raw.githubusercontent.com/TensorBFS/OMEinsumContractionOrdersBenchmark/refs/heads/main/report.pdf).
 
 ## References
 
