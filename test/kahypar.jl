@@ -3,7 +3,7 @@ using Test, Random
 using SparseArrays
 using OMEinsumContractionOrders
 using OMEinsumContractionOrders: get_coarse_grained_graph, _connected_components, bipartite_sc, group_sc, coarse_grained_optimize,
-    map_tree_to_parts, ContractionTree, optimize_greedy, optimize_kahypar, optimize_kahypar_auto
+    map_tree_to_parts, ContractionTree, optimize_greedy, recursive_bipartite_optimize
 using KaHyPar
 using OMEinsum: decorate
 
@@ -60,24 +60,24 @@ end
     sc_target = 30.0
     log2_sizes = fill(1, size(graph, 2))
     b = KaHyParBipartite(sc_target=sc_target, imbalances=[0.0:0.02:0.8...])
-    group1, group2 = bipartite_sc(b, graph, collect(1:size(graph, 1)), log2_sizes)
-    @test group_sc(graph, group1, log2_sizes) <= sc_target
-    @test group_sc(graph, group2, log2_sizes) <= sc_target
+    res = bipartite_sc(b, graph, collect(1:size(graph, 1)), log2_sizes)
+    @test group_sc(graph, res.part1, log2_sizes) <= sc_target
+    @test group_sc(graph, res.part2, log2_sizes) <= sc_target
     sc_target = 30.0
-    group11, group12 = bipartite_sc(b, graph, group1, log2_sizes)
-    @test group_sc(graph, group11, log2_sizes) <= sc_target
-    @test group_sc(graph, group12, log2_sizes) <= sc_target
+    res = bipartite_sc(b, graph, collect(1:size(graph, 1)), log2_sizes)
+    @test group_sc(graph, res.part1, log2_sizes) <= sc_target
+    @test group_sc(graph, res.part2, log2_sizes) <= sc_target
 
     code = random_regular_eincode(220, 3)
-    res = optimize_kahypar(code,uniformsize(code, 2); max_group_size=50, sc_target=30)
+    res = recursive_bipartite_optimize(KaHyParBipartite(sc_target=30, max_group_size=50), code, uniformsize(code, 2))
     cc = contraction_complexity(res, uniformsize(code, 2))
     @test cc.sc <= 30
 
     # contraction test
     code = random_regular_eincode(50, 3)
-    codeg = optimize_kahypar(code, uniformsize(code, 2); max_group_size=10, sc_target=10)
-    codet = optimize_kahypar(code, uniformsize(code, 2); max_group_size=10, sc_target=10, sub_optimizer = TreeSA())
-    codek = optimize_greedy(code, uniformsize(code, 2))
+    codeg = recursive_bipartite_optimize(KaHyParBipartite(sc_target=10, max_group_size=10), code, uniformsize(code, 2))
+    codet = recursive_bipartite_optimize(KaHyParBipartite(sc_target=10, max_group_size=10, sub_optimizer = TreeSA()), code, uniformsize(code, 2))
+    codek = optimize_greedy(code, uniformsize(code, 2); α=0.0, temperature=0.0)
 
     cc_kg = contraction_complexity(codeg, uniformsize(code, 2))
     cc_kt = contraction_complexity(codet, uniformsize(code, 2))
@@ -93,27 +93,42 @@ end
     @test resg ≈ resk
 
     Random.seed!(2)
-    code = random_regular_eincode(220, 3)
-    codeg_auto = optimize_kahypar_auto(code, uniformsize(code, 2), sub_optimizer=GreedyMethod())
-    codet_auto = optimize_kahypar_auto(code, uniformsize(code, 2), sub_optimizer=TreeSA(ntrials = 1, sc_weight = 0.1))
-    ccg = contraction_complexity(codeg_auto, uniformsize(code, 2))
-    @show ccg.sc, ccg.tc
-    cct = contraction_complexity(codet_auto, uniformsize(code, 2))
-    @show cct.sc, cct.tc
-
-    @test ccg.sc <= 30
-    @test cct.sc <= 30
-
-    Random.seed!(2)
     code = random_regular_open_eincode(50, 3, 3)
-    codeg = optimize_kahypar(code, uniformsize(code, 2); max_group_size=10, sc_target=10)
-    codet = optimize_kahypar(code, uniformsize(code, 2); max_group_size=10, sc_target=10, sub_optimizer = TreeSA())
-    codek = optimize_greedy(code, uniformsize(code, 2))
+    codeg = recursive_bipartite_optimize(KaHyParBipartite(sc_target=10, max_group_size=10), code, uniformsize(code, 2))
+    codet = recursive_bipartite_optimize(KaHyParBipartite(sc_target=10, max_group_size=10, sub_optimizer = TreeSA()), code, uniformsize(code, 2))
+    codek = optimize_greedy(code, uniformsize(code, 2); α=0.0, temperature=0.0)
 
     xs = [[2*randn(2, 2) for i=1:75]..., [randn(2) for i=1:50]...]
     resg = decorate(codeg)(xs...)
     rest = decorate(codet)(xs...)
     resk = decorate(codek)(xs...)
     @test rest ≈ resk
+    @test resg ≈ resk
+end
+
+@testset "kahypar no error" begin
+    function random_regular_open_eincode(n, k, m)
+        g = Graphs.random_regular_graph(n, k)
+        ixs = [[minmax(e.src,e.dst)...] for e in Graphs.edges(g)]
+        iy = Int[]
+        while length(iy) < m
+            v = rand(1:n)
+            if !(v in iy)
+                push!(iy, v)
+            end
+        end
+        sort!(iy)
+        return OMEinsumContractionOrders.EinCode([ixs..., [[i] for i in Graphs.vertices(g)]...], iy)
+    end
+
+
+    Random.seed!(2)
+    code = random_regular_open_eincode(50, 3, 3)
+    codeg = recursive_bipartite_optimize(KaHyParBipartite(sc_target=5, max_group_size=10), code, uniformsize(code, 2))
+    codek = optimize_greedy(code, uniformsize(code, 2); α=0.0, temperature=0.0)
+
+    xs = [[2*randn(2, 2) for i=1:75]..., [randn(2) for i=1:50]...]
+    resg = decorate(codeg)(xs...)
+    resk = decorate(codek)(xs...)
     @test resg ≈ resk
 end

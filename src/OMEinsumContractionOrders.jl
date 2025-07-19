@@ -13,7 +13,7 @@ import CliqueTrees
 using CliqueTrees: cliquetree, residual, EliminationAlgorithm, MMW, BFS, MCS, LexBFS, RCMMD, RCMGL, MCSM, LexM, AMF, MF, MMD, MF, BT, SafeRules, KaHyParND, METISND, ND, BestWidth
 
 # interfaces
-export simplify_code, optimize_code, slice_code, optimize_permute, label_elimination_order, uniformsize
+export simplify_code, optimize_code, slice_code, optimize_permute, label_elimination_order, uniformsize, ScoreFunction
 
 # optimizers
 export CodeOptimizer, KaHyParBipartite, GreedyMethod, TreeSA, SABipartite, Treewidth, ExactTreewidth, HyperND
@@ -40,7 +40,7 @@ include("incidencelist.jl")
 include("greedy.jl")
 
 # bipartition based methods
-include("sa.jl")
+include("sabipartite.jl")
 include("kahypar.jl")
 
 # local search method

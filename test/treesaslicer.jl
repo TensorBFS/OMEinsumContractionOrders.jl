@@ -16,10 +16,12 @@ using KaHyPar
     # contraction test
     Random.seed!(2)
     code = random_regular_eincode(100, 3)
-    
-    for code0 in [optimize_greedy(code, uniformsize(code, 2)), optimize_tree(code, uniformsize(code, 2)), optimize_hyper_nd(HyperND(), code, uniformsize(code, 2))]
 
-        codet = slice_tree(code0, uniformsize(code, 2); sc_target = 10)
+    for code0 in [optimize_greedy(code, uniformsize(code, 2); α=0.0, temperature=0.0),
+            optimize_tree(code, uniformsize(code, 2); initializer=:greedy, βs=0.1:0.05:20.0, ntrials=2, niters=10, score=ScoreFunction(sc_target=10)),
+            optimize_hyper_nd(HyperND(), code, uniformsize(code, 2))]
+
+        codet = slice_tree(code0, uniformsize(code, 2); score=ScoreFunction(sc_target=10))
         @test codet isa SlicedEinsum
 
         cc0 = contraction_complexity(code0, uniformsize(code, 2))
@@ -39,8 +41,10 @@ using KaHyPar
     Random.seed!(2)
     code = OMEinsumContractionOrders.EinCode(random_regular_eincode(100, 3).ixs, [3,81,2])
 
-    for code0 in [optimize_greedy(code, uniformsize(code, 2)), optimize_tree(code, uniformsize(code, 2)), optimize_hyper_nd(HyperND(), code, uniformsize(code, 2))]
-        codet = slice_tree(code0, uniformsize(code, 2); sc_target = 10, ntrials = 10)
+    for code0 in [optimize_greedy(code, uniformsize(code, 2); α=0.0, temperature=0.0),
+            optimize_tree(code, uniformsize(code, 2); initializer=:greedy, βs=0.1:0.05:20.0, ntrials=2, niters=10, score=ScoreFunction(sc_target=10)),
+            optimize_hyper_nd(HyperND(), code, uniformsize(code, 2))]
+        codet = slice_tree(code0, uniformsize(code, 2); score=ScoreFunction(sc_target=10), ntrials = 10)
         @test codet isa SlicedEinsum
 
         cc0 = contraction_complexity(code0, uniformsize(code, 2))
@@ -58,9 +62,11 @@ using KaHyPar
     # slice with fixed slices
     Random.seed!(2)
     code = OMEinsumContractionOrders.EinCode(random_regular_eincode(100, 3).ixs, [3,10,2])
-    for code0 in [optimize_greedy(code, uniformsize(code, 2)), optimize_tree(code, uniformsize(code, 2)), optimize_hyper_nd(HyperND(), code, uniformsize(code, 2))]
-        code1 = slice_tree(code0, uniformsize(code, 2); sc_target = 10, fixed_slices=[10, 89, 26, 3, 51])
-        code2 = slice_tree(code0, uniformsize(code, 2); sc_target = 10, fixed_slices=[10, 89])
+    for code0 in [optimize_greedy(code, uniformsize(code, 2); α=0.0, temperature=0.0),
+            optimize_tree(code, uniformsize(code, 2); initializer=:greedy, βs=0.1:0.05:20.0, ntrials=2, niters=10, score=ScoreFunction(sc_target=10)),
+            optimize_hyper_nd(HyperND(), code, uniformsize(code, 2))]
+        code1 = slice_tree(code0, uniformsize(code, 2); score=ScoreFunction(sc_target=10), fixed_slices=[10, 89, 26, 3, 51])
+        code2 = slice_tree(code0, uniformsize(code, 2); score=ScoreFunction(sc_target=10), fixed_slices=[10, 89])
 
         @test length(code1.slicing) >= 5 && Set([10, 89, 26, 3, 51]) ⊆ Set(code1.slicing)
         @test length(code2.slicing) >= 2 && Set([10, 89]) ⊆ Set(code2.slicing)
@@ -81,8 +87,8 @@ using KaHyPar
         return OMEinsumContractionOrders.EinCode([ixs..., [['0'+i] for i in Graphs.vertices(g)]...], Char[])
     end
     code = OMEinsumContractionOrders.EinCode(random_regular_eincode_char(20, 3).ixs, ['3','8','2'])
-    code0 = optimize_tree(code, uniformsize(code, 2))
-    code1 = slice_tree(code0, uniformsize(code, 2); sc_target = 5, fixed_slices=['7'])
+    code0 = optimize_tree(code, uniformsize(code, 2); initializer=:greedy, βs=0.1:0.05:20.0, ntrials=2, niters=10, score=ScoreFunction(sc_target=10))
+    code1 = slice_tree(code0, uniformsize(code, 2); score=ScoreFunction(sc_target=5), fixed_slices=['7'])
     @test eltype(code1.eins.eins.iy) == Char
 
     xs = [[2*randn(2, 2) for i=1:30]..., [randn(2) for i=1:20]...]

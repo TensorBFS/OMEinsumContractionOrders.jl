@@ -33,3 +33,9 @@ end
     code = OMEinsumContractionOrders.NestedEinsum(OMEinsumContractionOrders.NestedEinsum{Char}[], OMEinsumContractionOrders.EinCode(Vector{Char}[], Char[]))
     @test contraction_complexity(code, Dict{Char, Int}()).sc == 0
 end
+
+@testset "score" begin
+    score = ScoreFunction(tc_weight=1.0, sc_weight=1.0, rw_weight=0.1, sc_target=20.0)
+    @test score(10, 10, 10) ≈ 1024.0 + 102.4
+    @test score(10, 30, 10) ≈ 1024.0 + exp2(30) - exp2(20) + 102.4
+end

@@ -53,7 +53,7 @@ end
     eincode = OMEinsumContractionOrders.EinCode([['a', 'b'], ['a', 'c', 'd'], ['b', 'c', 'e', 'f'], ['e'], ['d', 'f']], Vector{Char}())
     size_dict = Dict([c=>(1<<i) for (i,c) in enumerate(['a', 'b', 'c', 'd', 'e', 'f'])]...)
     Random.seed!(2)
-    optcode2 = optimize_greedy(eincode, size_dict) 
+    optcode2 = optimize_greedy(eincode, size_dict; α=0.0, temperature=0.0)
     cc = contraction_complexity(optcode2, size_dict)
     # test flop
     @test cc.tc ≈ log2(flop(optcode2, size_dict))
@@ -111,14 +111,22 @@ end
     cc = contraction_complexity(code, edge_sizes)
     @test cc.tc == 60
     @test cc.sc == 0
-    optcode = optimize_greedy(code, size_dict)
+    optcode = optimize_greedy(code, size_dict; α=0.0, temperature=0.0)
     cc2 = contraction_complexity(optcode, edge_sizes)
     @test cc2.sc == 10
     @test flatten(optcode) == code
     @test flatten(code) == code
 
-    optcode_hyper = optimize_greedy(code, size_dict, α = 0.0, temperature = 100.0, nrepeat = 20)
-    cc3 = contraction_complexity(optcode_hyper, edge_sizes)
+    cc3 = Inf
+    local optcode_hyper
+    for irepeat = 1:20
+        optcode_hyper = optimize_greedy(code, size_dict; α=0.0, temperature=100.0)
+        cc3 = contraction_complexity(optcode_hyper, edge_sizes)
+        if cc3.sc < cc3.sc
+            optcode_hyper = optcode_hyper
+            cc3 = cc3
+        end
+    end
     @test cc3.sc <= 12
     @test flatten(optcode_hyper) == code
 end
@@ -127,13 +135,13 @@ end
     # chain
     code = OMEinsumContractionOrders.EinCode([[1,2], [2,3], [3,4], [4,5], [5,6], [6,7], [7,8], [8,9], [9,10]], Int[1, 10])
     size_dict = Dict([i=>2 for i in 1:10])
-    optcode = optimize_greedy(code, size_dict)
+    optcode = optimize_greedy(code, size_dict; α=0.0, temperature=0.0)
     cc = contraction_complexity(optcode, size_dict)
     @test cc.sc == 2
 
     # ring
     ring = OMEinsumContractionOrders.EinCode([[1,2], [2,3], [3,4], [4,5], [5,6], [6,7], [7,8], [8,9], [9,10], [10,1]], Int[])
-    optcode = optimize_greedy(ring, size_dict)
+    optcode = optimize_greedy(ring, size_dict; α=0.0, temperature=0.0)
     cc = contraction_complexity(optcode, size_dict)
     @test cc.sc == 2
 
@@ -143,7 +151,7 @@ end
         graph = smallgraph(:tutte)
         code = OMEinsumContractionOrders.EinCode([[e.src, e.dst] for e in edges(graph)], Int[])
         size_dict = Dict([i=>2 for i in 1:nv(graph)])
-        optcode = optimize_greedy(code, size_dict, temperature=100.0, nrepeat=1)
+        optcode = optimize_greedy(code, size_dict; α=0.0, temperature=100.0)
         cc = contraction_complexity(optcode, size_dict)
         push!(sc_list, cc.sc)
     end

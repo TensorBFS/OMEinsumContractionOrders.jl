@@ -1,6 +1,6 @@
 using OMEinsumContractionOrders
 using Test, Random
-using OMEinsumContractionOrders: merge_vectors, merge_greedy, optimize_greedy, embed_simplifier
+using OMEinsumContractionOrders: merge_vectors, merge_greedy, optimize_greedy, embed_simplifier, optimize_permute
 using OMEinsum: decorate, rawcode, @ein_str
 import OMEinsum
 
@@ -26,12 +26,12 @@ end
     simplifier, tn2 = merge_vectors(tn)
     @test tn2 == rawcode(ein"ab,bc,cd,de,f->ab")
     @test decorate(tn)(xs...) ≈ decorate(tn2)(apply_simplifier(simplifier, xs)...)
-    tn3 = optimize_greedy(tn2, uniformsize(tn2, 2))
+    tn3 = optimize_greedy(tn2, uniformsize(tn2, 2); α=0.0, temperature=0.0)
     tn4 = embed_simplifier(tn3, simplifier)
     @test !have_identity(tn4)
     @test decorate(tn)(xs...) ≈ decorate(tn4)(xs...)
 
-    tn3 = optimize_greedy(tn2, uniformsize(tn2, 2))
+    tn3 = optimize_greedy(tn2, uniformsize(tn2, 2); α=0.0, temperature=0.0)
     tn4 = embed_simplifier(tn3, simplifier)
     @test !have_identity(tn4)
     @test decorate(tn)(xs...) ≈ decorate(tn4)(xs...)
@@ -44,12 +44,12 @@ end
     simplifier, tn2 = merge_greedy(tn, size_dict)
     @test tn2 == rawcode(ein"ab,->ab") || tn2 == rawcode(ein"ba,->ab")
     @test decorate(tn)(xs...) ≈ decorate(tn2)(apply_simplifier(simplifier, xs)...)
-    tn3 = optimize_greedy(tn2, uniformsize(tn2, 2))
+    tn3 = optimize_greedy(tn2, uniformsize(tn2, 2); α=0.0, temperature=0.0)
     tn4 = embed_simplifier(tn3, simplifier)
     @test !have_identity(tn4)
     @test decorate(tn)(xs...) ≈ decorate(tn4)(xs...)
 
-    tn3 = optimize_greedy(tn2, uniformsize(tn2, 2))
+    tn3 = optimize_greedy(tn2, uniformsize(tn2, 2); α=0.0, temperature=0.0)
     tn4 = embed_simplifier(tn3, simplifier)
     @test !have_identity(tn4)
     @test decorate(tn)(xs...) ≈ decorate(tn4)(xs...)

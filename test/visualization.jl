@@ -22,7 +22,7 @@ using Test, OMEinsumContractionOrders
     @test_throws ArgumentError begin
         eincode = OMEinsumContractionOrders.EinCode([['a', 'b'], ['a', 'c', 'd'], ['b', 'c', 'e', 'f'], ['e'], ['d', 'f']], Vector{Char}())
         nested_code = optimize_code(eincode, uniformsize(eincode, 2), GreedyMethod())
-        viz_contraction(nested_code, pathname = "")
+        viz_contraction(nested_code)
     end
 end
 
@@ -36,7 +36,7 @@ using LuxorGraphPlot.Luxor
     nested_code = optimize_code(eincode, uniformsize(eincode, 2), GreedyMethod())
     g2 = ein2hypergraph(nested_code)
 
-    sliced_code = slice_code(nested_code, uniformsize(eincode, 2), TreeSASlicer(sc_target=2))
+    sliced_code = slice_code(nested_code, uniformsize(eincode, 2), TreeSASlicer(score=ScoreFunction(sc_target=2)))
     g3 = ein2hypergraph(sliced_code)
 
     @test g1 == g2 == g3
@@ -98,7 +98,7 @@ end
     t_gif = viz_contraction(sliced_code, filename = tempgif)
     @test t_gif isa String
 
-    sliced_code2 = slice_code(nested_code, uniformsize(eincode, 2), TreeSASlicer(sc_target=2))
+    sliced_code2 = slice_code(nested_code, uniformsize(eincode, 2), TreeSASlicer(score=ScoreFunction(sc_target=2)))
     t_mp4 = viz_contraction(sliced_code2)
     t_mp4_2 = viz_contraction(sliced_code2, filename = tempmp4)
     @test t_mp4 isa String

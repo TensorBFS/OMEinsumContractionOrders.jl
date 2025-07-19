@@ -31,7 +31,7 @@ end
     tree2 = random_exprtree(OMEinsumContractionOrders.EinCode([[1,2,5], [2,3], [2,4]], [5]))
     @test tree isa ExprTree
     code = random_regular_eincode(20, 3)
-    optcode = optimize_greedy(code, uniformsize(code, 2))
+    optcode = optimize_greedy(code, uniformsize(code, 2); α=0.0, temperature=0.0)
     tree3 = ExprTree(optcode)
     @test tree isa ExprTree
     println(tree)
@@ -78,7 +78,7 @@ end
     n = 40
     log2_sizes = rand(n+n÷2) * 2
     code = random_regular_eincode(n, 3)
-    optcode = optimize_greedy(code, uniformsize(code, 2))
+    optcode = optimize_greedy(code, uniformsize(code, 2); α=0.0, temperature=0.0)
     println(code)
     println(optcode)
     tree = ExprTree(optcode)
@@ -104,11 +104,11 @@ end
     ne = n + n÷2
     log2_sizes = ones(ne)
     code = random_regular_eincode(n, 3)
-    optcode = optimize_greedy(code, uniformsize(code, 2))
+    optcode = optimize_greedy(code, uniformsize(code, 2); α=0.0, temperature=0.0)
     tree = ExprTree(optcode)
     tc0, sc0, rw0 = tree_timespace_complexity(tree, log2_sizes)
     opttree = copy(tree)
-    optimize_tree_sa!(opttree, log2_sizes; sc_target=sc0-2.0, βs=0.1:0.1:10.0, niters=100, sc_weight=1.0, rw_weight=1.0)
+    optimize_tree_sa!(opttree, log2_sizes; βs=0.1:0.1:10.0, niters=100, score=ScoreFunction(sc_target=sc0-2.0))
     tc1, sc1, rw1 = tree_timespace_complexity(opttree, log2_sizes)
     @test sc1 < sc0 || (sc1 == sc0 && tc1 < tc0)
 end
@@ -122,19 +122,19 @@ end
     Random.seed!(2)
     g = random_regular_graph(220, 3)
     code = random_regular_eincode(220, 3)
-    res = optimize_greedy(code,uniformsize(code, 2))
+    res = optimize_greedy(code,uniformsize(code, 2); α=0.0, temperature=0.0)
     cc = contraction_complexity(res, uniformsize(code, 2))
     tc, sc = cc.tc, cc.sc
 
-    @test optimize_tree(res, uniformsize(code, 2); sc_target=32, βs=0.1:0.05:20.0, ntrials=0, niters=10, sc_weight=1.0, rw_weight=1.0) isa OMEinsumContractionOrders.NestedEinsum
-    optcode = optimize_tree(res, uniformsize(code, 2); sc_target=32, βs=0.1:0.05:20.0, ntrials=2, niters=10, sc_weight=1.0, rw_weight=1.0)
+    @test optimize_tree(res, uniformsize(code, 2); βs=0.1:0.05:20.0, ntrials=0, niters=10, initializer=:greedy, score=ScoreFunction(sc_target=32)) isa OMEinsumContractionOrders.NestedEinsum
+    optcode = optimize_tree(res, uniformsize(code, 2); βs=0.1:0.05:20.0, ntrials=2, niters=10, initializer=:greedy, score=ScoreFunction(sc_target=32))
     cc = contraction_complexity(optcode, uniformsize(code, 2))
     @test cc.sc <= 32
 
     # contraction test
     code = random_regular_eincode(50, 3)
-    codek = optimize_greedy(code, uniformsize(code, 2))
-    codeg = optimize_tree(code, uniformsize(code, 2); initializer=:random)
+    codek = optimize_greedy(code, uniformsize(code, 2); α=0.0, temperature=0.0)
+    codeg = optimize_tree(code, uniformsize(code, 2); initializer=:random, βs=0.1:0.05:20.0, ntrials=2, niters=10, score=ScoreFunction(sc_target=12))
     cc = contraction_complexity(codek, uniformsize(code, 2))
     @test cc.sc <= 12
     xs = [[2*randn(2, 2) for i=1:75]..., [randn(2) for i=1:50]...]
@@ -144,8 +144,8 @@ end
 
     # contraction test
     code = random_regular_eincode(50, 3)
-    codek = optimize_greedy(code, uniformsize(code, 2))
-    codeg = optimize_tree(codek, uniformsize(code, 2); initializer=:specified)
+    codek = optimize_greedy(code, uniformsize(code, 2); α=0.0, temperature=0.0)
+    codeg = optimize_tree(codek, uniformsize(code, 2); initializer=:specified, βs=0.1:0.05:20.0, ntrials=2, niters=10, score=ScoreFunction(sc_target=12))
     cc = contraction_complexity(codek, uniformsize(code, 2))
     @test cc.sc <= 12
     xs = [[2*randn(2, 2) for i=1:75]..., [randn(2) for i=1:50]...]

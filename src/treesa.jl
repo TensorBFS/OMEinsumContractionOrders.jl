@@ -104,48 +104,39 @@ end
 
 ##################### The main program ##############################
 """
-    TreeSA{RT,IT,GM,LT} <: CodeOptimizer
-    TreeSA(; sc_target=20, βs=collect(0.01:0.05:15), ntrials=10, niters=50,
-        sc_weight=1.0, rw_weight=0.2, initializer=:greedy, greedy_config=GreedyMethod(; nrepeat=1))
+    TreeSA{IT} <: CodeOptimizer
+    TreeSA(; βs=collect(0.01:0.05:15), ntrials=10, niters=50, initializer=:greedy, score=ScoreFunction())
 
 Optimize the einsum contraction pattern using the simulated annealing on tensor expression tree.
 
 # Fields
-- `sc_target` is the target space complexity,
 - `ntrials`, `βs` and `niters` are annealing parameters, doing `ntrials` indepedent annealings, each has inverse tempteratures specified by `βs`, in each temperature, do `niters` updates of the tree.
-- `sc_weight` is the relative importance factor of space complexity in the loss compared with the time complexity.
-- `rw_weight` is the relative importance factor of memory read and write in the loss compared with the time complexity.
-- `initializer` specifies how to determine the initial configuration, it can be `:greedy` or `:random`. If it is using `:greedy` method to generate the initial configuration, it also uses two extra arguments `greedy_method` and `greedy_nrepeat`.
-- `greedy_config` is the configuration for the greedy method used for initializing the tree.
+- `initializer` specifies how to determine the initial configuration, it can be `:greedy`, `:random` or `:specified`. If the initializer is `:specified`, the input `code` should be a `NestedEinsum` object.
+- `score` specifies the score function to evaluate the quality of the contraction tree, it is a function of time complexity, space complexity and read-write complexity.
 
 # References
 - [Recursive Multi-Tensor Contraction for XEB Verification of Quantum Circuits](https://arxiv.org/abs/2108.05665)
 
 # Breaking changes:
 - `nslices` is removed, since the slicing part is now separated from the optimization part, see `slice_code` function and `TreeSASlicer`.
-
+- `greedy_method` is removed. If you want to have detailed control of the initializer, please pre-optimize the code with another method and then use `:specified` to initialize the tree.
 """
-Base.@kwdef struct TreeSA{RT,IT,GM} <: CodeOptimizer
-    sc_target::RT = 20
+Base.@kwdef struct TreeSA{IT} <: CodeOptimizer
     βs::IT = 0.01:0.05:15
     ntrials::Int = 10
     niters::Int = 50
-    sc_weight::Float64 = 1.0
-    rw_weight::Float64 = 0.2
     initializer::Symbol = :greedy
-    # configure greedy method
-    greedy_config::GM = GreedyMethod(nrepeat=1)
+    score::ScoreFunction = ScoreFunction()
 end
 
 # this is the main function
 """
-    optimize_tree(code, size_dict; sc_target=20, βs=0.1:0.1:10, ntrials=10, niters=50, sc_weight=1.0, rw_weight=0.2, initializer=:greedy, greedy_method=MinSpaceOut())
+    optimize_tree(code, size_dict; βs, ntrials, niters, initializer, score)
 
 Optimize the einsum contraction pattern specified by `code`, and edge sizes specified by `size_dict`.
 Check the docstring of [`TreeSA`](@ref) for detailed explaination of other input arguments.
 """
-function optimize_tree(code::AbstractEinsum, size_dict; sc_target = 20, βs = 0.01:0.05:15, ntrials = 10, niters = 50, sc_weight = 1.0, rw_weight = 0.2, initializer = :greedy, greedy_method = GreedyMethod(nrepeat = 1))
-    LT = labeltype(code)
+function optimize_tree(code::AbstractEinsum, size_dict::Dict{LT,Int}; βs, ntrials, niters, initializer, score) where LT
     # get input labels (`getixsv`) and output labels (`getiyv`) in the einsum code.
     ixs, iy = getixsv(code), getiyv(code)
     ninputs = length(ixs)  # number of input tensors
@@ -157,42 +148,41 @@ function optimize_tree(code::AbstractEinsum, size_dict; sc_target = 20, βs = 0.
     labels = _label_dict(ixs, iy)  # map labels to integers
     inverse_map = Dict([v=>k for (k,v) in labels])  # the inverse transformation, map integers to labels
     log2_sizes = [log2.(size_dict[inverse_map[i]]) for i=1:length(labels)]   # use `log2` sizes in computing time
+
     if ntrials <= 0  # no optimization at all, then 1). initialize an expression tree and 2). convert back to nested einsum.
-        best_tree = _initializetree(code, size_dict, initializer; greedy_method=greedy_method)
+        best_tree = _initializetree(code, size_dict, initializer)
         return NestedEinsum(best_tree, inverse_map)
     end
 
     ###### Stage 2: computing ######
     # create vectors to store optimized 1). expression tree, 2). time complexities, 3). space complexities, 4). read-write complexities.
-    trees, tcs, scs, rws = Vector{ExprTree}(undef, ntrials), zeros(ntrials), zeros(ntrials), zeros(ntrials)
+    local best_tree, best_tc, best_sc, best_rw
     @threads for t = 1:ntrials  # multi-threading on different trials, use `JULIA_NUM_THREADS=5 julia xxx.jl` for setting number of threads.
 
         # 1). random/greedy initialize a contraction tree.
-        tree = _initializetree(code, size_dict, initializer; greedy_method=greedy_method)
+        tree = _initializetree(code, size_dict, initializer)
 
         # 2). optimize the `tree` in a inplace manner.
-        optimize_tree_sa!(tree, log2_sizes; sc_target=sc_target, βs=βs, niters=niters, sc_weight=sc_weight, rw_weight=rw_weight)
+        optimize_tree_sa!(tree, log2_sizes; βs, niters, score)
 
         # 3). evaluate time-space-readwrite complexities.
         tc, sc, rw = tree_timespace_complexity(tree, log2_sizes)
         @debug "trial $t, time complexity = $tc, space complexity = $sc, read-write complexity = $rw."
-        trees[t], tcs[t], scs[t], rws[t] = tree, tc, sc, rw
+        if t == 1 || score(tc, sc, rw) < score(best_tc, best_sc, best_rw)
+            best_tree, best_tc, best_sc, best_rw = tree, tc, sc, rw
+        end
     end
 
     ###### Stage 3: postprocessing ######
-    # compare and choose the best solution
-    best_id = find_best_tree(tcs, scs, rws, ntrials, rw_weight, sc_target)
-    best_tree, best_tc, best_sc, best_rw = trees[best_id], tcs[best_id], scs[best_id], rws[best_id]
     @debug "best space complexities = $best_tc, time complexity = $best_sc, read-write complexity $best_rw."
-
     return NestedEinsum(best_tree, inverse_map)
 end
 
 # initialize a contraction tree
-function _initializetree(code, size_dict, method; greedy_method)
+function _initializetree(code, size_dict, method)
     if method == :greedy
         labels = _label_dict(code)  # label to int
-        return _exprtree(optimize_greedy(code, size_dict; α = greedy_method.α, temperature = greedy_method.temperature, nrepeat=greedy_method.nrepeat), labels)
+        return _exprtree(optimize_greedy(code, size_dict; α = 0.0, temperature = 0.0), labels)
     elseif method == :random
         return random_exprtree(code)
     elseif method == :specified
@@ -204,17 +194,15 @@ function _initializetree(code, size_dict, method; greedy_method)
 end
 
 # use simulated annealing to optimize a contraction tree
-function optimize_tree_sa!(tree::ExprTree, log2_sizes; βs, niters, sc_target, sc_weight, rw_weight)
-    @assert rw_weight >= 0
-    @assert sc_weight >= 0
-    log2rw_weight = log2(rw_weight)
+function optimize_tree_sa!(tree::ExprTree, log2_sizes; βs, niters, score)
+    log2rw_weight = log2(score.rw_weight)
 
     tc, sc, rw = tree_timespace_complexity(tree, log2_sizes)
     @debug "Initial tc = $tc, sc = $sc, rw = $rw"
     
     for β in βs
         for _ = 1:niters
-            optimize_subtree!(tree, β, log2_sizes, sc_target, sc_weight, log2rw_weight)  # single sweep
+            optimize_subtree!(tree, β, log2_sizes, score.sc_target, score.sc_weight, log2rw_weight)  # single sweep
         end
     end
 
