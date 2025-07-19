@@ -86,12 +86,9 @@ function bipartite_sc(bipartiter::SABipartite, adj::SparseMatrixCSC, vertices, l
             best = state
         end
     end
-    best_tc, = timespace_complexity_singlestep(best.config, adj, vertices, log2_sizes)
-    @debug "best loss = $(round(best.loss[]; digits=3)) space complexities = $(best.group_scs) time complexity = $(best_tc) groups_sizes = $(best.group_sizes)"
-    if maximum(best.group_scs) > bipartiter.sc_target
-        @warn "target space complexity $(bipartiter.sc_target) not found, got: $(maximum(best.group_scs)), with time complexity $best_tc."
-    end
-    return vertices[findall(==(1), best.config)], vertices[findall(==(2), best.config)]
+    @debug "best loss = $(round(best.loss[]; digits=3)) space complexities = $(best.group_scs) time complexity = $(timespace_complexity_singlestep(best.config, adj, vertices, log2_sizes)[1]) groups_sizes = $(best.group_sizes)"
+    sc = maximum(best.group_scs)
+    return BipartiteResult(vertices[findall(==(1), best.config)], vertices[findall(==(2), best.config)], sc, sc <= bipartiter.sc_target)
 end
 
 function timespace_complexity_singlestep(config, adj, group, log2_sizes)

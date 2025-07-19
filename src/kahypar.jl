@@ -36,6 +36,19 @@ function convert2int(sizes::AbstractVector)
     round.(Int, sizes .* 100)
 end
 
+"""
+    BipartiteResult{RT}
+    BipartiteResult(part1, part2, sc, valid)
+
+Result of the bipartite optimization. `part1` and `part2` are the two parts of the bipartition, `sc` is the space complexity of the bipartition, `valid` is a boolean indicating whether the bipartition is valid.
+"""
+struct BipartiteResult{RT}
+    part1::Vector{Int}
+    part2::Vector{Int}
+    sc::RT
+    valid::Bool
+end
+
 function bipartite_sc(bipartiter, adj::SparseMatrixCSC, vertices, log2_sizes)
     error("""Guess you are trying to use the `KaHyParBipartite` optimizer.
 Then you need to add `using KaHyPar` first!""")
@@ -50,9 +63,10 @@ end
 
 function bipartition_recursive(bipartiter, adj::SparseMatrixCSC, vertices::AbstractVector{T}, log2_sizes) where T
     if length(vertices) > bipartiter.max_group_size
-        parts = bipartite_sc(bipartiter, adj, vertices, log2_sizes)
+        res = bipartite_sc(bipartiter, adj, vertices, log2_sizes)
+        !res.valid && @warn "fail to find a valid partition for `sc_target = $(bipartiter.sc_target)`, got minimum value `$(res.sc)` (imbalances = $(bipartiter.imbalances))"
         groups = Vector{T}[]
-        for part in parts
+        for part in (res.part1, res.part2)
             for component in _connected_components(adj, part)
                 push!(groups, component)
             end
@@ -135,24 +149,12 @@ function adjacency_matrix(ixs::AbstractVector)
     return sparse(rows, cols, ones(Int, length(rows)), length(ixs), length(edges)), edges
 end
 
-# legacy interface
-"""
-    optimize_kahypar(code, size_dict; sc_target, max_group_size=40, imbalances=0.0:0.01:0.2, greedy_method=MinSpaceOut(), greedy_nrepeat=1)
-
-Optimize the einsum `code` contraction order using the KaHyPar + Greedy approach. `size_dict` is a dictionary that specifies leg dimensions. 
-Check the docstring of `KaHyParBipartite` for detailed explaination of other input arguments.
-"""
-function optimize_kahypar(code::EinCode, size_dict; sc_target, max_group_size=40, imbalances=0.0:0.01:0.2, sub_optimizer=GreedyMethod())
-    bipartiter = KaHyParBipartite(; sc_target=sc_target, max_group_size=max_group_size, imbalances=imbalances, sub_optimizer = sub_optimizer)
-    recursive_bipartite_optimize(bipartiter, code, size_dict)
-end
-
 function recursive_bipartite_optimize(bipartiter, code::AbstractEinsum, size_dict)
     ixs, iy = getixsv(code), getiyv(code)
     ixv = [ixs..., iy]
     
     adj, edges = adjacency_matrix(ixv)
-    vertices=collect(1:length(ixv))
+    vertices = collect(1:length(ixv))
     parts = bipartition_recursive(bipartiter, adj, vertices, [log2(size_dict[e]) for e in edges])
     optcode = recursive_construct_nestedeinsum(ixv, empty(iy), parts, size_dict, 0, bipartiter.sub_optimizer)
     return pivot_tree(optcode, length(ixs) + 1)
@@ -170,35 +172,6 @@ end
 recursive_flatten(obj::Tuple) = vcat(recursive_flatten.(obj)...)
 recursive_flatten(obj::AbstractVector) = vcat(recursive_flatten.(obj)...)
 recursive_flatten(obj) = obj
-
-"""
-    optimize_kahypar_auto(code, size_dict; max_group_size=40, sub_optimizer = GreedyMethod())
-
-Find the optimal contraction order automatically by determining the `sc_target` with bisection.
-It can fail if the tree width of your graph is larger than `100`.
-"""
-function optimize_kahypar_auto(code::EinCode, size_dict; max_group_size=40, effort=500, sub_optimizer=GreedyMethod())
-    sc_high = 100
-    sc_low = 1
-    order_high = optimize_kahypar(code, size_dict; sc_target=sc_high, max_group_size=max_group_size, imbalances=0.0:0.6/effort*(sc_high-sc_low):0.6, sub_optimizer = sub_optimizer)
-    _optimize_kahypar_auto(code, size_dict, sc_high, order_high, sc_low, max_group_size, effort, sub_optimizer)
-end
-function _optimize_kahypar_auto(code::EinCode, size_dict, sc_high, order_high, sc_low, max_group_size, effort, sub_optimizer)
-    if sc_high <= sc_low + 1
-        order_high
-    else
-        sc_mid = (sc_high + sc_low) ÷ 2
-        try
-            order_mid = optimize_kahypar(code, size_dict; sc_target=sc_mid, max_group_size=max_group_size, imbalances=0.0:0.6/effort*(sc_high-sc_low):0.6, sub_optimizer = sub_optimizer)
-            order_high, sc_high = order_mid, sc_mid
-            # `sc_target` too high
-        catch
-            # `sc_target` too low
-            sc_low = sc_mid
-        end
-        _optimize_kahypar_auto(code, size_dict, sc_high, order_high, sc_low, max_group_size, effort, sub_optimizer)
-    end
-end
 
 function recursive_construct_nestedeinsum(ixs::AbstractVector{<:AbstractVector}, iy::AbstractVector{L}, parts::AbstractVector, size_dict, level, sub_optimizer) where L
     if length(parts) == 2
