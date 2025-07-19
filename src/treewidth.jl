@@ -147,6 +147,8 @@ function eo2ct(elimination_order::Vector{<:AbstractVector{TL}}, incidence_list::
             vi = contract_tree!(incidence_list, sub_tree, log2_edge_sizes, scs, tcs) # insert the contracted tensors back to the total graph
             contraction_tree_nodes[tensors_list[vi]] = st2ct(sub_tree, tensors_list, contraction_tree_nodes)
             flag = vi
+        else
+            flag = only(vs)
         end
     end
 
