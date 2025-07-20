@@ -5,13 +5,13 @@
 The first step is to construct an [`OMEinsumContractionOrders.EinCode`](@ref) object, which is a data type to represent the [einsum notation](https://numpy.org/doc/stable/reference/generated/numpy.einsum.html).
 ```@repl tutorial
 using OMEinsumContractionOrders, Graphs, KaHyPar
-function random_regular_eincode(n, k; optimize=nothing)
-    g = Graphs.random_regular_graph(n, k)
+function random_regular_eincode(n, k; optimize=nothing, seed)
+    g = Graphs.random_regular_graph(n, k; seed)
     ixs = [[minmax(e.src,e.dst)...] for e in Graphs.edges(g)]  # input indices
     iy = Int[]  # output indices (scalar output)
     return OMEinsumContractionOrders.EinCode(ixs, iy)
 end
-code = random_regular_eincode(100, 3);
+code = random_regular_eincode(100, 3; seed=42);
 ```
 
 Here, we define an einsum notation with 3-regular graph topology. The vertices correspond to indices. On each edge, we specify a rank 2 tensor that associates with the vertices it connects. The output is a scalar.
@@ -28,9 +28,13 @@ Since we do not specify a contraction order, the direct contraction corresponds 
 The order of contraction is optimized by the [`optimize_code`](@ref) function. It takes three arguments: `code`, `size_dict`, and `optimizer`. The `optimizer` argument is the optimizer to be used. The available optimizers are listed in the [optimizers](optimizers.md) page.
 
 ```@repl tutorial
+score = ScoreFunction(sc_target=10, sc_weight=3.0)
 optcode_tree = optimize_code(code, uniformsize(code, 2),
-	TreeSA(sc_target=28, βs=0.1:0.1:10, ntrials=2, niters=20, sc_weight=3.0, nslices=5));
+	TreeSA(; βs=0.1:0.1:10, ntrials=2, niters=20, score);
+	slicer=TreeSASlicer(; score)
+    );
 contraction_complexity(optcode_tree, size_dict)
+optcode_tree.slicing
 ```
 
 The `optimize_code` function returns the optimized contraction order. The optimized contraction order is a [`OMEinsumContractionOrders.NestedEinsum`](@ref) object, which is a data type to represent the nested einsum notation.
