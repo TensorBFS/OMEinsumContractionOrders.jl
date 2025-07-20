@@ -49,6 +49,7 @@ end
     TreeSASlicer{IT, LT} <: CodeSlicer
 
 A structure for configuring the Tree Simulated Annealing (TreeSA) slicing algorithm.
+The goal of slicing is to reach the target space complexity specified by `score.sc_target`.
 
 # Fields
 - `ntrials`, `βs` and `niters` are annealing parameters, doing `ntrials` indepedent annealings, each has inverse tempteratures specified by `βs`, in each temperature, do `niters` updates of the tree.
@@ -71,7 +72,7 @@ end
 function slice_tree(code::NestedEinsum, size_dict::Dict{LT,Int}; βs=14:0.05:15, ntrials=10, niters=10, fixed_slices=LT[], optimization_ratio=2.0, score=ScoreFunction(sc_target=30.0)) where LT
     ixs, iy = getixsv(code), getiyv(code)
     ninputs = length(ixs)
-    if ninputs <= 2
+    if ninputs <= 1
         return SlicedEinsum(LT[], code)
     end
 

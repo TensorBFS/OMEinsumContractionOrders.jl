@@ -68,5 +68,6 @@ include("visualization.jl")
 
 @deprecate timespacereadwrite_complexity(code, size_dict::Dict) (contraction_complexity(code, size_dict)...,)
 @deprecate timespace_complexity(code, size_dict::Dict) (contraction_complexity(code, size_dict)...,)[1:2]
+@deprecate optimize_code(code::Union{EinCode, NestedEinsum}, size_dict::Dict, optimizer::CodeOptimizer, simplifier, permute=true) optimize_code(code, size_dict, optimizer; simplifier=simplifier, permute=permute)
 
 end

@@ -17,18 +17,22 @@ using OMEinsum
     results = Float64[]
     for optimizer in [TreeSA(ntrials=1), GreedyMethod(), SABipartite(sc_target=18, ntrials=1), HyperND()]
         for simplifier in (nothing, MergeVectors(), MergeGreedy())
-            @info "optimizer = $(optimizer), simplifier = $(simplifier)"
-            res = optimize_code(code,uniformsize(code, 2), optimizer, simplifier)
-            tc, sc = OMEinsum.timespace_complexity(res, uniformsize(code, 2))
-            @test sc <= 18
-            push!(results, res(xs...)[])
+            # (nothing, TreeSASlicer(score=ScoreFunction(sc_target=10)))
+            for slicer in (nothing,)  # TODO: add this test later!!!
+                @info "optimizer = $(optimizer), simplifier = $(simplifier), slicer = $(slicer)"
+                res = optimize_code(code,uniformsize(code, 2), optimizer, simplifier)#, slicer)
+                @test OMEinsumContractionOrders.is_binary(OMEinsum.rawcode(res))
+                tc, sc = OMEinsum.timespace_complexity(res, uniformsize(code, 2))
+                @test sc <= 18
+                push!(results, res(xs...)[])
+            end
         end
     end
     if isdefined(Base, :get_extension)
         optimizer = KaHyParBipartite(sc_target=18)
         for simplifier in (nothing, MergeVectors(), MergeGreedy())
             @info "optimizer = $(optimizer), simplifier = $(simplifier)"
-            res = optimize_code(code,uniformsize(code, 2), optimizer, simplifier)
+            res = optimize_code(code, uniformsize(code, 2), optimizer, simplifier)
             tc, sc = OMEinsum.timespace_complexity(res, uniformsize(code, 2))
             @test sc <= 18
             push!(results, res(xs...)[])
@@ -45,7 +49,7 @@ using OMEinsum
     for optimizer in [TreeSA(ntrials=1), GreedyMethod(), SABipartite(sc_target=18, ntrials=1), ExactTreewidth(), HyperND()]
         for simplifier in (nothing, MergeVectors(), MergeGreedy())
             @info "optimizer = $(optimizer), simplifier = $(simplifier)"
-            res = optimize_code(small_code,uniformsize(small_code, 2), optimizer, simplifier)
+            res = optimize_code(small_code, uniformsize(small_code, 2), optimizer, simplifier)
             tc, sc = OMEinsum.timespace_complexity(res, uniformsize(small_code, 2))
             push!(results, res(xs...)[])
         end

@@ -1,6 +1,6 @@
 name = "OMEinsumContractionOrders"
 uuid = "6f22d1fd-8eed-4bb7-9776-e7d684900715"
-version = "1.0.0"
+version = "1.1.0"
 
 [deps]
 AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
@@ -30,7 +30,7 @@ Graphs = "1"
 JSON = "0.21"
 KaHyPar = "0.3"
 LuxorGraphPlot = "0.5"
-OMEinsum = "0.8"
+OMEinsum = "0.9"
 Random = "1"
 SparseArrays = "1"
 StatsBase = "0.34"

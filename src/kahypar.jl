@@ -157,7 +157,7 @@ function recursive_bipartite_optimize(bipartiter, code::AbstractEinsum, size_dic
     vertices = collect(1:length(ixv))
     parts = bipartition_recursive(bipartiter, adj, vertices, [log2(size_dict[e]) for e in edges])
     optcode = recursive_construct_nestedeinsum(ixv, empty(iy), parts, size_dict, 0, bipartiter.sub_optimizer)
-    return pivot_tree(optcode, length(ixs) + 1)
+    return fix_binary_tree(pivot_tree(optcode, length(ixs) + 1))
 end
 
 maplocs(ne::NestedEinsum{ET}, parts) where ET = isleaf(ne) ? NestedEinsum{ET}(parts[ne.tensorindex]) : NestedEinsum(maplocs.(ne.args, Ref(parts)), ne.eins)

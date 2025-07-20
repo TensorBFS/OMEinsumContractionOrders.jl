@@ -96,3 +96,20 @@ using KaHyPar
     res1 = decorate(code1)(xs...)
     @test res0 ≈ res1
 end
+
+@testset "slicer as kwargs" begin
+    code = OMEinsumContractionOrders.EinCode([[1,2]], [2])
+    optcode = OMEinsumContractionOrders.optimize_code(code, uniformsize(code, 2), TreeSA(ntrials=1), slicer=TreeSASlicer(score=ScoreFunction(sc_target=10)))
+    @test optcode isa SlicedEinsum
+    @test length(optcode.slicing) == 0
+
+    code = OMEinsumContractionOrders.EinCode([[1,2], [1,2]], Int[])
+    optcode = OMEinsumContractionOrders.optimize_code(code, uniformsize(code, 10), TreeSA(ntrials=1), slicer=TreeSASlicer(score=ScoreFunction(sc_target=5)))
+    @test optcode isa SlicedEinsum
+    @test length(optcode.slicing) == 1
+    @test optcode.eins == OMEinsumContractionOrders.NestedEinsum([OMEinsumContractionOrders.NestedEinsum{Int}(1), OMEinsumContractionOrders.NestedEinsum{Int}(2)], OMEinsumContractionOrders.EinCode([[1,2], [1,2]], Int[]))
+
+    optcode = OMEinsumContractionOrders.optimize_code(code, uniformsize(code, 10), TreeSA(ntrials=1), slicer=TreeSASlicer(score=ScoreFunction(sc_target=2)))
+    @test optcode isa SlicedEinsum
+    @test length(optcode.slicing) == 2
+end

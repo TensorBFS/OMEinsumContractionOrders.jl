@@ -1,5 +1,5 @@
 """
-    optimize_code(eincode, size_dict, optimizer = GreedyMethod(), simplifier=nothing, permute=true) -> optimized_eincode
+    optimize_code(eincode, size_dict, optimizer = GreedyMethod(); slicer=nothing, simplifier=nothing, permute=true) -> optimized_eincode
 
 Optimize the einsum contraction code and reduce the time/space complexity of tensor network contraction.
 Returns a `NestedEinsum` instance. Input arguments are
@@ -8,7 +8,10 @@ Returns a `NestedEinsum` instance. Input arguments are
 - `eincode` is an einsum contraction code instance, one of `DynamicEinCode`, `StaticEinCode` or `NestedEinsum`.
 - `size` is a dictionary of "edge label=>edge size" that contains the size information, one can use `uniformsize(eincode, 2)` to create a uniform size.
 - `optimizer` is a `CodeOptimizer` instance, should be one of `GreedyMethod`, `Treewidth`, `KaHyParBipartite`, `SABipartite` or `TreeSA`. Check their docstrings for details.
-- `simplifier` is one of `MergeVectors` or `MergeGreedy`.
+
+# Keyword Arguments
+- `slicer` is for slicing the contraction code to reduce the space complexity, default is nothing. Currently only [`TreeSASlicer`](@ref) is supported.
+- `simplifier` is one of `MergeVectors` or `MergeGreedy`. Default is nothing.
 - `permute` is a boolean flag to indicate whether to optimize the permutation of the contraction order.
 
 # Examples
@@ -22,13 +25,16 @@ ij, jk, kl, il ->
 julia> optimize_code(code, uniformsize(code, 2), TreeSA());
 ```
 """
-function optimize_code(code::Union{EinCode, NestedEinsum}, size_dict::Dict, optimizer::CodeOptimizer, simplifier=nothing, permute::Bool=true)
+function optimize_code(code::Union{EinCode, NestedEinsum}, size_dict::Dict, optimizer::CodeOptimizer; slicer=nothing, simplifier=nothing, permute::Bool=true)
     if simplifier === nothing
         optcode = _optimize_code(code, size_dict, optimizer)
     else
         simpl, code = simplify_code(code, size_dict, simplifier)
         optcode0 = _optimize_code(code, size_dict, optimizer)
         optcode = embed_simplifier(optcode0, simpl)
+    end
+    if slicer !== nothing
+        optcode = slice_code(optcode, size_dict, slicer)
     end
     if permute
         optimize_permute(optcode, 0)
