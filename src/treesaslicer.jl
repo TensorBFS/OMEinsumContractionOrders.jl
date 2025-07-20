@@ -49,6 +49,7 @@ end
     TreeSASlicer{IT, LT} <: CodeSlicer
 
 A structure for configuring the Tree Simulated Annealing (TreeSA) slicing algorithm.
+The goal of slicing is to reach the target space complexity specified by `score.sc_target`.
 
 # Fields
 - `ntrials`, `βs` and `niters` are annealing parameters, doing `ntrials` indepedent annealings, each has inverse tempteratures specified by `βs`, in each temperature, do `niters` updates of the tree.
