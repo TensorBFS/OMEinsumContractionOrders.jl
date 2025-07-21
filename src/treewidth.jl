@@ -95,8 +95,24 @@ function treewidth_method(incidence_list::IncidenceList{VT,ET}, log2_edge_sizes,
             res = residual(clique) # `res` is a unit range
             return @view lg_indices[res]
         end
-        
-        contraction_tree = eo2ct(eo, incidence_list, log2_edge_sizes)
+
+        lg_e2v = Dict{ET, Vector{VT}}()
+        lg_v2e = Dict{VT, Vector{ET}}()
+
+        for es in eo, e in es
+            vs = lg_e2v[e] = incidence_list.e2v[e]
+
+            for v in vs
+                if !haskey(lg_v2e, v)
+                    lg_v2e[v] = ET[]
+                end
+
+                push!(lg_v2e[v], e)
+            end
+        end
+
+        lg_incidence_list = IncidenceList(lg_v2e, lg_e2v, ET[])
+        contraction_tree = eo2ct(eo, lg_incidence_list, log2_edge_sizes)
         push!(contraction_trees, contraction_tree)
     end
 
@@ -145,8 +161,6 @@ function eo2ct(elimination_order::Vector{<:AbstractVector{TL}}, incidence_list::
             vi = contract_tree!(incidence_list, sub_tree, log2_edge_sizes, scs, tcs) # insert the contracted tensors back to the total graph
             contraction_tree_nodes[tensors_list[vi]] = st2ct(sub_tree, tensors_list, contraction_tree_nodes)
             flag = vi
-        else
-            flag = only(vs)
         end
     end
 
