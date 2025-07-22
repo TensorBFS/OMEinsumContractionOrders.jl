@@ -2,7 +2,7 @@ using OMEinsumContractionOrders
 using OMEinsumContractionOrders: IncidenceList, optimize_treewidth, getixsv
 using OMEinsumContractionOrders: BFS, MCS, LexBFS, RCMMD, RCMGL, MCSM, LexM, AMF, MF, MMD, BT, SafeRules
 using OMEinsum: decorate
-using Test, Random
+using Test, Random, JSON
 
 @testset "tree width" begin
 
@@ -74,4 +74,24 @@ end
         @test cc.sc == 11
         @test decorate(eincode)(tensors...) ≈ decorate(optcode)(tensors...)
     end
+end
+
+@testset "fix issue 87" begin
+    file = "rnd_mixed_07.json"
+    dict = JSON.parsefile(joinpath(@__DIR__, file))
+
+    einsum = dict["einsum"]
+
+    ixs = Vector{Vector{Int}}(einsum["ixs"])
+    iy = Vector{Int}(einsum["iy"])
+
+    size_dict = Dict(
+        parse(Int, key) => val
+        for (key, val) in dict["size"]
+    )
+
+    code = OMEinsumContractionOrders.EinCode(ixs, iy)
+    optimizer = Treewidth(; alg=AMF())
+    optcode = optimize_code(code, size_dict, optimizer);
+    @test optcode isa OMEinsumContractionOrders.NestedEinsum
 end

@@ -37,13 +37,13 @@ edges(il::IncidenceList, v) = il.v2e[v]
 nv(il::IncidenceList) = length(il.v2e)
 ne(il::IncidenceList) = length(il.e2v)
 
+# delete vertex, and remove it from the edges connected to it
 function delete_vertex!(incidence_list::IncidenceList{VT,ET}, vj::VT) where {VT,ET}
     edges = pop!(incidence_list.v2e, vj)
     for e in edges
         vs = vertices(incidence_list, e)
-        res = findfirst(==(vj), vs)
-        if res !== nothing
-            deleteat!(vs, res)
+        for iv in length(vs):-1:1
+            vs[iv] == vj && deleteat!(vs, iv)
         end
     end
     return incidence_list
