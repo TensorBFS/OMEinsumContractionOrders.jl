@@ -2,7 +2,7 @@ using OMEinsumContractionOrders
 using OMEinsumContractionOrders: IncidenceList, optimize_treewidth, getixsv
 using OMEinsumContractionOrders: BFS, MCS, LexBFS, RCMMD, RCMGL, MCSM, LexM, AMF, MF, MMD, BT, SafeRules
 using OMEinsum: decorate
-using Test, Random
+using Test, Random, JSON
 
 @testset "tree width" begin
 
@@ -74,4 +74,31 @@ end
         @test cc.sc == 11
         @test decorate(eincode)(tensors...) ≈ decorate(optcode)(tensors...)
     end
+end
+
+@testset "fix issue 87" begin
+    file = "rnd_mixed_07.json"
+    dict = JSON.parsefile(joinpath(@__DIR__, file))
+
+    einsum = dict["einsum"]
+
+    ixs = Vector{Vector{Int}}(einsum["ixs"])
+    iy = Vector{Int}(einsum["iy"])
+
+    size_dict = Dict(
+        parse(Int, key) => val
+        for (key, val) in dict["size"]
+    )
+
+    code = OMEinsumContractionOrders.EinCode(ixs, iy)
+    optimizer = Treewidth(; alg=AMF())
+    optcode = optimize_code(code, size_dict, optimizer);
+    @test optcode isa OMEinsumContractionOrders.NestedEinsum
+end
+
+@testset "trace operation" begin
+    code = OMEinsumContractionOrders.EinCode([['a', 'b'], ['a', 'a', 'd'], ['b', 'c', 'e', 'f']], Char['z'])
+    size_dict = Dict([c=>2 for c in ['a', 'b', 'c', 'd', 'e', 'f']]..., 'z'=>2)
+    optcode = optimize_code(code, size_dict, Treewidth(; alg=AMF()))
+    @test optcode == OMEinsumContractionOrders.NestedEinsum([OMEinsumContractionOrders.NestedEinsum([OMEinsumContractionOrders.NestedEinsum{Char}(2), OMEinsumContractionOrders.NestedEinsum{Char}(1)], OMEinsumContractionOrders.EinCode([['a', 'a', 'd'], ['a', 'b']], ['b'])), OMEinsumContractionOrders.NestedEinsum{Char}(3)], OMEinsumContractionOrders.EinCode([['b'], ['b', 'c', 'e', 'f']], ['z']))
 end
