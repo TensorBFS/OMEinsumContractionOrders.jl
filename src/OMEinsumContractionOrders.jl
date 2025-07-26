@@ -16,10 +16,13 @@ using CliqueTrees: cliquetree, residual, EliminationAlgorithm, MMW, BFS, MCS, Le
 export simplify_code, optimize_code, slice_code, optimize_permute, label_elimination_order, uniformsize, ScoreFunction
 
 # optimizers
-export CodeOptimizer, KaHyParBipartite, GreedyMethod, TreeSA, SABipartite, Treewidth, ExactTreewidth, HyperND
+export CodeOptimizer, KaHyParBipartite, GreedyMethod, TreeSA, SABipartite, Treewidth, ExactTreewidth, HyperND, PathSA
 
 # slicers
 export CodeSlicer, TreeSASlicer
+
+# decomposition types
+export AbstractDecompositionType, TreeDecomp, PathDecomp
 
 # preprocessing
 export CodeSimplifier, MergeGreedy, MergeVectors

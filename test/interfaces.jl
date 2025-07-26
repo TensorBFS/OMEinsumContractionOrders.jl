@@ -136,3 +136,14 @@ if isdefined(Base, :get_extension)
         @test optcode(a, b, c) ≈ code(a, b, c)
     end
 end
+
+@testset "path decomposition" begin
+    code = ein"i,j->"
+    optcode = optimize_code(code, Dict('i'=>1024, 'j'=>1024), PathSA())
+    @test OMEinsumContractionOrders.is_path_decomposition(OMEinsum.rawcode(optcode))
+    code = ein"lm,jk,ij,kl->"
+    optcode = optimize_code(code, Dict('i'=>1024, 'j'=>1024, 'k'=>1024, 'l'=>1024, 'm'=>1024), PathSA())
+    @test OMEinsumContractionOrders.is_path_decomposition(OMEinsum.rawcode(optcode))
+    cc = contraction_complexity(optcode, uniformsize(code, 1024))
+    @test cc.sc ≈ 10
+end
