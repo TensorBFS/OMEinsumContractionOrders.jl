@@ -56,7 +56,8 @@ end
 function _optimize_code(code, size_dict, optimizer::TreeSA)
     optimize_tree(code, size_dict; βs=optimizer.βs,
         ntrials=optimizer.ntrials, niters=optimizer.niters,
-        initializer=optimizer.initializer, score=optimizer.score)
+        initializer=optimizer.initializer, score=optimizer.score,
+        decomposition_type=optimizer.decomposition_type)
 end
 function _optimize_code(code, size_dict, optimizer::HyperND)
     optimize_hyper_nd(optimizer, code, size_dict)

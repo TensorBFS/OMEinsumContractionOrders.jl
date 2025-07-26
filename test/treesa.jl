@@ -159,3 +159,32 @@ end
     @test fast_log2sumexp2(a, b) ≈ log2(sum(exp2.([a,b])))
     @test fast_log2sumexp2(a, b, c) ≈ log2(sum(exp2.([a,b,c])))
 end
+
+@testset "path decomposition" begin
+    function random_regular_eincode(n, k)
+        g = Graphs.random_regular_graph(n, k)
+        ixs = [[minmax(e.src,e.dst)...] for e in Graphs.edges(g)]
+        return OMEinsumContractionOrders.EinCode([ixs..., [[i] for i in Graphs.vertices(g)]...], Int[])
+    end
+    Random.seed!(2)
+    code = random_regular_eincode(50, 3)
+    codek = optimize_greedy(code, uniformsize(code, 2); α=0.0, temperature=0.0)
+    codeg = optimize_tree(code, uniformsize(code, 2); initializer=:random, βs=0.1:0.05:20.0, ntrials=2, niters=10, score=ScoreFunction(sc_target=12), decomposition_type=PathDecomp())
+    @test !OMEinsumContractionOrders.is_path_decomposition(codek)
+    @test OMEinsumContractionOrders.is_path_decomposition(codeg)
+    @test OMEinsumContractionOrders.is_path_decomposition(OMEinsumContractionOrders.SlicedEinsum([1,2], codeg))
+    cc = contraction_complexity(codek, uniformsize(code, 2))
+    @test cc.sc <= 12
+    cc = contraction_complexity(codeg, uniformsize(code, 2))
+    @test cc.sc <= 12
+    xs = [[2*randn(2, 2) for i=1:75]..., [randn(2) for i=1:50]...]
+    resg = decorate(codeg)(xs...)
+    resk = decorate(codek)(xs...)
+    @test resg ≈ resk
+
+    # no optimization
+    codeg = optimize_tree(code, uniformsize(code, 2); initializer=:random, βs=0.1:0.05:-20.0, ntrials=2, niters=10, score=ScoreFunction(sc_target=12), decomposition_type=PathDecomp())
+    cc = contraction_complexity(codeg, uniformsize(code, 2))
+    @test OMEinsumContractionOrders.is_path_decomposition(codeg)
+    @test cc.sc > 12
+end
