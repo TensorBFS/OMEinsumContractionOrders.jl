@@ -56,6 +56,7 @@ The goal of slicing is to reach the target space complexity specified by `score.
 - `fixed_slices::Vector{LT}`: A vector of fixed slices that should not be altered. Default is an empty vector.
 - `optimization_ratio::Float64`: A constant used for determining the number of iterations for slicing. Default is 2.0. i.e. if the current space complexity is 30, and the target space complexity is 20, then the number of iterations for slicing is (30 - 20) x `optimization_ratio`.
 - `score::ScoreFunction`: A function to evaluate the quality of the contraction tree. Default is `ScoreFunction(sc_target=30.0)`.
+- `decomposition_type::AbstractDecompositionType`: The type of decomposition to use. Default is `TreeDecomp()`.
 
 # References
 - [Recursive Multi-Tensor Contraction for XEB Verification of Quantum Circuits](https://arxiv.org/abs/2108.05665)
@@ -67,9 +68,10 @@ Base.@kwdef struct TreeSASlicer{IT,LT} <: CodeSlicer
     fixed_slices::Vector{LT} = []
     optimization_ratio::Float64 = 2.0
     score::ScoreFunction = ScoreFunction(sc_target=30.0)
+    decomposition_type::AbstractDecompositionType = TreeDecomp()
 end
 
-function slice_tree(code::NestedEinsum, size_dict::Dict{LT,Int}; βs=14:0.05:15, ntrials=10, niters=10, fixed_slices=LT[], optimization_ratio=2.0, score=ScoreFunction(sc_target=30.0)) where LT
+function slice_tree(code::NestedEinsum, size_dict::Dict{LT,Int}; βs=14:0.05:15, ntrials=10, niters=10, fixed_slices=LT[], optimization_ratio=2.0, score=ScoreFunction(sc_target=30.0), decomposition_type=TreeDecomp()) where LT
     ixs, iy = getixsv(code), getiyv(code)
     ninputs = length(ixs)
     if ninputs <= 1
@@ -91,7 +93,7 @@ function slice_tree(code::NestedEinsum, size_dict::Dict{LT,Int}; βs=14:0.05:15,
         tree = _exprtree(code, labels)
         slicer = Slicer(log2_sizes, Int[labels[l] for l in fixed_slices])
         
-        treesa_slice!(tree, log2_sizes, slicer; βs, niters, score, optimization_ratio)
+        treesa_slice!(tree, log2_sizes, slicer; βs, niters, score, optimization_ratio, decomposition_type)
         tc, sc, rw = tree_timespace_complexity(tree, log2_sizes)
         @debug "trial $t, time complexity = $tc, space complexity = $sc, read-write complexity = $rw."
         if t == 1 || score(tc, sc, rw) < score(best_tc, best_sc, best_rw)
@@ -104,7 +106,7 @@ function slice_tree(code::NestedEinsum, size_dict::Dict{LT,Int}; βs=14:0.05:15,
     return SlicedEinsum(get_slices(best_slicer, inverse_map), NestedEinsum(best_tree, inverse_map))
 end
 
-function treesa_slice!(tree::ExprTree, log2_sizes, slicer::Slicer; βs, niters, score, optimization_ratio)
+function treesa_slice!(tree::ExprTree, log2_sizes, slicer::Slicer; βs, niters, score, optimization_ratio, decomposition_type)
     log2rw_weight = log2(score.rw_weight)
     tc, sc, rw = tree_timespace_complexity(tree, slicer.log2_sizes)
     @debug "Initial tc = $tc, sc = $sc, rw = $rw"
@@ -143,7 +145,7 @@ function treesa_slice!(tree::ExprTree, log2_sizes, slicer::Slicer; βs, niters, 
         ###### Stage 2: refine the tree with the revised slices  ######
         for β in βs
             for _ = 1:niters
-                optimize_subtree!(tree, β, slicer.log2_sizes, score.sc_target, score.sc_weight, log2rw_weight)  # single sweep
+                optimize_subtree!(tree, β, slicer.log2_sizes, score.sc_target, score.sc_weight, log2rw_weight, decomposition_type)  # single sweep
             end
         end
         tc, sc, rw = tree_timespace_complexity(tree, slicer.log2_sizes)
