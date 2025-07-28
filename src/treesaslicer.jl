@@ -86,6 +86,13 @@ function slice_tree(code::NestedEinsum, size_dict::Dict{LT,Int}; βs=14:0.05:15,
     end
 
     ###### Stage 2: computing ######
+
+    trees = Vector{ExprTree}(undef, ntrials)
+    tcs = Vector{Float64}(undef, ntrials)
+    scs = Vector{Float64}(undef, ntrials)
+    rws = Vector{Float64}(undef, ntrials)
+    slicers = Vector{Slicer}(undef, ntrials)
+
     local best_tree, best_tc, best_sc, best_rw, best_slicer
     @threads for t = 1:ntrials  # multi-threading on different trials, use `julia -t 5 xxx.jl` for setting number of threads.
         tree = _exprtree(code, labels)
@@ -94,7 +101,16 @@ function slice_tree(code::NestedEinsum, size_dict::Dict{LT,Int}; βs=14:0.05:15,
         treesa_slice!(tree, log2_sizes, slicer; βs, niters, score, optimization_ratio)
         tc, sc, rw = tree_timespace_complexity(tree, log2_sizes)
         @debug "trial $t, time complexity = $tc, space complexity = $sc, read-write complexity = $rw."
-        if t == 1 || score(tc, sc, rw) < score(best_tc, best_sc, best_rw)
+        trees[t] = tree
+        tcs[t] = tc
+        scs[t] = sc
+        rws[t] = rw
+        slicers[t] = slicer
+    end
+
+    local best_tree, best_tc, best_sc, best_rw, best_slicer
+    for t = 1:ntrials
+        if t == 1 || score(tcs[t], scs[t], rws[t]) < score(best_tc, best_sc, best_rw)
             best_tree, best_tc, best_sc, best_rw, best_slicer = tree, tc, sc, rw, slicer
         end
     end
