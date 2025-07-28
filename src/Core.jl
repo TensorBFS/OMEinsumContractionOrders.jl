@@ -88,6 +88,26 @@ Abstract type for code slicers.
 """
 abstract type CodeSlicer end
 
+"""
+    AbstractDecompositionType
+
+Abstract type for decomposition types, which includes [`TreeDecomp`](@ref) and [`PathDecomp`](@ref).
+"""
+abstract type AbstractDecompositionType end
+
+"""
+    TreeDecomp <: AbstractDecompositionType
+
+Tree decomposition type.
+"""
+struct TreeDecomp <: AbstractDecompositionType end
+
+"""
+    PathDecomp <: AbstractDecompositionType
+
+Path decomposition type.
+"""
+struct PathDecomp <: AbstractDecompositionType end
 
 """
     ScoreFunction
@@ -170,6 +190,9 @@ function is_binary(code::NestedEinsum)
     isleaf(code) && return true
     length(code.args) == 2 && all(is_binary, code.args)
 end
+# a path decomposition is represented as a contraction tree like
+# a,b,c,d,e -> (((a,b),c),d),e
+is_path_decomposition(ne::NestedEinsum) = isleaf(ne) || length(ne.args) <= 2 && is_path_decomposition(ne.args[1]) && (length(ne.args) == 1 || isleaf(ne.args[2]))
 
 """
     SlicedEinsum{LT,ET<:Union{EinCode{LT},NestedEinsum{LT}}} <: AbstractEinsum
@@ -190,6 +213,7 @@ Base.:(==)(a::SlicedEinsum, b::SlicedEinsum) = a.slicing == b.slicing && a.eins 
 getixsv(se::SlicedEinsum) = getixsv(se.eins)
 getiyv(se::SlicedEinsum) = getiyv(se.eins)
 is_binary(code::SlicedEinsum) = is_binary(code.eins)
+is_path_decomposition(ne::SlicedEinsum) = is_path_decomposition(ne.eins)
 
 # Better printing
 struct LeafString

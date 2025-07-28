@@ -50,13 +50,13 @@ _equal(t1::Vector, t2::Vector) = Set(t1) == Set(t2)
 
 
 ############# random expression tree ###############
-function random_exprtree(code::EinCode)
+function random_exprtree(code::EinCode, decomposition_type::AbstractDecompositionType)
     ixs, iy = getixsv(code), getiyv(code)
     labels = _label_dict(ixs, iy)
-    return random_exprtree([Int[labels[l] for l in ix] for ix in ixs], Int[labels[l] for l in iy], length(labels))
+    return random_exprtree([Int[labels[l] for l in ix] for ix in ixs], Int[labels[l] for l in iy], length(labels), decomposition_type)
 end
 
-function random_exprtree(ixs::Vector{Vector{Int}}, iy::Vector{Int}, nedge::Int)
+function random_exprtree(ixs::Vector{Vector{Int}}, iy::Vector{Int}, nedge::Int, decomposition_type::AbstractDecompositionType)
     outercount = zeros(Int, nedge)
     allcount = zeros(Int, nedge)
     for l in iy
@@ -68,17 +68,21 @@ function random_exprtree(ixs::Vector{Vector{Int}}, iy::Vector{Int}, nedge::Int)
             allcount[l] += 1
         end
     end
-    _random_exprtree(ixs, collect(1:length(ixs)), outercount, allcount)
+    _random_exprtree(ixs, collect(1:length(ixs)), outercount, allcount, decomposition_type)
 end
-function _random_exprtree(ixs::Vector{Vector{Int}}, xindices, outercount::Vector{Int}, allcount::Vector{Int})
+function _random_exprtree(ixs::Vector{Vector{Int}}, xindices, outercount::Vector{Int}, allcount::Vector{Int}, decomposition_type::AbstractDecompositionType)
     n = length(ixs)
     if n == 1
         return ExprTree(ExprInfo(ixs[1], xindices[1]))
     end
-    mask = rand(Bool, n)
-    if all(mask) || !any(mask)  # prevent invalid partition
-        i = rand(1:n)
-        mask[i] = ~(mask[i])
+    if decomposition_type == TreeDecomp()
+        mask = rand(Bool, n)
+        if all(mask) || !any(mask)  # prevent invalid partition
+            i = rand(1:n)
+            mask[i] = ~(mask[i])
+        end
+    else
+        mask = fill(true, n); mask[end] = false  # for path decomposition, the last nodes belongs to the right tree
     end
     info = ExprInfo(Int[i for i=1:length(outercount) if outercount[i]!=allcount[i] && outercount[i]!=0])
     outercount1, outercount2 = copy(outercount), copy(outercount)
@@ -88,7 +92,7 @@ function _random_exprtree(ixs::Vector{Vector{Int}}, xindices, outercount::Vector
             counter[l] += 1
         end
     end
-    return ExprTree(_random_exprtree(ixs[mask], xindices[mask], outercount1, allcount), _random_exprtree(ixs[(!).(mask)], xindices[(!).(mask)], outercount2, allcount), info)
+    return ExprTree(_random_exprtree(ixs[mask], xindices[mask], outercount1, allcount, decomposition_type), _random_exprtree(ixs[(!).(mask)], xindices[(!).(mask)], outercount2, allcount, decomposition_type), info)
 end
 
 
@@ -104,8 +108,8 @@ end
 
 ##################### The main program ##############################
 """
-    TreeSA{IT} <: CodeOptimizer
-    TreeSA(; βs=collect(0.01:0.05:15), ntrials=10, niters=50, initializer=:greedy, score=ScoreFunction())
+    TreeSA{IT, DT} <: CodeOptimizer
+    TreeSA(; βs=collect(0.01:0.05:15), ntrials=10, niters=50, initializer=:greedy, score=ScoreFunction(), decomposition_type=TreeDeomp())
 
 Optimize the einsum contraction pattern using the simulated annealing on tensor expression tree.
 
@@ -113,6 +117,7 @@ Optimize the einsum contraction pattern using the simulated annealing on tensor 
 - `ntrials`, `βs` and `niters` are annealing parameters, doing `ntrials` indepedent annealings, each has inverse tempteratures specified by `βs`, in each temperature, do `niters` updates of the tree.
 - `initializer` specifies how to determine the initial configuration, it can be `:greedy`, `:random` or `:specified`. If the initializer is `:specified`, the input `code` should be a `NestedEinsum` object.
 - `score` specifies the score function to evaluate the quality of the contraction tree, it is a function of time complexity, space complexity and read-write complexity.
+- `decomposition_type` specifies the type of decomposition to use, it can be `TreeDeomp` or `PathDecomp`.
 
 # References
 - [Recursive Multi-Tensor Contraction for XEB Verification of Quantum Circuits](https://arxiv.org/abs/2108.05665)
@@ -121,12 +126,26 @@ Optimize the einsum contraction pattern using the simulated annealing on tensor 
 - `nslices` is removed, since the slicing part is now separated from the optimization part, see `slice_code` function and `TreeSASlicer`.
 - `greedy_method` is removed. If you want to have detailed control of the initializer, please pre-optimize the code with another method and then use `:specified` to initialize the tree.
 """
-Base.@kwdef struct TreeSA{IT} <: CodeOptimizer
+Base.@kwdef struct TreeSA{IT, DT <: AbstractDecompositionType} <: CodeOptimizer
     βs::IT = 0.01:0.05:15
     ntrials::Int = 10
     niters::Int = 50
     initializer::Symbol = :greedy
     score::ScoreFunction = ScoreFunction()
+    decomposition_type::DT = TreeDecomp()
+end
+
+const PathSA = TreeSA{<:Any, PathDecomp}
+"""
+    PathSA(; βs=0.01:0.05:15, ntrials=10, niters=50, score=ScoreFunction())
+
+Optimize the einsum contraction pattern using the simulated annealing on tensor expression tree, with path decomposition.
+
+# Fields
+- `βs`, `ntrials`, `niters` and `score` are the same as in [`TreeSA`](@ref).
+"""
+function PathSA(; βs=0.01:0.05:15, ntrials=10, niters=50, score=ScoreFunction())
+    TreeSA(; βs, ntrials, niters, score, initializer=:random, decomposition_type=PathDecomp())
 end
 
 # this is the main function
@@ -136,7 +155,7 @@ end
 Optimize the einsum contraction pattern specified by `code`, and edge sizes specified by `size_dict`.
 Check the docstring of [`TreeSA`](@ref) for detailed explaination of other input arguments.
 """
-function optimize_tree(code::AbstractEinsum, size_dict::Dict{LT,Int}; βs, ntrials, niters, initializer, score) where LT
+function optimize_tree(code::AbstractEinsum, size_dict::Dict{LT,Int}; βs, ntrials, niters, initializer, score, decomposition_type) where LT
     # get input labels (`getixsv`) and output labels (`getiyv`) in the einsum code.
     ixs, iy = getixsv(code), getiyv(code)
     ninputs = length(ixs)  # number of input tensors
@@ -150,7 +169,7 @@ function optimize_tree(code::AbstractEinsum, size_dict::Dict{LT,Int}; βs, ntria
     log2_sizes = [log2.(size_dict[inverse_map[i]]) for i=1:length(labels)]   # use `log2` sizes in computing time
 
     if ntrials <= 0  # no optimization at all, then 1). initialize an expression tree and 2). convert back to nested einsum.
-        best_tree = _initializetree(code, size_dict, initializer)
+        best_tree = _initializetree(code, size_dict, initializer, decomposition_type)
         return NestedEinsum(best_tree, inverse_map)
     end
 
@@ -165,10 +184,10 @@ function optimize_tree(code::AbstractEinsum, size_dict::Dict{LT,Int}; βs, ntria
     @threads for t = 1:ntrials  # multi-threading on different trials, use `JULIA_NUM_THREADS=5 julia xxx.jl` for setting number of threads.
 
         # 1). random/greedy initialize a contraction tree.
-        tree = _initializetree(code, size_dict, initializer)
+        tree = _initializetree(code, size_dict, initializer, decomposition_type)
 
         # 2). optimize the `tree` in a inplace manner.
-        optimize_tree_sa!(tree, log2_sizes; βs, niters, score)
+        optimize_tree_sa!(tree, log2_sizes; βs, niters, score, decomposition_type)
 
         # 3). evaluate time-space-readwrite complexities.
         tc, sc, rw = tree_timespace_complexity(tree, log2_sizes)
@@ -192,12 +211,17 @@ function optimize_tree(code::AbstractEinsum, size_dict::Dict{LT,Int}; βs, ntria
 end
 
 # initialize a contraction tree
-function _initializetree(code, size_dict, method)
+function _initializetree(code, size_dict, method, decomposition_type)
+    # for path decomposition, only random initialization is supported
+    if decomposition_type == PathDecomp()
+        method != :random && warn("only random initialization is supported for path decomposition, got: $method")  # only random initialization is supported for path decomposition
+        return random_exprtree(code, decomposition_type)
+    end
     if method == :greedy
         labels = _label_dict(code)  # label to int
         return _exprtree(optimize_greedy(code, size_dict; α = 0.0, temperature = 0.0), labels)
     elseif method == :random
-        return random_exprtree(code)
+        return random_exprtree(code, decomposition_type)
     elseif method == :specified
         labels = _label_dict(code)  # label to int
         return _exprtree(code, labels)
@@ -207,7 +231,7 @@ function _initializetree(code, size_dict, method)
 end
 
 # use simulated annealing to optimize a contraction tree
-function optimize_tree_sa!(tree::ExprTree, log2_sizes; βs, niters, score)
+function optimize_tree_sa!(tree::ExprTree, log2_sizes; βs, niters, score, decomposition_type)
     log2rw_weight = log2(score.rw_weight)
 
     tc, sc, rw = tree_timespace_complexity(tree, log2_sizes)
@@ -215,7 +239,7 @@ function optimize_tree_sa!(tree::ExprTree, log2_sizes; βs, niters, score)
     
     for β in βs
         for _ = 1:niters
-            optimize_subtree!(tree, β, log2_sizes, score.sc_target, score.sc_weight, log2rw_weight)  # single sweep
+            optimize_subtree!(tree, β, log2_sizes, score.sc_target, score.sc_weight, log2rw_weight, decomposition_type)  # single sweep
         end
     end
 
@@ -255,10 +279,10 @@ end
 end
 
 # optimize a contraction tree recursively
-function optimize_subtree!(tree, β, log2_sizes, sc_target, sc_weight, log2rw_weight)
+function optimize_subtree!(tree, β, log2_sizes, sc_target, sc_weight, log2rw_weight, decomposition_type)
     # find appliable local rules, at most 4 rules can be applied.
     # Sometimes, not all rules are applicable because either left or right sibling do not have siblings.
-    rst = ruleset(tree)
+    rst = ruleset(decomposition_type, tree)
     if !isempty(rst)
         # propose a random update rule, TODO: can we have a better selector?
         rule = rand(rst)
@@ -274,7 +298,7 @@ function optimize_subtree!(tree, β, log2_sizes, sc_target, sc_weight, log2rw_we
             update_tree!(tree, rule, subout)
         end
         for subtree in siblings(tree)  # RECURSE
-            optimize_subtree!(subtree, β, log2_sizes, sc_target, sc_weight, log2rw_weight)
+            optimize_subtree!(subtree, β, log2_sizes, sc_target, sc_weight, log2rw_weight, decomposition_type)
         end
     end
 end
@@ -283,7 +307,7 @@ end
 _sc(tree, rule, log2_sizes) = max(__sc(tree, log2_sizes), __sc((rule == 1 || rule == 2) ? tree.left : tree.right, log2_sizes))
 __sc(tree, log2_sizes) = length(labels(tree))==0 ? 0.0 : sum(l->log2_sizes[l], labels(tree)) # space complexity of current node
 
-@inline function ruleset(tree::ExprTree)
+@inline function ruleset(::TreeDecomp, tree::ExprTree)
     if isleaf(tree) || (isleaf(tree.left) && isleaf(tree.right))
         return 1:0
     elseif isleaf(tree.right)
@@ -295,6 +319,17 @@ __sc(tree, log2_sizes) = length(labels(tree))==0 ? 0.0 : sum(l->log2_sizes[l], l
     end
 end
 
+@inline function ruleset(::PathDecomp, tree::ExprTree)
+    @assert isleaf(tree) || isleaf(tree.right)  # for path decomposition, the right tree must be a leaf
+    if isleaf(tree)
+        return 1:0
+    elseif isleaf(tree.left)  # SWAP on leaves
+        return 5:5
+    else
+        return 1:1
+    end
+end
+
 function tcsc_diff(tree::ExprTree, rule, log2_sizes, optimize_rw)
     if rule == 1 # (a,b), c -> (a,c),b
         return abcacb(labels(tree.left.left), labels(tree.left.right), labels(tree.left), labels(tree.right), labels(tree), log2_sizes, optimize_rw)
@@ -302,8 +337,13 @@ function tcsc_diff(tree::ExprTree, rule, log2_sizes, optimize_rw)
         return abcacb(labels(tree.left.right), labels(tree.left.left), labels(tree.left), labels(tree.right), labels(tree), log2_sizes, optimize_rw)
     elseif rule == 3 # a,(b,c) -> b,(a,c)
         return abcacb(labels(tree.right.right), labels(tree.right.left), labels(tree.right), labels(tree.left), labels(tree), log2_sizes, optimize_rw)
-    else  # a,(b,c) -> c,(b,a)
+    elseif rule == 4 # a,(b,c) -> c,(b,a)
         return abcacb(labels(tree.right.left), labels(tree.right.right), labels(tree.right), labels(tree.left), labels(tree), log2_sizes, optimize_rw)
+    elseif rule == 5 # a,b -> b,a
+        tc0, sc0, rw0 = tcscrw(labels(tree.left), labels(tree.right), labels(tree), log2_sizes, optimize_rw)
+        return tc0, tc0, zero(sc0), rw0, rw0, labels(tree)
+    else
+        error("Rule $rule is not defined!")
     end
 end
 
@@ -349,11 +389,17 @@ function update_tree!(tree::ExprTree, rule::Int, subout)
         tree.left = b
         tree.right.left = a
         tree.right.info = ExprInfo(subout)
-    else  # a,(b,c) -> c,(b,a)
+    elseif rule == 4 # a,(b,c) -> c,(b,a)
         a, c = tree.left, tree.right.right
         tree.left = c
         tree.right.right = a
         tree.right.info = ExprInfo(subout)
+    elseif rule == 5 # a,b -> b,a
+        a, b = tree.left, tree.right
+        tree.left = b
+        tree.right = a
+    else
+        error("Rule $rule is not defined!")
     end
     return tree
 end

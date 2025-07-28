@@ -56,7 +56,8 @@ end
 function _optimize_code(code, size_dict, optimizer::TreeSA)
     optimize_tree(code, size_dict; βs=optimizer.βs,
         ntrials=optimizer.ntrials, niters=optimizer.niters,
-        initializer=optimizer.initializer, score=optimizer.score)
+        initializer=optimizer.initializer, score=optimizer.score,
+        decomposition_type=optimizer.decomposition_type)
 end
 function _optimize_code(code, size_dict, optimizer::HyperND)
     optimize_hyper_nd(optimizer, code, size_dict)
@@ -70,10 +71,11 @@ Slice the einsum contraction code to reduce the space complexity, returns a `Sli
 # Arguments
 - `code` is a `NestedEinsum` instance.
 - `size_dict` is a dictionary of "edge label=>edge size" that contains the size information, one can use `uniformsize(eincode, 2)` to create a uniform size.
-- `slicer` is a `CodeSlicer` instance, currently only `TreeSASlicer` is supported.
+- `slicer` is a `CodeSlicer` instance, currently only [`TreeSASlicer`](@ref) is supported.
 """
 function slice_code(code::NestedEinsum, size_dict, slicer::TreeSASlicer)
     slice_tree(code, size_dict; score=slicer.score, βs=slicer.βs,
         ntrials=slicer.ntrials, niters=slicer.niters,
-        optimization_ratio=slicer.optimization_ratio)
+        optimization_ratio=slicer.optimization_ratio,
+        decomposition_type=slicer.decomposition_type)
 end
