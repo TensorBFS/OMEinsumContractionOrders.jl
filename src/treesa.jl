@@ -182,10 +182,7 @@ function optimize_tree(code::AbstractEinsum, size_dict::Dict{LT,Int}; βs, ntria
     local best_tree, best_tc, best_sc, best_rw
     for t = 1:ntrials
         if t == 1 || score(tcs[t], scs[t], rws[t]) < score(best_tc, best_sc, best_rw)
-            best_tree = trees[t]
-            best_tc = tcs[t]
-            best_sc = scs[t]
-            best_rw = rws[t]
+            best_tree, best_tc, best_sc, best_rw = trees[t], tcs[t], scs[t], rws[t]
         end
     end
 

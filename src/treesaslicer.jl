@@ -111,7 +111,7 @@ function slice_tree(code::NestedEinsum, size_dict::Dict{LT,Int}; βs=14:0.05:15,
     local best_tree, best_tc, best_sc, best_rw, best_slicer
     for t = 1:ntrials
         if t == 1 || score(tcs[t], scs[t], rws[t]) < score(best_tc, best_sc, best_rw)
-            best_tree, best_tc, best_sc, best_rw, best_slicer = tree, tc, sc, rw, slicer
+            best_tree, best_tc, best_sc, best_rw, best_slicer = trees[t], tcs[t], scs[t], rws[t], slicers[t]
         end
     end
 
