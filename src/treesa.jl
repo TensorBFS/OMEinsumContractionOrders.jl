@@ -156,7 +156,12 @@ function optimize_tree(code::AbstractEinsum, size_dict::Dict{LT,Int}; βs, ntria
 
     ###### Stage 2: computing ######
     # create vectors to store optimized 1). expression tree, 2). time complexities, 3). space complexities, 4). read-write complexities.
-    local best_tree, best_tc, best_sc, best_rw
+
+    trees = Vector{ExprTree}(undef, ntrials)
+    tcs = Vector{Float64}(undef, ntrials)
+    scs = Vector{Float64}(undef, ntrials)
+    rws = Vector{Float64}(undef, ntrials)
+
     @threads for t = 1:ntrials  # multi-threading on different trials, use `JULIA_NUM_THREADS=5 julia xxx.jl` for setting number of threads.
 
         # 1). random/greedy initialize a contraction tree.
@@ -168,8 +173,16 @@ function optimize_tree(code::AbstractEinsum, size_dict::Dict{LT,Int}; βs, ntria
         # 3). evaluate time-space-readwrite complexities.
         tc, sc, rw = tree_timespace_complexity(tree, log2_sizes)
         @debug "trial $t, time complexity = $tc, space complexity = $sc, read-write complexity = $rw."
-        if t == 1 || score(tc, sc, rw) < score(best_tc, best_sc, best_rw)
-            best_tree, best_tc, best_sc, best_rw = tree, tc, sc, rw
+        trees[t] = tree
+        tcs[t] = tc
+        scs[t] = sc
+        rws[t] = rw
+    end
+
+    local best_tree, best_tc, best_sc, best_rw
+    for t = 1:ntrials
+        if t == 1 || score(tcs[t], scs[t], rws[t]) < score(best_tc, best_sc, best_rw)
+            best_tree, best_tc, best_sc, best_rw = trees[t], tcs[t], scs[t], rws[t]
         end
     end
 
