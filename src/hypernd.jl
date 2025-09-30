@@ -38,6 +38,7 @@ The optimizer is implemented using the tree decomposition library
     algs::A = (MF(), AMF(), MMD())
     level::Int = 6
     width::Int = 120
+    scale::Int = 100
     imbalances::StepRange{Int, Int} = 130:1:130
     score::ScoreFunction = ScoreFunction()
 end
@@ -47,6 +48,7 @@ function optimize_hyper_nd(optimizer::HyperND, code, size_dict)
     algs = optimizer.algs
     level = optimizer.level
     width = optimizer.width
+    scale = optimizer.scale
     imbalances = optimizer.imbalances
     score = optimizer.score
 
@@ -54,7 +56,7 @@ function optimize_hyper_nd(optimizer::HyperND, code, size_dict)
     local mincode
 
     for imbalance in imbalances
-        curalg = SafeRules(ND(BestWidth(algs), dis; level, width, imbalance))
+        curalg = SafeRules(ND(BestWidth(algs), dis; level, width, scale, imbalance))
         curoptimizer = Treewidth(; alg=curalg)
         curcode = _optimize_code(code, size_dict, curoptimizer)
         curtc, cursc, currw = __timespacereadwrite_complexity(curcode, size_dict)
