@@ -3,14 +3,14 @@ module OMEinsumContractionOrders
 using JSON
 using SparseArrays
 using StatsBase
-using Base: RefValue
+using Base: RefValue, oneto
 using Base.Threads
 using AbstractTrees
 using TreeWidthSolver
 using TreeWidthSolver.Graphs
 using DataStructures: PriorityQueue, enqueue!, dequeue!, peek, dequeue_pair!
 import CliqueTrees
-using CliqueTrees: cliquetree, residual, EliminationAlgorithm, MMW, BFS, MCS, LexBFS, RCMMD, RCMGL, MCSM, LexM, AMF, MF, MMD, MF, BT, SafeRules, KaHyParND, METISND, ND, BestWidth
+using CliqueTrees: cliquetree, cliquetree!, separator, residual, EliminationAlgorithm, MMW, BFS, MCS, LexBFS, RCMMD, RCMGL, MCSM, LexM, AMF, MF, MMD, MF, BT, SafeRules, KaHyParND, METISND, ND, BestWidth, ConnectedComponents
 
 # interfaces
 export simplify_code, optimize_code, slice_code, optimize_permute, label_elimination_order, uniformsize, ScoreFunction

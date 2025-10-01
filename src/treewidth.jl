@@ -64,125 +64,6 @@ The `BT` algorithm is an exact solver for the treewidth problem that implemented
 const ExactTreewidth = Treewidth{SafeRules{BT, MMW{3}, MF}}
 ExactTreewidth() = Treewidth()
 
-# calculates the exact treewidth of a graph using TreeWidthSolver.jl. It takes an incidence list representation of the graph (`incidence_list`) and a dictionary of logarithm base 2 edge sizes (`log2_edge_sizes`) as input.
-# Return: a `ContractionTree` representing the contraction process.
-#
-# - `incidence_list`: An incidence list representation of the graph.
-# - `log2_edge_sizes`: A dictionary of logarithm base 2 edge sizes.
-# - `alg`: The algorithm to use for the treewidth calculation.
-function treewidth_method(incidence_list::IncidenceList{VT,ET}, log2_edge_sizes, alg) where {VT,ET}
-    indices = collect(keys(incidence_list.e2v))
-    tensors = collect(keys(incidence_list.v2e))
-    weights = [log2_edge_sizes[e] for e in indices]
-    line_graph = il2lg(incidence_list, indices)
-
-    scalars = [i for i in tensors if isempty(incidence_list.v2e[i])]
-    contraction_trees = Vector{Union{ContractionTree, VT}}()
-
-    # avoid the case that the line graph is not connected
-    for vertice_ids in connected_components(line_graph)
-        lg = induced_subgraph(line_graph, vertice_ids)[1]
-        lg_indices = indices[vertice_ids]
-        lg_weights = weights[vertice_ids]
-
-        # construct tree decomposition
-        perm, tree = cliquetree(lg_weights, lg; alg) # `tree` is a vector of cliques
-        permute!(lg_indices, perm)                   # `perm` is a permutation
-
-        # construct elimination ordering
-        eo = map(Base.Iterators.reverse(tree)) do clique
-            # the vertices in `res` can be eliminated at the same time
-            res = residual(clique) # `res` is a unit range
-            return @view lg_indices[res]
-        end
-
-        lg_e2v = Dict{ET, Vector{VT}}()
-        lg_v2e = Dict{VT, Vector{ET}}()
-
-        for es in eo, e in es
-            vs = lg_e2v[e] = incidence_list.e2v[e]
-
-            for v in vs
-                if !haskey(lg_v2e, v)
-                    lg_v2e[v] = ET[]
-                end
-
-                push!(lg_v2e[v], e)
-            end
-        end
-
-        lg_incidence_list = IncidenceList(lg_v2e, lg_e2v, ET[])
-        contraction_tree = eo2ct(eo, lg_incidence_list, log2_edge_sizes)
-        push!(contraction_trees, contraction_tree)
-    end
-
-    # add the scalars back to the contraction tree
-    return reduce((x,y) -> ContractionTree(x, y), contraction_trees ∪ scalars)
-end
-
-# transform incidence list to line graph
-function il2lg(incidence_list::IncidenceList{VT, ET}, indicies::Vector{ET}) where {VT, ET}
-
-    line_graph = SimpleGraph(length(indicies))
-    
-    for (i, e) in enumerate(indicies)
-        for v in incidence_list.e2v[e]
-            for ej in incidence_list.v2e[v]
-                if e != ej add_edge!(line_graph, i, findfirst(==(ej), indicies)) end
-            end
-        end
-    end
-
-    return line_graph
-end
-
-# transform elimination order to contraction tree
-function eo2ct(elimination_order::Vector{<:AbstractVector{TL}}, incidence_list::IncidenceList{VT, ET}, log2_edge_sizes) where {TL, VT, ET}
-    eo = copy(elimination_order)
-    incidence_list = copy(incidence_list)
-    contraction_tree_nodes = Vector{Union{VT, ContractionTree}}(collect(keys(incidence_list.v2e)))
-    tensors_list = Dict{VT, Int}()
-    for (i, v) in enumerate(contraction_tree_nodes)
-        tensors_list[v] = i
-    end
-
-    flag = contraction_tree_nodes[1]
-
-    while !isempty(eo)
-        eliminated_vertices = pop!(eo) # e is a vector of vertices, which are eliminated at the same time
-        vs = unique!(vcat([incidence_list.e2v[ei] for ei in eliminated_vertices if haskey(incidence_list.e2v, ei)]...)) # the tensors to be contracted, since they are connected to the eliminated vertices
-        if length(vs) >= 2
-            sub_list_indices = unique!(vcat([incidence_list.v2e[v] for v in vs]...)) # the vertices connected to the tensors to be contracted
-            sub_list_open_indices = setdiff(sub_list_indices, eliminated_vertices) # the vertices connected to the tensors to be contracted but not eliminated
-            vmap = Dict([i => incidence_list.v2e[v] for (i, v) in enumerate(vs)])
-            sub_list = IncidenceList(vmap; openedges=sub_list_open_indices) # the subgraph of the contracted tensors
-            sub_tree, scs, tcs = tree_greedy(sub_list, log2_edge_sizes; α=0.0, temperature=0.0) # optmize the subgraph with greedy method
-            sub_tree = expand_indices(sub_tree, Dict([i => v for (i, v) in enumerate(vs)]))
-            vi = contract_tree!(incidence_list, sub_tree, log2_edge_sizes, scs, tcs) # insert the contracted tensors back to the total graph
-            contraction_tree_nodes[tensors_list[vi]] = st2ct(sub_tree, tensors_list, contraction_tree_nodes)
-            flag = vi
-        end
-    end
-
-    return contraction_tree_nodes[tensors_list[flag]]
-end
-
-function expand_indices(sub_tree::Union{ContractionTree, VT}, vmap::Dict{Int, VT}) where{VT}
-    if sub_tree isa ContractionTree
-        return ContractionTree(expand_indices(sub_tree.left, vmap), expand_indices(sub_tree.right, vmap))
-    else
-        return vmap[sub_tree]
-    end
-end
-
-function st2ct(sub_tree::Union{ContractionTree, VT}, tensors_list::Dict{VT, Int}, contraction_tree_nodes::Vector) where{VT}
-    if sub_tree isa ContractionTree
-        return ContractionTree(st2ct(sub_tree.left, tensors_list, contraction_tree_nodes), st2ct(sub_tree.right, tensors_list, contraction_tree_nodes))
-    else
-        return contraction_tree_nodes[tensors_list[sub_tree]]        
-    end
-end
-
 """
     optimize_treewidth(optimizer, eincode, size_dict)
 
@@ -192,21 +73,155 @@ Check the docstring of `treewidth_method` for detailed explaination of other inp
 function optimize_treewidth(optimizer::Treewidth{EL}, code::AbstractEinsum, size_dict::Dict) where {EL}
     optimize_treewidth(optimizer, getixsv(code), getiyv(code), size_dict)
 end
+
 function optimize_treewidth(optimizer::Treewidth{EL}, ixs::AbstractVector{<:AbstractVector}, iy::AbstractVector, size_dict::Dict{L,TI}) where {L, TI, EL}
-    if length(ixs) <= 2
-        return NestedEinsum(NestedEinsum{L}.(1:length(ixs)), EinCode(ixs, iy))
+    le = Dict{L, Int}(); el = L[]
+
+    marker = zeros(Int, max(length(size_dict), length(ixs) + 1))
+    weights = Float64[]
+    colptr = Int[1]
+    rowval = Int[]
+    nzval = Int[]    
+
+    for (v, ix) in enumerate(ixs)
+        for l in ix
+            if haskey(le, l)
+                e = le[l]
+            else
+                push!(weights, log2(size_dict[l]))
+                push!(el, l)
+                e = le[l] = length(el)
+            end
+
+            if marker[e] < v
+                marker[e] = v
+                push!(rowval, e)
+                push!(nzval, 1)
+            end           
+        end
+
+        push!(colptr, length(rowval) + 1)
     end
-    log2_edge_sizes = Dict{L,Float64}()
-    for (k, v) in size_dict
-        log2_edge_sizes[k] = log2(v)
+
+    v = length(colptr)
+
+    for l in iy
+        if haskey(le, l)
+            e = le[l]
+        else
+            push!(weights, log2(size_dict[l]))
+            push!(el, l)
+            e = le[l] = length(el)
+        end
+
+        if marker[e] < v
+            marker[e] = v
+            push!(rowval, e)
+            push!(nzval, 1)
+        end           
     end
-    # complete all open edges as a clique, connected with a dummy tensor
-    incidence_list = IncidenceList(Dict([i=>ixs[i] for i=1:length(ixs)] ∪ [(length(ixs) + 1 => iy)]))
 
-    tree = treewidth_method(incidence_list, log2_edge_sizes, optimizer.alg)
+    push!(colptr, length(rowval) + 1)
 
-    # remove the dummy tensor added for open edges
-    optcode = parse_eincode!(incidence_list, tree, 1:length(ixs) + 1, size_dict)[2]
+    m = length(el)
+    n = length(colptr) - 1
 
-    return pivot_tree(optcode, length(ixs) + 1)
+    ev = SparseMatrixCSC{Int, Int}(m, n, colptr, rowval, nzval)
+    ve = copy(transpose(ev))
+
+    # construct line graph `ee`
+    #           indices
+    #         [         ]
+    # indices [    ee   ]
+    #         [         ]
+    # we only care about the sparsity pattern
+    ee = ve' * ve
+
+    # compute a tree (forest) decomposition of `ee`
+    perm, tree = cliquetree(weights, ee; alg=ConnectedComponents(optimizer.alg))
+
+    # find the bag containing `iy`, call it `root`
+    root = length(tree)
+
+    for e in view(rowvals(ev), nzrange(ev, n))
+        marker[e] = -1
+    end
+
+    for (b, bag) in enumerate(tree)
+        root < length(tree) && break
+
+        for e in residual(bag)
+            root < length(tree) && break
+
+            if marker[perm[e]] == -1
+                root = b
+            end
+        end
+    end
+
+    # make `root` a root node of the tree decomposition
+    permute!(perm, cliquetree!(tree, root))
+
+    # permute incidence matrix `ve`
+    permute!(el, perm)
+    permute!(ve, oneto(n), perm)
+
+    # the vector `roots` maps each vertex to the root node
+    # of its subtree
+    roots = Vector{Int}(undef, m)
+
+    for (b, bag) in enumerate(tree), e in residual(bag)
+        roots[e] = b
+    end
+
+    # dynamic programming
+    stack = NestedEinsum{L}[]
+
+    for (b, bag) in enumerate(tree)
+        sep = separator(bag)
+        res = residual(bag)
+        code = NestedEinsum(NestedEinsum{L}[], EinCode(Vector{L}[], L[]))
+
+        for e in sep
+            push!(code.eins.iy, el[e])
+        end
+
+        for e in res, v in view(rowvals(ve), nzrange(ve, e))
+            if marker[v] != -2
+                marker[v] = -2
+
+                if v == n
+                    append!(code.eins.iy, iy)
+                else
+                    push!(code.args, NestedEinsum{L}(v))
+                    push!(code.eins.ixs, ixs[v])
+                end
+            end
+        end
+
+        for _ in childindices(tree, b)
+            child = pop!(stack)
+            push!(code.args, child)
+            push!(code.eins.ixs, child.eins.iy)
+        end
+
+        push!(stack, code)
+    end
+
+    # we now have an expression for each root
+    # of the tree decomposition
+    if isone(length(stack))
+        code = only(stack)
+    else
+        code = NestedEinsum(NestedEinsum{L}[], EinCode(Vector{L}[], L[]))
+        append!(code.eins.iy, iy)
+
+        while !isempty(stack)
+            child = pop!(stack)
+            push!(code.args, child)
+            push!(code.eins.ixs, child.eins.iy)
+        end
+    end
+
+    return code
 end
