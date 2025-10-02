@@ -109,7 +109,7 @@ function optimize_treewidth(optimizer::Treewidth{EL}, ixs::AbstractVector{<:Abst
         push!(colptr, length(rowval) + 1)
     end
 
-    # add a "virtual" tensor with indices `head(path)`
+    # add a "virtual" tensor with indices `iy`
     v = length(colptr)
 
     for l in iy
