@@ -75,9 +75,15 @@ function optimize_treewidth(optimizer::Treewidth{EL}, code::AbstractEinsum, size
 end
 
 function optimize_treewidth(optimizer::Treewidth{EL}, ixs::AbstractVector{<:AbstractVector}, iy::AbstractVector, size_dict::Dict{L,TI}; binary::Bool=true) where {L, TI, EL}
-    le = Dict{L, Int}(); el = L[]
-
     marker = zeros(Int, max(length(size_dict), length(ixs) + 1))
+
+    # construct incidence matrix `ve`
+    #           indices
+    #         [         ]
+    # tensors [    ve   ]
+    #         [         ]
+    # we only care about the sparsity pattern
+    le = Dict{L, Int}(); el = L[] # el ∘ le = id
     weights = Float64[]
     colptr = Int[1]
     rowval = Int[]
@@ -103,6 +109,7 @@ function optimize_treewidth(optimizer::Treewidth{EL}, ixs::AbstractVector{<:Abst
         push!(colptr, length(rowval) + 1)
     end
 
+    # add a "virtual" tensor with indices `head(path)`
     v = length(colptr)
 
     for l in iy
