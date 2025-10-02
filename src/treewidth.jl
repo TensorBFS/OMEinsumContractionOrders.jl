@@ -166,14 +166,6 @@ function optimize_treewidth(optimizer::Treewidth{EL}, ixs::AbstractVector{<:Abst
     permute!(el, perm)
     permute!(ve, oneto(n), perm)
 
-    # the vector `roots` maps each vertex to the root node
-    # of its subtree
-    roots = Vector{Int}(undef, m)
-
-    for (b, bag) in enumerate(tree), e in residual(bag)
-        roots[e] = b
-    end
-
     # dynamic programming
     stack = NestedEinsum{L}[]
 
