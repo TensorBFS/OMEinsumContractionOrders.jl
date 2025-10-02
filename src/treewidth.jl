@@ -223,6 +223,14 @@ function optimize_treewidth(optimizer::Treewidth{EL}, ixs::AbstractVector{<:Abst
         end
     end
 
+    # append scalars to the root
+    for (v, ix) in enumerate(ixs)
+        if isempty(ix)
+            push!(code.args, NestedEinsum{L}(v))
+            push!(code.eins.ixs, ix)
+        end
+    end
+
     if binary
         code = _optimize_code(code, size_dict, GreedyMethod())
     end

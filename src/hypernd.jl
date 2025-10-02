@@ -37,9 +37,9 @@ The optimizer is implemented using the tree decomposition library
     dis::D = KaHyParND()
     algs::A = (MF(), AMF(), MMD())
     level::Int = 6
-    width::Int = 120
+    width::Int = 50
     scale::Int = 100
-    imbalances::StepRange{Int, Int} = 130:1:130
+    imbalances::StepRange{Int, Int} = 100:10:800
     score::ScoreFunction = ScoreFunction()
 end
 
