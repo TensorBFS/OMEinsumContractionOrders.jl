@@ -20,10 +20,13 @@ LuxorGraphPlot = "1f49bdf2-22a7-4bc4-978b-948dc219fbbc"
 KaHyParExt = ["KaHyPar"]
 LuxorTensorPlot = ["LuxorGraphPlot"]
 
+[sources]
+CliqueTrees = {path = "../CliqueTrees.jl"}
+
 [compat]
 AbstractTrees = "0.3, 0.4"
 Aqua = "0.8"
-CliqueTrees = "1.5.0"
+CliqueTrees = "1.12"
 DataStructures = "0.18"
 Documenter = "1.10.1"
 Graphs = "1"

@@ -70,11 +70,11 @@ ExactTreewidth() = Treewidth()
 Optimizing the contraction order via solve the exact tree width of the line graph corresponding to the eincode and return a `NestedEinsum` object.
 Check the docstring of `treewidth_method` for detailed explaination of other input arguments.
 """
-function optimize_treewidth(optimizer::Treewidth{EL}, code::AbstractEinsum, size_dict::Dict) where {EL}
-    optimize_treewidth(optimizer, getixsv(code), getiyv(code), size_dict)
+function optimize_treewidth(optimizer::Treewidth{EL}, code::AbstractEinsum, size_dict::Dict; binary::Bool=true) where {EL}
+    optimize_treewidth(optimizer, getixsv(code), getiyv(code), size_dict; binary)
 end
 
-function optimize_treewidth(optimizer::Treewidth{EL}, ixs::AbstractVector{<:AbstractVector}, iy::AbstractVector, size_dict::Dict{L,TI}) where {L, TI, EL}
+function optimize_treewidth(optimizer::Treewidth{EL}, ixs::AbstractVector{<:AbstractVector}, iy::AbstractVector, size_dict::Dict{L,TI}; binary::Bool=true) where {L, TI, EL}
     le = Dict{L, Int}(); el = L[]
 
     marker = zeros(Int, max(length(size_dict), length(ixs) + 1))
@@ -223,5 +223,24 @@ function optimize_treewidth(optimizer::Treewidth{EL}, ixs::AbstractVector{<:Abst
         end
     end
 
+    if binary
+        code = _optimize_code(code, size_dict, GreedyMethod())
+    end
+
     return code
+end
+
+# no longer used
+function il2lg(incidence_list::IncidenceList{VT, ET}, indicies::Vector{ET}) where {VT, ET}
+    line_graph = SimpleGraph(length(indicies))
+    
+    for (i, e) in enumerate(indicies)
+        for v in incidence_list.e2v[e]
+            for ej in incidence_list.v2e[v]
+                if e != ej add_edge!(line_graph, i, findfirst(==(ej), indicies)) end
+            end
+        end
+    end
+
+    return line_graph
 end

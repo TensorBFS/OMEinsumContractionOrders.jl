@@ -43,7 +43,7 @@ The optimizer is implemented using the tree decomposition library
     score::ScoreFunction = ScoreFunction()
 end
 
-function optimize_hyper_nd(optimizer::HyperND, code, size_dict)
+function optimize_hyper_nd(optimizer::HyperND, code::AbstractEinsum, size_dict::AbstractDict; binary::Bool=true)
     dis = optimizer.dis
     algs = optimizer.algs
     level = optimizer.level
@@ -57,13 +57,17 @@ function optimize_hyper_nd(optimizer::HyperND, code, size_dict)
 
     for imbalance in imbalances
         curalg = SafeRules(ND(BestWidth(algs), dis; level, width, scale, imbalance))
-        curoptimizer = Treewidth(; alg=curalg)
-        curcode = _optimize_code(code, size_dict, curoptimizer)
+        curopt = Treewidth(; alg=curalg)
+        curcode = optimize_treewidth(curopt, code, size_dict; binary=false)
         curtc, cursc, currw = __timespacereadwrite_complexity(curcode, size_dict)
 
         if score(curtc, cursc, currw) < minscore
             minscore, mincode = score(curtc, cursc, currw), curcode
         end
+    end
+
+    if binary
+        mincode = _optimize_code(mincode, size_dict, GreedyMethod())
     end
 
     return mincode
@@ -79,7 +83,8 @@ function Base.show(io::IO, ::MIME"text/plain", optimizer::HyperND{D, A}) where {
 
     println(io, "    level: $(optimizer.level)")
     println(io, "    width: $(optimizer.width)")
+    println(io, "    scale: $(optimizer.scale)")
     println(io, "    imbalances: $(optimizer.imbalances)")
-    println(io, "    target: $(optimizer.target)")
+    println(io, "    score: $(optimizer.score)")
     return
 end
