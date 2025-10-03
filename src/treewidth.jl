@@ -98,44 +98,26 @@ end
 Construct the weighted incidence matrix correponding to an Einstein summation expression.
 Returns a quadruple (weights, ev, ve, el).
 
-Each Einstein summation expression has a set
-
-    E ⊆ L
-
-of indices, a set
-
-    V := {1, … |V|}
-
-of (inner) tensors, and an outer tensor
-
-    * := |V| + 1.
-
-Each tensor v ∈ V is incident to a sequence ixs[v] of indices, and the outer tensor is incident
-to the sequence iy.  Note that an index can appear multiple times
-in ixs[v], i.e.
+Each Einstein summation expression has a set E ⊆ L of indices, a set V := {1, …, |V|} of
+(inner) tensors, and an outer tensor * := |V| + 1. Each tensor v ∈ V is incident to a sequence
+ixs[v] of indices, and the outer tensor is incident to the sequence iy. Note that an index
+can appear multiple times in ixs[v], e.g.
 
     ixs[v] = ('a', 'a', 'b').
 
-Each index l ∈ E has a positive dimension, given by size_dict[l].
+Each index l ∈ E also has a positive dimension, given by size_dict[l].
 
 The function `einexpr_to_matrix` does two things. First of all, it enumerates the index set
 E, mapping each index to a distinct natural number.
 
     el: {1, …, |E|} → E
+    le: E → {1, …, |E|}
 
-Next, it constructs a vector
-
-    weights: {1, …, |E|} → [0, ∞)
-
-satisfying
+Next, it constructs a vector weights: {1, …, |E|} → [0, ∞) satisfying
 
     weights[e] := log2(size_dict[el[e]]),
 
-and a sparse matrix
-
-    ve: {1, …, |V| + 1} × {1, …, |E|} → {0, 1}
-
-satisfying
+and a sparse matrix ve: {1, …, |V| + 1} × {1, …, |E|} → {0, 1} satisfying
 
     ve[v, e] := { 1 if el[e] is incident to v
                 { 0 otherwise
@@ -144,17 +126,21 @@ We can think of the pair H := (weights, ve) as an edge-weighted hypergraph
 with incidence matrix ve.
 """
 function einexpr_to_matrix!(marker::AbstractVector{Int}, ixs::AbstractVector{<:AbstractVector{L}}, iy::AbstractVector{L}, size_dict::AbstractDict{L}) where {L}
+    m = length(size_dict)
+    n = length(ixs) + 1
+    o = sum(length, ixs) + length(iy)
+
     # construct incidence matrix `ve`
     #           indices
     #         [         ]
     # tensors [    ve   ]
     #         [         ]
     # we only care about the sparsity pattern
-    le = Dict{L, Int}(); el = L[] # el ∘ le = id
-    weights = Float64[]
-    colptr = Int[1]
-    rowval = Int[]
-    nzval = Int[]    
+    le = sizehint!(Dict{L, Int}(), m); el = sizehint!(L[], m) # el ∘ le = id
+    weights = sizehint!(Float64[], m)
+    colptr = sizehint!(Int[1], n + 1)
+    rowval = sizehint!(Int[], o)
+    nzval = sizehint!(Int[], o)
 
     # for all tensors v...
     for (v, ix) in enumerate(ixs)
