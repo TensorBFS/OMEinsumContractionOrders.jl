@@ -4,6 +4,7 @@
         algs = (MF(), AMF(), MMD()),
         level = 6,
         width = 120,
+        scale = 100,
         imbalances = 130:130,
         score = ScoreFunction(),
     )
@@ -11,7 +12,11 @@
 Nested-dissection based optimizer. Recursively partitions a tensor network, then calls a
 greedy algorithm on the leaves. The optimizer is run a number of times: once for each greedy
 algorithm in `algs` and each imbalance value in `imbalances`. The recursion depth is controlled by
-the parameters `level` and `width`.
+the parameters `level` and `width`. The parameter `scale` controls discretization of the index weights:
+
+    weight(i) := scale * log2(dim(i))
+
+where dim(i) is the dimension of the index i.
 
 The line graph is partitioned using the algorithm `dis`. OMEinsumContractionOrders currently supports two partitioning
 algorithms, both of which require importing an external library.
