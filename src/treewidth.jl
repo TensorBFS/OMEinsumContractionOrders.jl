@@ -6,13 +6,6 @@ Tree width based solver. The solvers are implemented in [CliqueTrees.jl](https:/
 
 | Algorithm | Description | Time Complexity | Space Complexity |
 |:-----------|:-------------|:----------------|:-----------------|
-| `BFS` | breadth-first search | O(m + n) | O(n) |
-| `MCS` | maximum cardinality search | O(m + n) | O(n) |
-| `LexBFS` | lexicographic breadth-first search | O(m + n) | O(m + n) |
-| `RCMMD` | reverse Cuthill-Mckee (minimum degree) | O(m + n) | O(m + n) |
-| `RCMGL` | reverse Cuthill-Mckee (George-Liu) | O(m + n) | O(m + n) |
-| `MCSM` | maximum cardinality search (minimal) | O(mn) | O(n) |
-| `LexM` | lexicographic breadth-first search (minimal) | O(mn) | O(n) |
 | `AMF` | approximate minimum fill | O(mn) | O(m + n) |
 | `MF` | minimum fill | O(mn²) | - |
 | `MMD` | multiple minimum degree | O(mn²) | O(m + n) |
@@ -39,15 +32,15 @@ Dict{Char, Int64} with 6 entries:
   'b' => 4
 
 julia> optcode = optimize_code(eincode, size_dict, optimizer)
-ba, ab -> a
-├─ bcf, fac -> ba
-│  ├─ e, bcef -> bcf
-│  │  ├─ e
-│  │  └─ bcef
-│  └─ df, acd -> fac
-│     ├─ df
-│     └─ acd
-└─ ab
+ab, ba -> a
+├─ ab
+└─ bcf, acf -> ba
+   ├─ bcef, e -> bcf
+   │  ├─ bcef
+   │  └─ e
+   └─ acd, df -> acf
+      ├─ acd
+      └─ df
 ```
 """
 Base.@kwdef struct Treewidth{EL <: EliminationAlgorithm} <: CodeOptimizer 
