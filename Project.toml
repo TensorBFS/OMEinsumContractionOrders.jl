@@ -23,7 +23,7 @@ LuxorTensorPlot = ["LuxorGraphPlot"]
 [compat]
 AbstractTrees = "0.3, 0.4"
 Aqua = "0.8"
-CliqueTrees = "1.5.0"
+CliqueTrees = "1.12.1"
 DataStructures = "0.18"
 Documenter = "1.10.1"
 Graphs = "1"

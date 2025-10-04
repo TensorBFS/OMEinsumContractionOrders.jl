@@ -4,6 +4,7 @@
         algs = (MF(), AMF(), MMD()),
         level = 6,
         width = 120,
+        scale = 100,
         imbalances = 130:130,
         score = ScoreFunction(),
     )
@@ -11,7 +12,11 @@
 Nested-dissection based optimizer. Recursively partitions a tensor network, then calls a
 greedy algorithm on the leaves. The optimizer is run a number of times: once for each greedy
 algorithm in `algs` and each imbalance value in `imbalances`. The recursion depth is controlled by
-the parameters `level` and `width`.
+the parameters `level` and `width`. The parameter `scale` controls discretization of the index weights:
+
+    weight(i) := scale * log2(dim(i))
+
+where dim(i) is the dimension of the index i.
 
 The line graph is partitioned using the algorithm `dis`. OMEinsumContractionOrders currently supports two partitioning
 algorithms, both of which require importing an external library.
@@ -37,16 +42,18 @@ The optimizer is implemented using the tree decomposition library
     dis::D = KaHyParND()
     algs::A = (MF(), AMF(), MMD())
     level::Int = 6
-    width::Int = 120
-    imbalances::StepRange{Int, Int} = 130:1:130
+    width::Int = 50
+    scale::Int = 100
+    imbalances::StepRange{Int, Int} = 100:10:800
     score::ScoreFunction = ScoreFunction()
 end
 
-function optimize_hyper_nd(optimizer::HyperND, code, size_dict)
+function optimize_hyper_nd(optimizer::HyperND, code::AbstractEinsum, size_dict::AbstractDict; binary::Bool=true)
     dis = optimizer.dis
     algs = optimizer.algs
     level = optimizer.level
     width = optimizer.width
+    scale = optimizer.scale
     imbalances = optimizer.imbalances
     score = optimizer.score
 
@@ -54,14 +61,18 @@ function optimize_hyper_nd(optimizer::HyperND, code, size_dict)
     local mincode
 
     for imbalance in imbalances
-        curalg = SafeRules(ND(BestWidth(algs), dis; level, width, imbalance))
-        curoptimizer = Treewidth(; alg=curalg)
-        curcode = _optimize_code(code, size_dict, curoptimizer)
+        curalg = SafeRules(ND(BestWidth(algs), dis; level, width, scale, imbalance))
+        curopt = Treewidth(; alg=curalg)
+        curcode = optimize_treewidth(curopt, code, size_dict; binary=false)
         curtc, cursc, currw = __timespacereadwrite_complexity(curcode, size_dict)
 
         if score(curtc, cursc, currw) < minscore
             minscore, mincode = score(curtc, cursc, currw), curcode
         end
+    end
+
+    if binary
+        mincode = _optimize_code(mincode, size_dict, GreedyMethod())
     end
 
     return mincode
@@ -77,7 +88,8 @@ function Base.show(io::IO, ::MIME"text/plain", optimizer::HyperND{D, A}) where {
 
     println(io, "    level: $(optimizer.level)")
     println(io, "    width: $(optimizer.width)")
+    println(io, "    scale: $(optimizer.scale)")
     println(io, "    imbalances: $(optimizer.imbalances)")
-    println(io, "    target: $(optimizer.target)")
+    println(io, "    score: $(optimizer.score)")
     return
 end
