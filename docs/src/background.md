@@ -102,7 +102,7 @@ Time complexity: 2^13.044394119358454
 Space complexity: 2^8.0
 Read-write complexity: 2^11.000704269011246
 ```
-We say such a contraction is with **time complexity** of $O(D^{3})$ and **space complexity** of $O(D^{4})$.
+We say such a contraction is with **time complexity** of $O(D^{3})$ and **space complexity** of $O(D^{2})$.
 
 In actual calculation, we prefer binary contractions, i.e., contracting two tensors at a time, by converting these two tensors as matrices, so that we can make use of BLAS libraries to speed up the calculation.
 In this way, a given contraction order can be represented as a binary tree.
