@@ -61,9 +61,7 @@ function _timespacereadwrite_complexity(ei::NestedEinsum, log2_sizes::Dict{L, VT
     while !isempty(stack)
         ei = pop!(stack)
 
-        if isleaf(ei)
-            tc = sc = rw = min
-        else
+        if !isleaf(ei)
             tc, sc, rw = _timespacereadwrite_complexity(
                 getixsv(ei.eins),
                 getiyv(ei.eins),
@@ -71,11 +69,10 @@ function _timespacereadwrite_complexity(ei::NestedEinsum, log2_sizes::Dict{L, VT
             ) 
 
             append!(stack, ei.args)
+            push!(tcs, tc)
+            push!(scs, sc)
+            push!(rws, rw)
         end
-
-        push!(tcs, tc)
-        push!(scs, sc)
-        push!(rws, rw)
     end
 
     tc = log2sumexp2(tcs)
