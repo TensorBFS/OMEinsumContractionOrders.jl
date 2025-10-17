@@ -51,16 +51,20 @@ function __timespacereadwrite_complexity(ei::EinCode, size_dict)
 end
 
 function _timespacereadwrite_complexity(ei::NestedEinsum, log2_sizes::Dict{L, VT}) where {L, VT}
-    tc = sc = rw = zero(VT)
+    min = typemin(VT)
+
+    tcs = [min]
+    scs = [min]
+    rws = [min]
     stack = [ei]
 
     while !isempty(stack)
         ei = pop!(stack)
 
         if isleaf(ei)
-            tci = sci = rwi = typemin(VT)
+            tc = sc = rw = min
         else
-            tci, sci, rwi = _timespacereadwrite_complexity(
+            tc, sc, rw = _timespacereadwrite_complexity(
                 getixsv(ei.eins),
                 getiyv(ei.eins),
                 log2_sizes,
@@ -69,11 +73,14 @@ function _timespacereadwrite_complexity(ei::NestedEinsum, log2_sizes::Dict{L, VT
             append!(stack, ei.args)
         end
 
-        tc = log2(exp2(tc) + exp2(tci))
-        rw = log2(exp2(rw) + exp2(rwi))
-        sc = max(sc, sci)
+        push!(tcs, tc)
+        push!(scs, sc)
+        push!(rws, rw)
     end
 
+    tc = log2sumexp2(tcs)
+    sc = maximum(scs)
+    rw = log2sumexp2(rws)
     return tc, sc, rw
 end
 
