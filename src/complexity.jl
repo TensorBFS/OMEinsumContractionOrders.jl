@@ -50,21 +50,34 @@ function __timespacereadwrite_complexity(ei::EinCode, size_dict)
     _timespacereadwrite_complexity(getixsv(ei), getiyv(ei), log2_sizes)
 end
 
-function _timespacereadwrite_complexity(ei::NestedEinsum, log2_sizes::Dict{L,VT}) where {L,VT}
-    isleaf(ei) && return (VT(-Inf), VT(-Inf), VT(-Inf))
-    tcs = VT[]
-    scs = VT[]
-    rws = VT[]
-    for arg in ei.args
-        tc, sc, rw = _timespacereadwrite_complexity(arg, log2_sizes)
-        push!(tcs, tc)
-        push!(scs, sc)
-        push!(rws, rw)
+function _timespacereadwrite_complexity(ei::NestedEinsum, log2_sizes::Dict{L, VT}) where {L, VT}
+    min = typemin(VT)
+
+    tcs = [min]
+    scs = [min]
+    rws = [min]
+    stack = [ei]
+
+    while !isempty(stack)
+        ei = pop!(stack)
+
+        if !isleaf(ei)
+            tc, sc, rw = _timespacereadwrite_complexity(
+                getixsv(ei.eins),
+                getiyv(ei.eins),
+                log2_sizes,
+            ) 
+
+            append!(stack, ei.args)
+            push!(tcs, tc)
+            push!(scs, sc)
+            push!(rws, rw)
+        end
     end
-    tc2, sc2, rw2 = _timespacereadwrite_complexity(getixsv(ei.eins), getiyv(ei.eins), log2_sizes)
-    tc = log2sumexp2([tcs..., tc2])
-    sc = max(reduce(max, scs, init=zero(VT)), sc2)
-    rw = log2sumexp2([rws..., rw2])
+
+    tc = log2sumexp2(tcs)
+    sc = maximum(scs)
+    rw = log2sumexp2(rws)
     return tc, sc, rw
 end
 

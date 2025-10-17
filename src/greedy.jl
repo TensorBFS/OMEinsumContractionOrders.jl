@@ -250,16 +250,62 @@ function optimize_greedy(ixs::AbstractVector{<:AbstractVector}, iy::AbstractVect
     tree, _, _ = tree_greedy(incidence_list, log2_edge_sizes; α, temperature)
     parse_eincode!(incidence_list, tree, 1:length(ixs), size_dict)[2]
 end
-function optimize_greedy(code::NestedEinsum, size_dict; α, temperature)
-    isleaf(code) && return code
-    args = optimize_greedy.(code.args, Ref(size_dict); α, temperature)
-    if length(code.args) > 2
-        # generate coarse grained hypergraph.
-        nested = optimize_greedy(code.eins, size_dict; α, temperature)
-        replace_args(nested, args)
-    else
-        NestedEinsum(args, code.eins)
+
+function optimize_greedy(code::E, size_dict; α, temperature) where E <: NestedEinsum
+    # construct first-child next-sibling representation of `code`
+    queue = [code]
+    child = [0]
+    brother = [0]
+
+    for (i, code) in enumerate(queue)
+        if !isleaf(code)
+            for arg in code.args
+                push!(queue, arg)
+                push!(brother, child[i])
+                push!(child, 0)
+                child[i] = length(queue)
+            end
+        end
     end
+
+    # construct postordering of `code`
+    order = similar(queue)
+    stack = [1]
+
+    for i in eachindex(queue)
+        j = pop!(stack); k = child[j]
+
+        while !iszero(k)
+            push!(stack, j); child[j] = brother[k]; j = k; k = child[j]
+        end
+
+        order[i] = queue[j]
+    end
+
+    # optimize `code` using dynamic programming
+    empty!(queue)
+
+    for code in order
+        if isleaf(code)
+            push!(queue, code)
+        else
+            args = E[]
+
+            for _ in code.args
+                push!(args, pop!(queue))
+            end
+
+            if length(args) > 2
+                code = replace_args(optimize_greedy(code.eins, size_dict; α, temperature), args)
+            else
+                code = NestedEinsum(args, code.eins)
+            end
+
+            push!(queue, code)
+        end
+    end
+
+    return only(queue)
 end
 
 function replace_args(nested::NestedEinsum{LT}, trueargs) where LT

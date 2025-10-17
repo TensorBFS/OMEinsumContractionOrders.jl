@@ -48,7 +48,11 @@ The optimizer is implemented using the tree decomposition library
     score::ScoreFunction = ScoreFunction()
 end
 
-function optimize_hyper_nd(optimizer::HyperND, code::AbstractEinsum, size_dict::AbstractDict; binary::Bool=true)
+function optimize_hyper_nd(optimizer::HyperND, code::AbstractEinsum, size_dict::Dict; binary::Bool=true)
+    optimize_hyper_nd(optimizer, getixsv(code), getiyv(code), size_dict; binary)
+end
+
+function optimize_hyper_nd(optimizer::HyperND, ixs::AbstractVector{<:AbstractVector}, iy::AbstractVector, size_dict::Dict; binary::Bool=true)
     dis = optimizer.dis
     algs = optimizer.algs
     level = optimizer.level
@@ -63,7 +67,7 @@ function optimize_hyper_nd(optimizer::HyperND, code::AbstractEinsum, size_dict::
     for imbalance in imbalances
         curalg = SafeRules(ND(BestWidth(algs), dis; level, width, scale, imbalance))
         curopt = Treewidth(; alg=curalg)
-        curcode = optimize_treewidth(curopt, code, size_dict; binary=false)
+        curcode = optimize_treewidth(curopt, ixs, iy, size_dict; binary=false)
         curtc, cursc, currw = __timespacereadwrite_complexity(curcode, size_dict)
 
         if score(curtc, cursc, currw) < minscore
