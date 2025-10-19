@@ -54,50 +54,42 @@ bibliography: paper.bib
 
 # Statement of need
 
-This paper introduces the OMEinsumContractionOrders package, which is a Julia package that implements state-of-the-art algorithms for the optimization of the contraction order of tensor networks. We report its key features, the ecosystem it integrates with, and its performance benchmarks.
+`OMEinsumContractionOrders` is a Julia package that implements state-of-the-art algorithms for optimizing tensor network contraction orders. This paper presents its key features, integration with the Julia ecosystem, and performance benchmarks.
 
 ![The relationship between the OMEinsumContractionOrders package and its dependencies.\label{fig:structure}](figures/structure.pdf){ width=80% }
 
-\autoref{fig:structure} shows the relationship between the OMEinsumContractionOrders package and its dependencies.
+A _tensor network_ is a mathematical framework that represents multilinear algebra operations as graphical structures, where tensors are nodes and shared indices are edges. This diagrammatic approach transforms complex high-dimensional contractions into visual networks that expose underlying computational structure.
 
-A _tensor network_ is a mathematical framework that represents multilinear algebra operations as intuitive graphical structures, where tensors become nodes and shared indices become connecting edges. This diagrammatic approach transforms complex high-dimensional contractions into accessible visual networks that expose underlying computational structure.
+The framework has remarkable universality across diverse domains: _einsum_ notation [@Harris2020] in numerical computing, _factor graphs_ [@Bishop2006] in probabilistic inference, _sum-product networks_ in machine learning, and _junction trees_ [@Villescas2023] in graphical models. Tensor networks have enabled breakthroughs in quantum circuit simulation [@Markov2008], quantum error correction [@Piveteau2024], neural network compression [@Qing2024], strongly correlated quantum materials [@Haegeman2016], and combinatorial optimization problems. [JG: TODO: mention polynomial optimization and combinatorial optimization]
 
-The framework exhibits remarkable universality, emerging across diverse domains: _einsum_ notation [@Harris2020] in numerical computing, _factor graphs_ [@Bishop2006] in probabilistic inference, _sum-product networks_ in machine learning, and _junction trees_ [@Villescas2023] in graphical models. Tensor networks have revolutionized quantum circuit simulation [@Markov2008], quantum error correction [@Piveteau2024], neural network compression [@Qing2024], and strongly correlated quantum materials [@Haegeman2016]. [JG: TODO: mention polynomial optimization and combinatorial optimization]
+The computational cost of tensor network contraction depends critically on the *contraction order*—the sequence in which pairwise tensor multiplications are performed. This order can be represented as a binary tree where leaves correspond to input tensors and internal nodes represent intermediate results.
 
-The computational cost of tensor network contraction depends critically on the chosen *contraction order*—the sequence in which pairwise tensor multiplications are performed. This order can be represented as a binary tree where leaves correspond to input tensors and internal nodes represent intermediate results.
+Finding the globally optimal contraction order is NP-complete [@Markov2008]. Fortunately, near-optimal solutions suffice for most practical applications and can be obtained efficiently through heuristic methods. Modern optimization algorithms have achieved remarkable scalability, handling tensor networks with over $10^4$ tensors [@Gray2021; @Roa2024].
 
-Finding the globally optimal contraction order constitutes an NP-complete optimization problem [@Markov2008]. Fortunately, near-optimal solutions often suffice for practical applications and can be obtained efficiently through sophisticated heuristic methods. Modern optimization algorithms have achieved remarkable scalability, successfully handling tensor networks with over $10^4$ tensors [@Gray2021; @Roa2024].
+The optimal contraction order has a deep mathematical connection to the _tree decomposition_ [@Markov2008] of the tensor network's line graph. Finding the optimal contraction order is nearly equivalent to finding the minimal-width tree decomposition of the line graph. The logarithmic time complexity for the bottleneck contraction corresponds to the largest bag size in the tree decomposition, while the logarithmic space complexity corresponds to the largest separator size (the set of vertices connecting two bags).
 
-The optimal contraction order has a deep mathematical connection to the _tree decomposition_ [@Markov2008] of the tensor network's line graph.
-
-Finding the optimal contraction order is almost equivalent to finding the minimal-width tree decomposition of the line graph.
-The log time complexity for the bottleneck contraction corresponds to the largest bag size in the tree decomposition.
-The log space complexity is equivalent to the largest separator (the set of vertices connecting two bags) size in the tree decomposition.
-
-Supported solvers include:
+`OMEinsumContractionOrders` implements several optimization algorithms with complementary performance characteristics:
 
 | Optimizer | Description |
 | :----------- | :------------- |
-| `GreedyMethod` | Fast, but poor contraction order |
-| `TreeSA` | Reliable, local search based optimizer [@Kalachev2021], but is a bit slow |
-| `HyperND` | Nested dissection algorithm, similar to `KaHyParBipartite`. Requires importing either `KaHyPar` or `Metis`. |
-| `KaHyParBipartite` and `SABipartite` | Graph bipartition based, suited for large tensor networks [@Gray2021], requires using `KaHyPar` package. Alternatively, a simulated annealing bipartition method is provided in `SABipartite`. |
-| `ExactTreewidth` (alias of `Treewidth{RuleReduction{BT}}`) | Exact, but takes exponential time [@Bouchitte2001], based on package `TreeWidthSolver`. |
-| `Treewidth` | Tree width solver based, based on package `CliqueTrees`, performance is elimination algorithm dependent. |
+| `GreedyMethod` | Fast greedy heuristic with modest solution quality |
+| `TreeSA` | Reliable simulated annealing optimizer [@Kalachev2021] with high-quality solutions |
+| `HyperND` | Nested dissection algorithm for hypergraphs, requires `KaHyPar` or `Metis` |
+| `KaHyParBipartite` | Graph bipartition method for large tensor networks [@Gray2021], requires `KaHyPar` |
+| `SABipartite` | Simulated annealing bipartition method, pure Julia implementation |
+| `ExactTreewidth` | Exact algorithm with exponential runtime [@Bouchitte2001], based on `TreeWidthSolver` |
+| `Treewidth` | Clique tree elimination methods from `CliqueTrees` package |
 
-There is a tradeoff between the time and the quality of the contraction order. \autoref{fig:sycamore} shows the Pareto front of the multi-objective optimization of the time to optimize the contraction order and the time to contract the tensor network.
+These algorithms exhibit a tradeoff between optimization time and solution quality. \autoref{fig:sycamore} shows benchmark results on the Sycamore quantum supremacy circuit, demonstrating the Pareto front of multi-objective optimization balancing contraction order quality against optimization runtime.
 
-![A benchmark result of the time and space trade-off. \label{fig:sycamore}](figures/sycamore.pdf){ width=80% }
-
-
-
+![Benchmark results on the Sycamore quantum circuit, showing the tradeoff between optimization time and contraction complexity. \label{fig:sycamore}](figures/sycamore.pdf){ width=80% }
 
 [JG: TODO: We need a benchmark with CoTengra optimizer, maybe just benchmark two algorithms: TreeSA and HyperND (Richard fill in), please also cite CliqueTree paper.]
 
 # Usage Example
 - _Remark_: 1. Basic usage. From contraction pattern representation to optimized contraction order, introduce the data structures and algorithms. Conversion between contraction graph and treewidth.
 
-To demonstrate the usage, we first generate a large enough random tensor network with the help of the `Graphs` package.
+To demonstrate basic usage, we generate a random tensor network using the `Graphs` package.
 
 ```julia
 julia> using OMEinsum, Graphs
@@ -119,7 +111,7 @@ Space complexity: 2^0.0
 Read-write complexity: 2^9.231221180711184
 ```
 
-We first generate a random 3-regular graph with 100 vertices. Then we associate each vertex with a binary variable and each edge with a tensor of size $2 \times 2$. The time complexity without contraction order optimization is $2^{100}$, which is equivalent to brute-force. The order can be optimized with the `optimize_code` function.
+We generate a random 3-regular graph with 100 vertices, associating each vertex with a binary variable and each edge with a $2 \times 2$ tensor. Without optimization, the time complexity is $2^{100}$, equivalent to brute-force enumeration. The `optimize_code` function finds an improved contraction order.
 
 ```julia
 julia> optcode = optimize_code(code, sizes, TreeSA());
@@ -129,9 +121,9 @@ Time complexity: 2^17.241796993093228
 Space complexity: 2^13.0
 Read-write complexity: 2^16.360864226366807
 ```
-The `optimize_code` function takes three inputs: the `EinCode` object, the tensor sizes, and the contraction order solver. It returns a `NestedEinsum` object of time complexity $\approx 2^{17.2}$. It is much smaller than the number of vertices. It is a very reasonable number because the treewidth of a 3-regular graph is approximately upper bounded by $1/6$ of the number of vertices [@Fomin2006].
+The `optimize_code` function takes three arguments: the `EinCode` object, tensor sizes, and the chosen optimizer. It returns a `NestedEinsum` object with time complexity $\approx 2^{17.2}$, far smaller than the original $2^{100}$. This result aligns with theory, as the treewidth of a 3-regular graph is approximately upper bounded by $1/6$ of the number of vertices [@Fomin2006].
 
-We can use the `slice_code` function to reduce the space complexity.
+The space complexity can be further reduced using the `slice_code` function, which implements the slicing technique for trading time complexity for space complexity.
 ```julia
 julia> sliced_code = slice_code(optcode, sizes, TreeSASlicer(score=ScoreFunction(sc_target=cc.sc-3)));
 
@@ -146,7 +138,7 @@ Time complexity: 2^17.800899899920303
 Space complexity: 2^10.0
 Read-write complexity: 2^17.199595668955244
 ```
-The `slice_code` function takes three inputs: the `NestedEinsum` object, the tensor sizes, and the slicing strategy. Here, we use the `TreeSASlicer` with the `ScoreFunction` to reduce the space complexity by 3. The result type is `SlicedEinsum`, which contains a `slicing` field for storing the slice indices. After slicing, the space complexity is reduced by $3$, while the time complexity is only slightly increased. The usage of `SlicedEinsum` is the same as the `NestedEinsum` object.
+The `slice_code` function takes the `NestedEinsum` object, tensor sizes, and slicing strategy as arguments. Using `TreeSASlicer`, we reduce the space complexity by a factor of $2^3$ (from $2^{13}$ to $2^{10}$) with only a modest increase in time complexity. The resulting `SlicedEinsum` object has the same interface as `NestedEinsum` for evaluating contractions.
 
 ```julia
 julia> @assert sliced_code(tensors...) ≈ optcode(tensors...)
@@ -155,10 +147,12 @@ julia> @assert sliced_code(tensors...) ≈ optcode(tensors...)
 [JG: TODO: We should redirectly use the existing materials in the examples folder.]
 [JG: TODO: Show a plot about using slicing to reduce the space complexity, also tc v.s. sc. (Xuan-Zhao fill in)]
 
+More examples demonstrating applications to quantum circuit simulation, combinatorial optimization, and probabilistic inference can be found in the package repository.
+
 # Acknowledgments
 
-This work is partially funded by the Google Summer of Code 2024 project.
-We extend our gratitude to Feng Pan for his insightful discussions and code contributions on the slicing technique.
+This work was partially funded by Google Summer of Code 2024.
+We thank Feng Pan for insightful discussions and code contributions on the slicing technique.
 
 # References
 
@@ -186,4 +180,5 @@ The figure below illustrates these concepts with (a) a tensor network containing
 ![(a) A tensor network. (b) A line graph for the tensor network. Labels are connected if and only if they appear in the same tensor. (c) A tree decomposition (T. D.) of the line graph. \label{fig:mainfig}](figures/mainfig.pdf)
 
 The tree decomposition in \autoref{fig:mainfig}(c) consists of 6 bags, each containing at most 3 indices, indicating that the treewidth of the tensor network is 2. The tensors $T_1$, $T_2$, $T_3$ and $T_4$ are contained in bags $B_1$, $B_5$, $B_6$ and $B_2$ respectively. Following the tree structure, we perform the contraction from the leaves. First, we contract bags $B_1$ and $B_2$ into $B_3$, yielding an intermediate tensor $I_{14} = T_1 * T_4$ (where "$*$" denotes tensor contraction) with indices $B$ and $E$. Next, we contract bags $B_5$ and $B_6$ into $B_4$, producing another intermediate tensor $I_{23} = T_2 * T_3$ also with indices $B$ and $E$. Finally, contracting $B_3$ and $B_4$ yields the desired scalar result.
+
 
