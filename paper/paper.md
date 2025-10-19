@@ -54,15 +54,17 @@ bibliography: paper.bib
 
 # Statement of need
 
+This paper introduces the OMEinsumContractionOrders package, which is a Julia package that implements state-of-the-art algorithms for the optimization of the contraction order of tensor networks. We report its key features, the ecosystem it integrates with, and its performance benchmarks.
+
+![The relationship between the OMEinsumContractionOrders package and its dependencies.\label{fig:structure}](figures/structure.pdf){ width=80% }
+
+\autoref{fig:structure} shows the relationship between the OMEinsumContractionOrders package and its dependencies.
+
 A _tensor network_ is a mathematical framework that represents multilinear algebra operations as intuitive graphical structures, where tensors become nodes and shared indices become connecting edges. This diagrammatic approach transforms complex high-dimensional contractions into accessible visual networks that expose underlying computational structure.
 
-The framework exhibits remarkable universality, emerging across diverse domains: _einsum_ notation [@Harris2020] in numerical computing, _factor graphs_ [@Bishop2006] in probabilistic inference, _sum-product networks_ in machine learning, and _junction trees_ [@Villescas2023] in graphical models. Tensor networks have revolutionized quantum circuit simulation [@Markov2008], quantum error correction [@Piveteau2024], neural network compression [@Qing2024], and strongly correlated quantum materials [@Haegeman2016].
+The framework exhibits remarkable universality, emerging across diverse domains: _einsum_ notation [@Harris2020] in numerical computing, _factor graphs_ [@Bishop2006] in probabilistic inference, _sum-product networks_ in machine learning, and _junction trees_ [@Villescas2023] in graphical models. Tensor networks have revolutionized quantum circuit simulation [@Markov2008], quantum error correction [@Piveteau2024], neural network compression [@Qing2024], and strongly correlated quantum materials [@Haegeman2016]. [JG: TODO: mention polynomial optimization and combinatorial optimization]
 
 The computational cost of tensor network contraction depends critically on the chosen *contraction order*—the sequence in which pairwise tensor multiplications are performed. This order can be represented as a binary tree where leaves correspond to input tensors and internal nodes represent intermediate results.
-
-Consider the contraction `ein"ab,bc,cd->ad"`, which admits multiple valid orderings with dramatically different costs:
-
-The left ordering proves dramatically superior: it achieves $O(n^3)$ time and $O(n^2)$ space complexity by first contracting compatible matrices. The right ordering creates a $O(n^4)$ intermediate tensor through an inefficient Kronecker product, illustrating how ordering choice can determine computational feasibility.
 
 Finding the globally optimal contraction order constitutes an NP-complete optimization problem [@Markov2008]. Fortunately, near-optimal solutions often suffice for practical applications and can be obtained efficiently through sophisticated heuristic methods. Modern optimization algorithms have achieved remarkable scalability, successfully handling tensor networks with over $10^4$ tensors [@Gray2021; @Roa2024].
 
@@ -95,12 +97,12 @@ The log time complexity for the bottleneck contraction corresponds to the larges
 The log space complexity is equivalent to the largest separator (the set of vertices connecting two bags) size in the tree decomposition.
 
 
-[JG: TODO: We need a benchmark with CoTengra optimizer (Richard fill in)]
+[JG: TODO: We need a benchmark with CoTengra optimizer (Richard fill in), please also cite CliqueTree paper.]
 
 # Usage Example
 - _Remark_: 1. Basic usage. From contraction pattern representation to optimized contraction order, introduce the data structures and algorithms. Conversion between contraction graph and treewidth.
 
-`OMEinsum` provides multiple heuristic methods for finding the optimal contraction order. They are implemented in the dependency `OMEinsumContractionOrders`. To demonstrate the usage, we first generate a large enough random tensor network with the help of the `Graphs` package.
+To demonstrate the usage, we first generate a large enough random tensor network with the help of the `Graphs` package.
 
 ```julia
 julia> using OMEinsum, Graphs
@@ -172,10 +174,11 @@ There is a tradeoff between the time and the quality of the contraction order. \
 
 
 [JG: TODO: We should redirectly use the existing materials in the examples folder.]
+[JG: TODO: Show a plot about using slicing to reduce the space complexity, also tc v.s. sc. (Xuan-Zhao fill in)]
 
 # Acknowledgments
 
 This work is partially funded by the Google Summer of Code 2024 project.
-We extend our gratitude to Feng Pan for his insightful discussions on the slicing technique.
+We extend our gratitude to Feng Pan for his insightful discussions and code contributions on the slicing technique.
 
 # References
