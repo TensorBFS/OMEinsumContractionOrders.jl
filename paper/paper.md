@@ -95,7 +95,10 @@ The log time complexity for the bottleneck contraction corresponds to the larges
 The log space complexity is equivalent to the largest separator (the set of vertices connecting two bags) size in the tree decomposition.
 
 
+[JG: TODO: We need a benchmark with CoTengra optimizer (Richard fill in)]
+
 # Usage Example
+- _Remark_: 1. Basic usage. From contraction pattern representation to optimized contraction order, introduce the data structures and algorithms. Conversion between contraction graph and treewidth.
 
 `OMEinsum` provides multiple heuristic methods for finding the optimal contraction order. They are implemented in the dependency `OMEinsumContractionOrders`. To demonstrate the usage, we first generate a large enough random tensor network with the help of the `Graphs` package.
 
@@ -166,6 +169,9 @@ Supported solvers include:
 There is a tradeoff between the time and the quality of the contraction order. \autoref{fig:timespace} shows the Pareto front of the multi-objective optimization of the time to optimize the contraction order and the time to contract the tensor network.
 
 ![A benchmark result of the time and space trade-off. \label{fig:timespace}](figures/timespace.svg)
+
+
+[JG: TODO: We should redirectly use the existing materials in the examples folder.]
 
 # Acknowledgments
 
