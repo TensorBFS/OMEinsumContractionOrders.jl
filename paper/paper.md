@@ -64,9 +64,9 @@ The framework has remarkable universality across diverse domains: _einsum_ notat
 
 The computational cost of tensor network contraction depends critically on the *contraction order*—the sequence in which pairwise tensor multiplications are performed. This order can be represented as a binary tree where leaves correspond to input tensors and internal nodes represent intermediate results. The optimization objective balances multiple complexity measures through the cost function:
 
-```math
+$$
 \mathcal{L} = w_t \times \text{tc} + w_s \times \max(0, \text{sc} - \text{sc}_{\rm target}) + w_{\text{rw}} \times \text{rwc},
-```
+$$
 where $w_t$, $w_s$ and $w_{\text{rw}}$ are weights for time complexity (tc), space complexity (sc), and read-write complexity (rwc), respectively. In practice, memory access costs typically dominate arithmetic costs, motivating $w_{\text{rw}} > w_t$. The space complexity penalty activates only when $\text{sc} > \text{sc}_{\rm target}$, allowing unconstrained optimization below the target.
 
 Finding the optimal contraction order—even when minimizing only time complexity—is NP-complete [@Markov2008]. This optimization problem has a deep mathematical connection to _tree decomposition_ [@Markov2008] of the tensor network's line graph, where finding the optimal order corresponds to finding a weighted minimal-width tree decomposition. The logarithmic time complexity of the bottleneck contraction step equals the largest bag size in the tree decomposition, while the logarithmic space complexity equals the largest separator size (vertices shared between adjacent bags).
