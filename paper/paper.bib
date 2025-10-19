@@ -1,0 +1,596 @@
+@article{bezanson2017julia,
+  title = {Julia: A Fresh Approach to Numerical Computing},
+  volume = {59},
+  issn = {0036-1445},
+  shorttitle = {Julia},
+  url = {https://epubs.siam.org/doi/abs/10.1137/141000671},
+  doi = {10.1137/141000671},
+  abstract = {Bridging cultures that have often been distant, Julia combines expertise from the diverse fields of computer science and computational science to create a new approach to numerical  computing. Julia is  designed to be easy and fast and questions notions generally held to be “laws of nature"  by practitioners of numerical computing: {\textbackslash}beginlist {\textbackslash}item  High-level dynamic programs have to be slow. {\textbackslash}item  One must prototype in one language and then rewrite in another language for speed or deployment. {\textbackslash}item There are parts of a system appropriate for the programmer, and other parts that are best left untouched as they have been built by the experts. {\textbackslash}endlist We introduce the  Julia programming language and its design---a  dance between specialization and abstraction. Specialization allows for custom treatment. Multiple dispatch,  a  technique from computer science, picks  the right algorithm for the right circumstance. Abstraction, which is what good computation is really about, recognizes what remains the same after differences are stripped away. Abstractions in mathematics are captured as code through another technique from computer science, generic programming. Julia shows that  one can achieve machine performance without sacrificing human convenience.},
+  number = {1},
+  urldate = {2018-04-10},
+  journal = {SIAM Review},
+  author = {Bezanson, J. and Edelman, A. and Karpinski, S. and Shah, V.},
+  month = jan,
+  year = {2017},
+  pages = {65--98},
+  file = {Bezanson et al. - 2017 - Julia A Fresh Approach to Numerical Computing.pdf:/Users/apodusenko/Zotero/storage/GS7LQE5E/Bezanson et al. - 2017 - Julia A Fresh Approach to Numerical Computing.pdf:application/pdf;Snapshot:/Users/apodusenko/Zotero/storage/EI9VN2TA/141000671.html:text/html},
+}
+
+@article{bezanson2012julia,
+  title = {Julia: A Fast Dynamic Language for Technical Computing},
+  shorttitle = {Julia},
+  url = {http://arxiv.org/abs/1209.5145},
+  doi = {10.48550/arXiv.1209.5145},
+  abstract = {Dynamic languages have become popular for scientific computing. They are generally considered highly productive, but lacking in performance. This paper presents Julia, a new dynamic language for technical computing, designed for performance from the beginning by adapting and extending modern programming language techniques. A design based on generic functions and a rich type system simultaneously enables an expressive programming model and successful type inference, leading to good performance for a wide range of programs. This makes it possible for much of the Julia library to be written in Julia itself, while also incorporating best-of-breed C and Fortran libraries.},
+  urldate = {2018-11-27},
+  journal = {arXiv:1209.5145 [cs]},
+  author = {Bezanson, Jeff and Karpinski, Stefan and Shah, Viral B. and Edelman, Alan},
+  month = sep,
+  year = {2012},
+  note = {arXiv: 1209.5145},
+  keywords = {Computer Science - Programming Languages, Computer Science - Computational Engineering, Finance, and Science, D.3.2},
+  file = {arXiv.org Snapshot:/Users/apodusenko/Zotero/storage/V6P4IU54/1209.html:text/html;Bezanson et al. - 2012 - Julia A Fast Dynamic Language for Technical Compu.pdf:/Users/apodusenko/Zotero/storage/4Q9THC8V/Bezanson et al. - 2012 - Julia A Fast Dynamic Language for Technical Compu.pdf:application/pdf},
+}
+
+@article{Golub2016,
+  title = {Matrix {{Computation}}},
+  author = {Golub, Gene H.},
+  editor = {{Intergovernmental Panel on Climate Change}},
+  year = {2016},
+  volume = {25},
+  number = {3},
+  eprint = {1011.1669v3},
+  pages = {228--234},
+  publisher = {Cambridge University Press},
+  address = {Cambridge},
+  issn = {10623264},
+  doi = {10.4037/ajcc2016979},
+  abstract = {Predicting the binding mode of flexible polypeptides to proteins is an important task that falls outside the domain of applicability of most small molecule and protein-protein docking tools. Here, we test the small molecule flexible ligand docking program Glide on a set of 19 non-{$\alpha$}-helical peptides and systematically improve pose prediction accuracy by enhancing Glide sampling for flexible polypeptides. In addition, scoring of the poses was improved by post-processing with physics-based implicit solvent MM- GBSA calculations. Using the best RMSD among the top 10 scoring poses as a metric, the success rate (RMSD {$\leq$} 2.0 {\AA} for the interface backbone atoms) increased from 21\% with default Glide SP settings to 58\% with the enhanced peptide sampling and scoring protocol in the case of redocking to the native protein structure. This approaches the accuracy of the recently developed Rosetta FlexPepDock method (63\% success for these 19 peptides) while being over 100 times faster. Cross-docking was performed for a subset of cases where an unbound receptor structure was available, and in that case, 40\% of peptides were docked successfully. We analyze the results and find that the optimized polypeptide protocol is most accurate for extended peptides of limited size and number of formal charges, defining a domain of applicability for this approach.},
+  archiveprefix = {arXiv},
+  isbn = {9788578110796},
+  pmid = {25246403},
+  keywords = {Mobile,Named entity disambiguation,Natural language processing,News,Recommender system},
+  file = {/Users/liujinguo/Zotero/storage/5AZ5KKJF/Golub_2016_Matrix Computation.pdf}
+}
+
+@incollection{Alman2021,
+  title = {A {{Refined Laser Method}} and {{Faster Matrix Multiplication}}},
+  booktitle = {Proceedings of the 2021 {{ACM-SIAM Symposium}} on {{Discrete Algorithms}} ({{SODA}})},
+  author = {Alman, Josh and Williams, Virginia Vassilevska},
+  year = {2021},
+  month = jan,
+  series = {Proceedings},
+  pages = {522--539},
+  publisher = {{Society for Industrial and Applied Mathematics}},
+  doi = {10.1137/1.9781611976465.32},
+  urldate = {2024-04-29},
+  abstract = {The complexity of matrix multiplication is measured in terms of {$\omega$}, the smallest real number such that two n {\texttimes} n matrices can be multiplied using O(n{$\omega$}+∊) field operations for all ∊ {$>$} 0; the best bound until now is {$\omega$} {$<$} 2.37287 [Le Gall'14]. All bounds on {$\omega$} since 1986 have been obtained using the so-called laser method, a way to lower-bound the `value' of a tensor in designing matrix multiplication algorithms. The main result of this paper is a refinement of the laser method that improves the resulting value bound for most sufficiently large tensors. Thus, even before computing any specific values, it is clear that we achieve an improved bound on {$\omega$}, and we indeed obtain the best bound on {$\omega$} to date: {$\omega$} {$<$} 2.37286. The improvement is of the same magnitude as the improvement that [Le Gall'14] obtained over the previous bound [Vassilevska W.'12]. Our improvement to the laser method is quite general, and we believe it will have further applications in arithmetic complexity.},
+  file = {/Users/liujinguo/Zotero/storage/4I9ZCACP/Alman and Williams - 2021 - A Refined Laser Method and Faster Matrix Multiplic.pdf}
+}
+
+@misc{Liu2022,
+  doi = {10.48550/ARXIV.2205.03718},
+  url = {https://arxiv.org/abs/2205.03718},
+  author = {Liu, Jin-Guo and Gao, Xun and Cain, Madelyn and Lukin, Mikhail D. and Wang, Sheng-Tao},
+  keywords = {Statistical Mechanics (cond-mat.stat-mech), FOS: Physical sciences, FOS: Physical sciences},
+  title = {Computing solution space properties of combinatorial optimization problems via generic tensor networks},
+  publisher = {arXiv},
+  year = {2022},
+  copyright = {Creative Commons Attribution 4.0 International}
+}
+@misc{Pan2021,
+      title={Simulating the Sycamore quantum supremacy circuits}, 
+      author={Feng Pan and Pan Zhang},
+      year={2021},
+      eprint={2103.03074},
+      archivePrefix={arXiv},
+      primaryClass={quant-ph}
+}
+@Article{Stefanos2019,
+	title={{Fast counting with tensor networks}},
+	author={Stefanos Kourtis and Claudio Chamon and Eduardo R. Mucciolo and Andrei E. Ruckenstein},
+	journal={SciPost Phys.},
+	volume={7},
+	issue={5},
+	pages={60},
+	year={2019},
+	publisher={SciPost},
+	doi={10.21468/SciPostPhys.7.5.060},
+	url={https://scipost.org/10.21468/SciPostPhys.7.5.060},
+}
+@article{Gray2021,
+   title={Hyper-optimized tensor network contraction},
+   volume={5},
+   ISSN={2521-327X},
+   url={http://dx.doi.org/10.22331/q-2021-03-15-410},
+   DOI={10.22331/q-2021-03-15-410},
+   journal={Quantum},
+   publisher={Verein zur Forderung des Open Access Publizierens in den Quantenwissenschaften},
+   author={Gray, Johnnie and Kourtis, Stefanos},
+   year={2021},
+   month={Mar},
+   pages={410}
+}
+@misc{Kalachev2021,
+      title={Recursive Multi-Tensor Contraction for XEB Verification of Quantum Circuits}, 
+      author={Gleb Kalachev and Pavel Panteleev and Man-Hong Yung},
+      year={2021},
+      eprint={2108.05665},
+      archivePrefix={arXiv},
+      primaryClass={quant-ph}
+}
+
+@book{Strang2022,
+  title={Introduction to linear algebra},
+  author={Strang, Gilbert},
+  year={2022},
+  publisher={SIAM}
+}
+
+@book{Golub2013,
+  title={Matrix computations},
+  author={Golub, Gene H and Van Loan, Charles F},
+  volume={3},
+  year={2013},
+  publisher={JHU press},
+  doi={10.2307/3621013}
+}
+
+@article{Ng2001,
+  title={On spectral clustering: Analysis and an algorithm},
+  author={Ng, Andrew and Jordan, Michael and Weiss, Yair},
+  journal={Advances in neural information processing systems},
+  volume={14},
+  year={2001}
+}
+
+@book{Bishop2006,
+  title={Pattern recognition and machine learning},
+  author={Bishop, Christopher M and Nasrabadi, Nasser M},
+  volume={4},
+  number={4},
+  year={2006},
+  publisher={Springer}
+}
+
+@article{Cooley1965,
+  title={An algorithm for the machine calculation of complex Fourier series},
+  author={Cooley, James W and Tukey, John W},
+  journal={Mathematics of computation},
+  volume={19},
+  number={90},
+  pages={297--301},
+  year={1965},
+  publisher={JSTOR}
+}
+
+@article{Alman2024,
+  title = {A {{Refined Laser Method}} and {{Faster Matrix Multiplication}}},
+  author = {Alman, Josh and Williams, Virginia Vassilevska},
+  year = {2024},
+  month = sep,
+  journal = {TheoretiCS},
+  volume = {Volume 3},
+  publisher = {Episciences.org},
+  issn = {2751-4838},
+  doi = {10.46298/theoretics.24.21},
+  urldate = {2025-03-09},
+  abstract = {The complexity of matrix multiplication is measured in terms of \${\textbackslash}omega\$, the smallest real number such that two \$n{\textbackslash}times n\$ matrices can be multiplied using \$O(n{\textasciicircum}\{{\textbackslash}omega+{\textbackslash}epsilon\})\$ field operations for all \${\textbackslash}epsilon{$>$}0\$; the best bound until now is \${\textbackslash}omega{$<$}2.37287\$ [Le Gall'14]. All bounds on \${\textbackslash}omega\$ since 1986 have been obtained using the so-called laser method, a way to lower-bound the `value' of a tensor in designing matrix multiplication algorithms. The main result of this paper is a refinement of the laser method that improves the resulting value bound for most sufficiently large tensors. Thus, even before computing any specific values, it is clear that we achieve an improved bound on \${\textbackslash}omega\$, and we indeed obtain the best bound on \${\textbackslash}omega\$ to date: \$\${\textbackslash}omega {$<$} 2.37286.\$\$ The improvement is of the same magnitude as the improvement that [Le Gall'14] obtained over the previous bound [Vassilevska W.'12]. Our improvement to the laser method is quite general, and we believe it will have further applications in arithmetic complexity.},
+  file = {/home/leo/snap/zotero-snap/common/Zotero/storage/Y4YVKXBU/Alman and Williams - 2024 - A Refined Laser Method and Faster Matrix Multiplication.pdf}
+}
+
+@article{Strassen1969,
+  title={Gaussian elimination is not optimal},
+  author={Strassen, Volker},
+  journal={Numerische mathematik},
+  volume={13},
+  number={4},
+  pages={354--356},
+  year={1969},
+  publisher={Springer}
+}
+
+@book{Moore2011,
+  author = {Moore, Cristopher and Mertens, Stephan},
+  title = {The Nature of Computation},
+  year = {2011},
+  isbn = {0199233217},
+  publisher = {Oxford University Press, Inc.},
+  address = {USA},
+  abstract = {Computational complexity is one of the most beautiful fields of modern mathematics, and it is increasingly relevant to other sciences ranging from physics to biology. But this beauty is often buried underneath layers of unnecessary formalism, and exciting recent results like interactive proofs, cryptography, and quantum computing are usually considered too "advanced" to show to the typical student. The aim of this book is to bridge both gaps by explaining the deep ideas of theoretical computer science in a clear and enjoyable fashion, making them accessible to non computer scientists and to computer scientists who finally want to understand what their formalisms are actually telling. This book gives a lucid and playful explanation of the field, starting with P and NP-completeness. The authors explain why the P vs. NP problem is so fundamental, and why it is so hard to resolve. They then lead the reader through the complexity of mazes and games; optimization in theory and practice; randomized algorithms, interactive proofs, and pseudorandomness; Markov chains and phase transitions; and the outer reaches of quantum computing. At every turn, they use a minimum of formalism, providing explanations that are both deep and accessible. The book is intended for graduates and undergraduates, scientists from other areas who have long wanted to understand this subject, and experts who want to fall in love with this field all over again.}
+}
+
+@misc{Sandryhaila2013,
+  title = {Eigendecomposition of {{Block Tridiagonal Matrices}}},
+  author = {Sandryhaila, Aliaksei and Moura, Jose M. F.},
+  year = {2013},
+  month = jun,
+  number = {arXiv:1306.0217},
+  eprint = {1306.0217},
+  primaryclass = {math},
+  publisher = {arXiv},
+  doi = {10.48550/arXiv.1306.0217},
+  urldate = {2025-03-15},
+  abstract = {Block tridiagonal matrices arise in applied mathematics, physics, and signal processing. Many applications require knowledge of eigenvalues and eigenvectors of block tridiagonal matrices, which can be prohibitively expensive for large matrix sizes. In this paper, we address the problem of the eigendecomposition of block tridiagonal matrices by studying a connection between their eigenvalues and zeros of appropriate matrix polynomials. We use this connection with matrix polynomials to derive a closed-form expression for the eigenvectors of block tridiagonal matrices, which eliminates the need for their direct calculation and can lead to a faster calculation of eigenvalues. We also demonstrate with an example that our work can lead to fast algorithms for the eigenvector expansion for block tridiagonal matrices.},
+  archiveprefix = {arXiv},
+  keywords = {Mathematics - Spectral Theory},
+  file = {/home/leo/snap/zotero-snap/common/Zotero/storage/RX93P67A/Sandryhaila and Moura - 2013 - Eigendecomposition of Block Tridiagonal Matrices.pdf;/home/leo/snap/zotero-snap/common/Zotero/storage/HILDF7H5/1306.html}
+}
+
+@article{Molinari2008,
+  title = {Determinants of {{Block Tridiagonal Matrices}}},
+  author = {Molinari, Luca G.},
+  year = {2008},
+  month = oct,
+  journal = {Linear Algebra and its Applications},
+  volume = {429},
+  number = {8-9},
+  eprint = {0712.0681},
+  primaryclass = {math-ph},
+  pages = {2221--2226},
+  issn = {00243795},
+  doi = {10.1016/j.laa.2008.06.015},
+  urldate = {2025-03-15},
+  abstract = {An identity is proven that evaluates the determinant of a block tridiagonal matrix with (or without) corners as the determinant of the associated transfer matrix (or a submatrix of it).},
+  archiveprefix = {arXiv},
+  keywords = {Mathematical Physics,Mathematics - Mathematical Physics,Mathematics - Numerical Analysis},
+  file = {/home/leo/snap/zotero-snap/common/Zotero/storage/TEDGJ3SC/Molinari - 2008 - Determinants of Block Tridiagonal Matrices.pdf;/home/leo/snap/zotero-snap/common/Zotero/storage/ZUDY94C8/0712.html}
+}
+
+@article{Ran2006,
+  title = {The Inverses of Block Tridiagonal Matrices},
+  author = {Ran, Rui-Sheng and Huang, Ting-Zhu},
+  year = {2006},
+  month = aug,
+  journal = {Applied Mathematics and Computation},
+  volume = {179},
+  number = {1},
+  pages = {243--247},
+  issn = {0096-3003},
+  doi = {10.1016/j.amc.2005.11.098},
+  urldate = {2025-03-15},
+  abstract = {Firstly, the twisted block decompositions of the block tridiagonal matrices are presented. According to the special structure of the decomposition, the formulae of computing the block elements of each column of the inverse matrices are obtained. Then an algorithm of inverting the block tridiagonal matrices has been established. The explicit expressions of the block elements of the inverse matrices are also presented. At last, for the algorithm in this paper and some existed algorithms for the inverse matrices, the calculating complexity and the calculating time have been compared.},
+  keywords = {Algorithm,Block tridiagonal matrix,The inverse matrices,The twisted block decomposition},
+  file = {/home/leo/snap/zotero-snap/common/Zotero/storage/B6BV7QND/S0096300305010337.html}
+}
+
+@article{Dhillon2004,
+  title = {Multiple Representations to Compute Orthogonal Eigenvectors of Symmetric Tridiagonal Matrices},
+  author = {Dhillon, Inderjit S. and Parlett, Beresford N.},
+  year = {2004},
+  month = aug,
+  journal = {Linear Algebra and its Applications},
+  volume = {387},
+  pages = {1--28},
+  issn = {0024-3795},
+  doi = {10.1016/j.laa.2003.12.028},
+  urldate = {2025-03-15},
+  abstract = {In this paper we present an O(nk) procedure, Algorithm MR3, for computing k eigenvectors of an n{\texttimes}n symmetric tridiagonal matrix T. A salient feature of the algorithm is that a number of different LDLt products (L unit lower triangular, D diagonal) are computed. In exact arithmetic each LDLt is a factorization of a translate of T. We call the various LDLt products representations (of T) and, roughly speaking, there is a representation for each cluster of close eigenvalues. The unfolding of the algorithm, for each matrix, is well described by a representation tree. We present the tree and use it to show that if each representation satisfies three prescribed conditions then the computed eigenvectors are orthogonal to working accuracy and have small residual norms with respect to the original matrix T.},
+  keywords = {Eigenvectors,High relative accuracy,Orthogonality,Relatively robust representations (RRR),Symmetric tridiagonal},
+  file = {/home/leo/snap/zotero-snap/common/Zotero/storage/2JIYQI7Q/Dhillon and Parlett - 2004 - Multiple representations to compute orthogonal eigenvectors of symmetric tridiagonal matrices.pdf;/home/leo/snap/zotero-snap/common/Zotero/storage/TNPDAVFQ/S002437950300908X.html}
+}
+
+@article{Markov2008,
+  title = {Simulating {{Quantum Computation}} by {{Contracting Tensor Networks}}},
+  author = {Markov, Igor L. and Shi, Yaoyun},
+  year = {2008},
+  month = jan,
+  journal = {SIAM Journal on Computing},
+  volume = {38},
+  number = {3},
+  pages = {963--981},
+  publisher = {{Society for Industrial and Applied Mathematics}},
+  issn = {0097-5397},
+  doi = {10.1137/050644756},
+  urldate = {2023-10-05},
+  abstract = {Adiabatic quantum computation has recently attracted attention in the physics and computer science communities, but its computational power was unknown. We describe an efficient adiabatic simulation of any given quantum algorithm, which implies that the adiabatic computation model and the conventional quantum computation model are polynomially equivalent. Our result can be extended to the physically realistic setting of particles arranged on a two-dimensional grid with nearest neighbor interactions. The equivalence between the models allows stating the main open problems in quantum computation using well-studied mathematical objects such as eigenvectors and spectral gaps of sparse matrices.},
+  file = {/Users/liujinguo/Zotero/storage/SKT7RY29/Markov_Shi_2008_Simulating Quantum Computation by Contracting Tensor Networks.pdf}
+}
+
+@article{Liu2021,
+  title = {Tropical {{Tensor Network}} for {{Ground States}} of {{Spin Glasses}}},
+  author = {Liu, Jin-Guo and Wang, Lei and Zhang, Pan},
+  year = {2021},
+  month = mar,
+  journal = {Physical Review Letters},
+  volume = {126},
+  number = {9},
+  pages = {090506},
+  publisher = {American Physical Society},
+  doi = {10.1103/PhysRevLett.126.090506},
+  urldate = {2023-03-23},
+  abstract = {We present a unified exact tensor network approach to compute the ground state energy, identify the optimal configuration, and count the number of solutions for spin glasses. The method is based on tensor networks with the tropical algebra defined on the semiring of (R{$\cup$}\{-{$\infty$}\},{$\oplus$},{$\odot$}). Contracting the tropical tensor network gives the ground state energy; differentiating through the tensor network contraction gives the ground state configuration; mixing the tropical algebra and the ordinary algebra counts the ground state degeneracy. The approach brings together the concepts from graphical models, tensor networks, differentiable programming, and quantum circuit simulation, and easily utilizes the computational power of graphical processing units (GPUs). For applications, we compute the exact ground state energy of Ising spin glasses on square lattice up to 1024 spins, on cubic lattice up to 216 spins, and on three regular random graphs up to 220 spins, on a single GPU; we obtain exact ground state energy of {\textpm}J Ising spin glass on the chimera graph of D-Wave quantum annealer of 512 qubits in less than 100 s and investigate the exact value of the residual entropy of {\textpm}J spin glasses on the chimera graph; finally, we investigate ground-state energy and entropy of three-state Potts glasses on square lattices up to size 18{\texttimes}18. Our approach provides baselines and benchmarks for exact algorithms for spin glasses and combinatorial optimization problems, and for evaluating heuristic algorithms and mean-field theories.},
+  file = {/home/leo/snap/zotero-snap/common/Zotero/storage/IM6JTJMW/Liu et al. - 2021 - Tropical Tensor Network for Ground States of Spin .pdf}
+}
+
+@misc{Qing2024,
+  title = {Compressing Neural Network by Tensor Network with Exponentially Fewer Variational Parameters},
+  author = {Qing, Yong and Li, Ke and Zhou, Peng-Fei and Ran, Shi-Ju},
+  year = {2024},
+  month = may,
+  number = {arXiv:2305.06058},
+  eprint = {2305.06058},
+  primaryclass = {cs},
+  publisher = {arXiv},
+  doi = {10.48550/arXiv.2305.06058},
+  urldate = {2025-05-13},
+  abstract = {Neural network (NN) designed for challenging machine learning tasks is in general a highly nonlinear mapping that contains massive variational parameters. High complexity of NN, if unbounded or unconstrained, might unpredictably cause severe issues including over-fitting, loss of generalization power, and unbearable cost of hardware. In this work, we propose a general compression scheme that significantly reduces the variational parameters of NN by encoding them to deep automatically-differentiable tensor network (ADTN) that contains exponentially-fewer free parameters. Superior compression performance of our scheme is demonstrated on several widely-recognized NN's (FC-2, LeNet-5, AlextNet, ZFNet and VGG-16) and datasets (MNIST, CIFAR-10 and CIFAR-100). For instance, we compress two linear layers in VGG-16 with approximately \$10{\textasciicircum}\{7\}\$ parameters to two ADTN's with just 424 parameters, where the testing accuracy on CIFAR-10 is improved from \$90.17 {\textbackslash}\%\$ to \$91.74{\textbackslash}\%\$. Our work suggests TN as an exceptionally efficient mathematical structure for representing the variational parameters of NN's, which exhibits superior compressibility over the commonly-used matrices and multi-way arrays.},
+  archiveprefix = {arXiv},
+  keywords = {Computer Science - Artificial Intelligence,Computer Science - Machine Learning},
+  file = {/Users/liujinguo/Zotero/storage/WZF3QWXE/Qing et al. - 2024 - Compressing neural network by tensor network with exponentially fewer variational parameters.pdf;/Users/liujinguo/Zotero/storage/YPA6M4GD/2305.html}
+}
+
+@article{Haegeman2016,
+  title = {Unifying Time Evolution and Optimization with Matrix Product States},
+  author = {Haegeman, Jutho and Lubich, Christian and Oseledets, Ivan and Vandereycken, Bart and Verstraete, Frank},
+  year = {2016},
+  journal = {Physical Review B},
+  eprint = {1408.5056},
+  issn = {24699969},
+  doi = {10.1103/PhysRevB.94.165116},
+  abstract = {We show that the time-dependent variational principle provides a unifying framework for time-evolution methods and optimisation methods in the context of matrix product states. In particular, we introduce a new integration scheme for studying time-evolution, which can cope with arbitrary Hamiltonians, including those with long-range interactions. Rather than a Suzuki-Trotter splitting of the Hamiltonian, which is the idea behind the adaptive time-dependent density matrix renormalization group method or time-evolving block decimation, our method is based on splitting the projector onto the matrix product state tangent space as it appears in the Dirac-Frenkel time-dependent variational principle. We discuss how the resulting algorithm resembles the density matrix renormalization group (DMRG) algorithm for finding ground states so closely that it can be implemented by changing just a few lines of code and it inherits the same stability and efficiency. In particular, our method is compatible with any Hamiltonian for which DMRG can be implemented efficiently and DMRG is obtained as a special case of imaginary time evolution with infinite time step.},
+  archiveprefix = {arXiv},
+  file = {/Users/liujinguo/Zotero/storage/ECHHWZEI/Haegeman et al_2016_Unifying time evolution and optimization with matrix product states.pdf}
+}
+
+@article{Harris2020,
+  title = {Array Programming with {{NumPy}}},
+  author = {Harris, Charles R. and Millman, K. Jarrod and {van der Walt}, St{\'e}fan J. and Gommers, Ralf and Virtanen, Pauli and Cournapeau, David and Wieser, Eric and Taylor, Julian and Berg, Sebastian and Smith, Nathaniel J. and Kern, Robert and Picus, Matti and Hoyer, Stephan and {van Kerkwijk}, Marten H. and Brett, Matthew and Haldane, Allan and {del R{\'i}o}, Jaime Fern{\'a}ndez and Wiebe, Mark and Peterson, Pearu and {G{\'e}rard-Marchant}, Pierre and Sheppard, Kevin and Reddy, Tyler and Weckesser, Warren and Abbasi, Hameer and Gohlke, Christoph and Oliphant, Travis E.},
+  year = {2020},
+  month = sep,
+  journal = {Nature},
+  volume = {585},
+  number = {7825},
+  pages = {357--362},
+  publisher = {Nature Publishing Group},
+  issn = {1476-4687},
+  doi = {10.1038/s41586-020-2649-2},
+  urldate = {2025-08-02},
+  abstract = {Array programming provides a powerful, compact and expressive syntax for accessing, manipulating and operating on data in vectors, matrices and higher-dimensional arrays. NumPy is the primary array programming library for the Python language. It has an essential role in research analysis pipelines in fields as diverse as physics, chemistry, astronomy, geoscience, biology, psychology, materials science, engineering, finance and economics. For example, in astronomy, NumPy was an important part of the software stack used in the discovery of gravitational waves1 and in the first imaging of a black hole2. Here we review how a few fundamental array concepts lead to a simple and powerful programming paradigm for organizing, exploring and analysing scientific data. NumPy is the foundation upon which the scientific Python ecosystem is constructed. It is so pervasive that several projects, targeting audiences with specialized needs, have developed their own NumPy-like interfaces and array objects. Owing to its central position in the ecosystem, NumPy increasingly acts as an interoperability layer between such array computation libraries and, together with its application programming interface (API), provides a flexible framework to support the next decade of scientific and industrial analysis.},
+  copyright = {2020 The Author(s)},
+  langid = {english},
+  keywords = {Computational neuroscience,Computational science,Computer science,Software,Solar physics},
+  file = {/home/leo/snap/zotero-snap/common/Zotero/storage/W6HG7PX7/Harris et al. - 2020 - Array programming with NumPy.pdf}
+}
+
+@inproceedings{Villescas2023,
+  title = {Scaling {{Probabilistic Inference Through Message Contraction Optimization}}},
+  booktitle = {2023 {{Congress}} in {{Computer Science}}, {{Computer Engineering}}, \& {{Applied Computing}} ({{CSCE}})},
+  author = {Villescas, Martin Roa and Liu, Jin-Guo and Wijnings, Patrick W.A. and Stuijk, Sander and Corporaal, Henk},
+  year = {2023},
+  month = jul,
+  pages = {123--130},
+  doi = {10.1109/CSCE60160.2023.00025},
+  urldate = {2025-08-02},
+  abstract = {Within the realm of probabilistic graphical models, message-passing algorithms offer a powerful framework for efficient inference. When dealing with discrete variables, these algorithms essentially amount to the addition and multiplication of multidimensional arrays with labeled dimensions, known as factors. The complexity of these algorithms is dictated by the highest-dimensional factor appearing across all computations, a metric known as the induced tree width. Although state-of-the-art methods aimed at minimizing this metric have expanded the feasi-bility of exact inference, many real-world problems continue to be intractable. In this paper, we introduce a novel method for adding and multiplying factors that results in a substantial improvement in the inference performance, especially for increasingly complex models. Our approach aligns well with existing state-of-the-art methods designed to minimize the induced tree width, thereby further expanding the tractability spectrum of exact inference for more complex models. To demonstrate the efficacy of our method, we conduct a comparative evaluation against two other open-source libraries for probabilistic inference. Our approach exhibits an average speedup of 23 times for the UAI 2014 benchmark set. For the 10 most complex problems, the average speedup increases to 64 times, demonstrating its scalability.},
+  keywords = {Approximation algorithms,Bayesian networks,Benchmark testing,Computational modeling,Inference algorithms,Measurement,message-passing algorithms,probabilistic graphical models,probabilistic inference,Probabilistic logic,Scalability}
+}
+
+@article{Fomin2006,
+  title = {Pathwidth of Cubic Graphs and Exact Algorithms},
+  author = {Fomin, Fedor V. and H{\o}ie, Kjartan},
+  year = {2006},
+  journal = {Information Processing Letters},
+  volume = {97},
+  number = {5},
+  pages = {191--196},
+  issn = {00200190},
+  doi = {10.1016/j.ipl.2005.10.012},
+  abstract = {We prove that for any {$\varepsilon>$}0 there exists an integer n{$\varepsilon$} such that the pathwidth of every cubic (or 3-regular) graph on n{$>$}n{$\varepsilon$} vertices is at most (1/6+{$\varepsilon$})n. Based on this bound we improve the worst case time analysis for a number of exact exponential algorithms on graphs of maximum vertex degree three. {\copyright} 2005 Elsevier B.V. All rights reserved.},
+  keywords = {Cubic graph,Exact exponential algorithm,Graph algorithms,Max-cut,Maximum independent set,Minimum dominating set,Pathwidth,Treewidth},
+  file = {/Users/liujinguo/Zotero/storage/2EM4VWAQ/Fomin_Høie_2006_Pathwidth of cubic graphs and exact algorithms.pdf}
+}
+
+@article{Duncan2019,
+  title = {Graph-Theoretic {{Simplification}} of {{Quantum Circuits}} with the {{ZX-calculus}}},
+  author = {Duncan, Ross and Kissinger, Aleks and Perdrix, Simon and Wetering, John Van De},
+  year = {2019},
+  eprint = {1902.03178v3},
+  pages = {1--28},
+  archiveprefix = {arXiv},
+  file = {/home/leo/snap/zotero-snap/common/Zotero/storage/VPGJQY2D/Duncan et al_2019_Graph-theoretic Simplification of Quantum Circuits with the ZX-calculus.pdf}
+}
+
+@article{Witt2014,
+  title = {The {{ZX-calculus}} Is Incomplete for Quantum Mechanics},
+  author = {de Witt, Christian Schr{\"o}der and Zamdzhiev, Vladimir},
+  year = {2014},
+  month = dec,
+  journal = {Electronic Proceedings in Theoretical Computer Science},
+  volume = {172},
+  eprint = {1404.3633},
+  primaryclass = {cs},
+  pages = {285--292},
+  issn = {2075-2180},
+  doi = {10.4204/EPTCS.172.20},
+  urldate = {2025-08-09},
+  abstract = {We prove that the ZX-calculus is incomplete for quantum mechanics. We suggest the addition of a new 'color-swap' rule, of which currently no analytical formulation is known and which we suspect may be necessary, but not sufficient to make the ZX-calculus complete.},
+  archiveprefix = {arXiv},
+  keywords = {Computer Science - Logic in Computer Science,Mathematics - Category Theory,Quantum Physics},
+  file = {/home/leo/snap/zotero-snap/common/Zotero/storage/MKZTD6YZ/Witt and Zamdzhiev - 2014 - The ZX-calculus is incomplete for quantum mechanics.pdf;/home/leo/snap/zotero-snap/common/Zotero/storage/5MVGHSZE/1404.html}
+}
+
+@misc{Fontana2023,
+  title = {Classical Simulations of Noisy Variational Quantum Circuits},
+  author = {Fontana, Enrico and Rudolph, Manuel S. and Duncan, Ross and Rungger, Ivan and C{\^i}rstoiu, Cristina},
+  year = {2023},
+  month = jun,
+  number = {arXiv:2306.05400},
+  eprint = {2306.05400},
+  primaryclass = {quant-ph},
+  publisher = {arXiv},
+  doi = {10.48550/arXiv.2306.05400},
+  urldate = {2025-02-24},
+  abstract = {Noise detrimentally affects quantum computations so that they not only become less accurate but also easier to simulate classically as systems scale up. We construct a classical simulation algorithm, LOWESA (low weight efficient simulation algorithm), for estimating expectation values of noisy parameterised quantum circuits. It combines previous results on spectral analysis of parameterised circuits with Pauli back-propagation and recent ideas for simulations of noisy random circuits. We show, under some conditions on the circuits and mild assumptions on the noise, that LOWESA gives an efficient, polynomial algorithm in the number of qubits (and depth), with approximation error that vanishes exponentially in the physical error rate and a controllable cut-off parameter. We also discuss the practical limitations of the method for circuit classes with correlated parameters and its scaling with decreasing error rates.},
+  archiveprefix = {arXiv},
+  keywords = {Quantum Physics},
+  file = {/home/leo/snap/zotero-snap/common/Zotero/storage/E8QWGB6L/Fontana et al. - 2023 - Classical simulations of noisy variational quantum circuits.pdf;/home/leo/snap/zotero-snap/common/Zotero/storage/IBYJZY8F/2306.html}
+}
+
+@misc{Gao2018,
+  title = {Efficient Classical Simulation of Noisy Quantum Computation},
+  author = {Gao, Xun and Duan, Luming},
+  year = {2018},
+  month = oct,
+  number = {arXiv:1810.03176},
+  eprint = {1810.03176},
+  primaryclass = {quant-ph},
+  publisher = {arXiv},
+  doi = {10.48550/arXiv.1810.03176},
+  urldate = {2023-10-05},
+  abstract = {Understanding the boundary between classical simulatability and the power of quantum computation is a fascinating topic. Direct simulation of noisy quantum computation requires solving an open quantum many-body system, which is very costly. Here, we develop a tensor network formalism to simulate the time-dynamics and the Fourier spectrum of noisy quantum circuits. We prove that under general conditions most of the quantum circuits at any constant level of noise per gate can be efficiently simulated classically with the cost increasing only polynomially with the size of the circuits. The result holds even if we have perfect noiseless quantum gates for some subsets of operations, such as all the gates in the Clifford group. This surprising result reveals the subtle relations between classical simulatability, quantum supremacy, and fault-tolerant quantum computation. The developed simulation tools may also be useful for solving other open quantum many-body systems.},
+  archiveprefix = {arXiv},
+  keywords = {Quantum Physics},
+  file = {/home/leo/snap/zotero-snap/common/Zotero/storage/H5YEZFJA/Gao_Duan_2018_Efficient classical simulation of noisy quantum computation.pdf;/home/leo/snap/zotero-snap/common/Zotero/storage/ZIE2KCLH/1810.html}
+}
+
+@article{Kourtis2018,
+  title = {Fast Counting with Tensor Networks},
+  author = {Kourtis, Stefanos and Chamon, Claudio and Mucciolo, Eduardo R. and Ruckenstein, Andrei E.},
+  year = {2018},
+  eprint = {1805.00475},
+  abstract = {We introduce tensor network contraction algorithms for the counting of satisfying assignments in constraint satisfaction problems ({\textbackslash}\#CSP). We represent each arbitrary {\textbackslash}\#CSP instance as a tensor network whose full contraction yields the number of satisfying assignments for that instance. We then use methods of graph theory and computational complexity theory to develop fast tensor contraction protocols. In particular, we employ the tools of multilevel graph partitioning and community structure detection to determine favorable orders of contraction of arbitrary tensor networks. We first prove analytically that full tensor contraction can be performed in subexponential time for {\textbackslash}\#CSP instances defined on graphs with sublinear separators. We then implement numerical heuristics for the solution of general {\textbackslash}\#P-hard counting boolean satisfiability ({\textbackslash}\#SAT) problems, focusing on random instances of {\textbackslash}\#{\textbackslash}textsc\{Cubic-Vertex-Cover\} as a concrete example, and show that they outperform state-of-the-art {\textbackslash}\#SAT solvers by a significant margin. Our results promote tensor network contraction algorithms as a powerful practical tool for fast solution of some {\textbackslash}\#CSPs.},
+  archiveprefix = {arXiv},
+  file = {/Users/liujinguo/Zotero/storage/F5QSIPMX/Kourtis et al_2018_Fast counting with tensor networks.pdf}
+}
+
+@article{Schollwock2011,
+  title = {The Density-Matrix Renormalization Group in the Age of Matrix Product States},
+  author = {Schollw{\"o}ck, Ulrich},
+  year = {2011},
+  journal = {Annals of Physics},
+  volume = {326},
+  number = {1},
+  eprint = {1008.3477},
+  pages = {96--192},
+  issn = {00034916},
+  doi = {10.1016/j.aop.2010.09.012},
+  abstract = {The density-matrix renormalization group method (DMRG) has established itself over the last decade as the leading method for the simulation of the statics and dynamics of one-dimensional strongly correlated quantum lattice systems. In the further development of the method, the realization that DMRG operates on a highly interesting class of quantum states, so-called matrix product states (MPS), has allowed a much deeper understanding of the inner structure of the DMRG method, its further potential and its limitations. In this paper, I want to give a detailed exposition of current DMRG thinking in the MPS language in order to make the advisable implementation of the family of DMRG algorithms in exclusively MPS terms transparent. I then move on to discuss some directions of potentially fruitful further algorithmic development: while DMRG is a very mature method by now, I still see potential for further improvements, as exemplified by a number of recently introduced algorithms. ?? 2010.},
+  archiveprefix = {arXiv},
+  isbn = {0003-4916},
+  pmid = {15904055},
+  file = {/Users/liujinguo/Zotero/storage/A67A5FDH/Schollwöck - 2011 - Schollwöck, U. (2011). The density-matrix renormal.pdf}
+}
+
+@article{Roa2024,
+  title = {Probabilistic {{Inference}} in the {{Era}} of {{Tensor Networks}} and {{Differential Programming}}},
+  author = {{Roa-Villescas}, Martin and Gao, Xuanzhao and Stuijk, Sander and Corporaal, Henk and Liu, Jin-Guo},
+  year = {2024},
+  month = sep,
+  journal = {Physical Review Research},
+  volume = {6},
+  number = {3},
+  eprint = {2405.14060},
+  primaryclass = {cs},
+  pages = {033261},
+  issn = {2643-1564},
+  doi = {10.1103/PhysRevResearch.6.033261},
+  urldate = {2025-05-20},
+  abstract = {Probabilistic inference is a fundamental task in modern machine learning. Recent advances in tensor network (TN) contraction algorithms have enabled the development of better exact inference methods. However, many common inference tasks in probabilistic graphical models (PGMs) still lack corresponding TN-based adaptations. In this work, we advance the connection between PGMs and TNs by formulating and implementing tensor-based solutions for the following inference tasks: (i) computing the partition function, (ii) computing the marginal probability of sets of variables in the model, (iii) determining the most likely assignment to a set of variables, and (iv) the same as (iii) but after having marginalized a different set of variables. We also present a generalized method for generating samples from a learned probability distribution. Our work is motivated by recent technical advances in the fields of quantum circuit simulation, quantum many-body physics, and statistical physics. Through an experimental evaluation, we demonstrate that the integration of these quantum technologies with a series of algorithms introduced in this study significantly improves the effectiveness of existing methods for solving probabilistic inference tasks.},
+  archiveprefix = {arXiv},
+  keywords = {Computer Science - Machine Learning,Physics - Computational Physics},
+  file = {/Users/liujinguo/Zotero/storage/77YQRG2N/Roa-Villescas et al. - 2024 - Probabilistic Inference in the Era of Tensor Networks and Differential Programming.pdf;/Users/liujinguo/Zotero/storage/SSFPMNF7/2405.html}
+}
+
+@article{Cichocki2014,
+  title = {Era of {{Big Data Processing}}: {{A New Approach}} via {{Tensor Networks}} and {{Tensor Decompositions}}},
+  author = {Cichocki, Andrzej},
+  year = {2014},
+  journal = {arXiv},
+  eprint = {1403.2048},
+  pages = {1--30},
+  abstract = {Many problems in computational neuroscience, neuroinformatics, pattern/image recognition, signal processing and machine learning generate massive amounts of multidimensional data with multiple aspects and high dimensionality. Tensors (i.e., multi-way arrays) provide often a natural and compact representation for such massive multidimensional data via suitable low-rank approximations. Big data analytics require novel technologies to efficiently process huge datasets within tolerable elapsed times. Such a new emerging technology for multidimensional big data is a multiway analysis via tensor networks (TNs) and tensor decompositions (TDs) which represent tensors by sets of factor (component) matrices and lower-order (core) tensors. Dynamic tensor analysis allows us to discover meaningful hidden structures of complex data and to perform generalizations by capturing multi-linear and multi-aspect relationships. We will discuss some fundamental TN models, their mathematical and graphical descriptions and associated learning algorithms for large-scale TDs and TNs, with many potential applications including: Anomaly detection, feature extraction, classification, cluster analysis, data fusion and integration, pattern recognition, predictive modeling, regression, time series analysis and multiway component analysis. Keywords: Large-scale HOSVD, Tensor decompositions, CPD, Tucker models, Hierarchical Tucker (HT) decomposition, low-rank tensor approximations (LRA), Tensorization/Quantization, tensor train (TT/QTT) - Matrix Product States (MPS), Matrix Product Operator (MPO), DMRG, Strong Kronecker Product (SKP).},
+  archiveprefix = {arXiv},
+  keywords = {- matrix product,cpd,decompo-,hierarchical tucker,ht,large-scale hosvd,low-rank tensor approximations,lra,qtt,quantization,sition,tensor decompositions,tensor train,tensoriza-,tion,tt,tucker models},
+  file = {/home/leo/snap/zotero-snap/common/Zotero/storage/T2KC5AHB/Cichocki_2014_Era of Big Data Processing.pdf}
+}
+
+@article{Piveteau2024,
+  title = {Tensor-{{Network Decoding Beyond 2D}}},
+  author = {Piveteau, Christophe and Chubb, Christopher T. and Renes, Joseph M.},
+  year = {2024},
+  month = oct,
+  journal = {PRX Quantum},
+  volume = {5},
+  number = {4},
+  pages = {040303},
+  publisher = {American Physical Society},
+  doi = {10.1103/PRXQuantum.5.040303},
+  urldate = {2025-08-17},
+  abstract = {Decoding algorithms based on approximate tensor-network (TN) contraction have proven tremendously successful in decoding two-dimensional (2D) local quantum codes such as toric or surface codes and color codes, effectively achieving optimal decoding accuracy. In this work, we introduce several techniques to generalize TN decoding to higher dimensions so that it can be applied to three-dimensional (3D) codes as well as 2D codes with noisy syndrome measurements (phenomenological noise or circuit-level noise). The 3D case is significantly more challenging than 2D, as the involved approximate tensor contraction is dramatically less well behaved than its 2D counterpart. Nonetheless, we numerically demonstrate that the decoding accuracy of our approach outperforms state-of-the-art decoders on the 3D surface code, both in the point and loop sectors, as well as for depolarizing noise. Our techniques could prove useful in near-term experimental demonstrations of quantum error correction, when decoding is to be performed off line and accuracy is of the utmost importance. To this end, we show how TN decoding can be applied to circuit-level noise and demonstrate that it outperforms the matching decoder on the rotated surface code.},
+  file = {/Users/liujinguo/Zotero/storage/V7IBH7CH/Piveteau et al. - 2024 - Tensor-Network Decoding Beyond 2D.pdf;/Users/liujinguo/Zotero/storage/5YGFXBEJ/PRXQuantum.5.html}
+}
+@book{nielsen2010quantum,
+  title={Quantum computation and quantum information},
+  author={Nielsen, Michael A and Chuang, Isaac L},
+  year={2010},
+  publisher={Cambridge university press}
+}
+@book{gottesman1997stabilizer,
+  title={Stabilizer codes and quantum error correction},
+  author={Gottesman, Daniel},
+  year={1997},
+  publisher={California Institute of Technology}
+}
+@article{calderbank1996good,
+  title={Good quantum error-correcting codes exist},
+  author={Calderbank, A Robert and Shor, Peter W},
+  journal={Physical Review A},
+  volume={54},
+  number={2},
+  pages={1098},
+  year={1996},
+  publisher={APS}
+}
+@book{gaitan2008quantum,
+  title={Quantum error correction and fault tolerant quantum computing},
+  author={Gaitan, Frank},
+  year={2008},
+  publisher={CRC Press}
+}
+@article{steane1996error,
+  title={Error correcting codes in quantum theory},
+  author={Steane, Andrew M},
+  journal={Physical Review Letters},
+  volume={77},
+  number={5},
+  pages={793},
+  year={1996},
+  publisher={APS}
+}
+@article{steane1996multiple,
+  title={Multiple-particle interference and quantum error correction},
+  author={Steane, Andrew},
+  journal={Proceedings of the Royal Society of London. Series A: Mathematical, Physical and Engineering Sciences},
+  volume={452},
+  number={1954},
+  pages={2551--2577},
+  year={1996},
+  publisher={The Royal Society London}
+}
+@article{kitaev2003fault,
+  title={Fault-tolerant quantum computation by anyons},
+  author={Kitaev, A Yu},
+  journal={Annals of physics},
+  volume={303},
+  number={1},
+  pages={2--30},
+  year={2003},
+  publisher={Elsevier}
+}
+@article{dennis2002topological,
+  title={Topological quantum memory},
+  author={Dennis, Eric and Kitaev, Alexei and Landahl, Andrew and Preskill, John},
+  journal={Journal of Mathematical Physics},
+  volume={43},
+  number={9},
+  pages={4452--4505},
+  year={2002},
+  publisher={American Institute of Physics}
+}
+@article{chubb2021general,
+  title={General tensor network decoding of 2D Pauli codes},
+  author={Chubb, Christopher T},
+  journal={arXiv preprint arXiv:2101.04125},
+  year={2021}
+}
