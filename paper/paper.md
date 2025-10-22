@@ -54,20 +54,20 @@ bibliography: paper.bib
 
 # Statement of need
 
-`OMEinsumContractionOrders` (OMECO) is a Julia package that implements state-of-the-art algorithms for optimizing tensor network contraction orders. This paper presents its key features, integration with the Julia ecosystem, and performance benchmarks.
+`OMEinsumContractionOrders` (One More Einsum Contraction Orders, or OMECO) is a Julia package[@bezanson2012julia] that implements state-of-the-art algorithms for optimizing tensor network contraction orders. This paper presents its key features, integration with the Julia ecosystem, and performance benchmarks.
 
-![The relationship between the OMEinsumContractionOrders package and its dependencies.\label{fig:structure}](figures/structure.pdf){ width=80% }
+![The ecosystem built on top of the `OMEinsumContractionOrders` and its dependencies. It is a key component of tensor network contractor `OMEinsum`. Applications include quantum simulator `Yao`, quantum decoder `TensorQEC`, probabilistic inference model `TensorInference`, combinatorial optimization `GenericTensorNetworks` and `TensorBranching`.\label{fig:structure}](figures/structure.pdf){ width=80% }
 
 A _tensor network_ is a mathematical framework that represents multilinear algebra operations as graphical structures, where tensors are nodes and shared indices are edges. This diagrammatic approach transforms complex high-dimensional contractions into visual networks that expose underlying computational structure.
 
-The framework has remarkable universality across diverse domains: _einsum_ notation [@Harris2020] in numerical computing, _factor graphs_ [@Bishop2006] in probabilistic inference, _sum-product networks_ in machine learning, and _junction trees_ [@Villescas2023] in graphical models. Tensor networks have enabled breakthroughs in quantum circuit simulation [@Markov2008], quantum error correction [@Piveteau2024], neural network compression [@Qing2024], strongly correlated quantum materials [@Haegeman2016], and combinatorial optimization problems [@Liu2023].
+The framework has remarkable universality across diverse domains: _einsum_ notation [@Harris2020] in numerical computing, _factor graphs_ [@Bishop2006] in probabilistic inference, _sum-product networks_ in machine learning, and _junction trees_ [@Villescas2023] in graphical models. Tensor networks have enabled breakthroughs in quantum circuit simulation [@Markov2008], quantum error correction [@Piveteau2024], neural network compression [@Qing2024], strongly correlated quantum materials [@Haegeman2016], and combinatorial optimization problems [@Liu2023]. These are refleced in the ecosystem built on top of the `OMEinsumContractionOrders` package, as shown in \autoref{fig:structure}.
 
 The computational cost of tensor network contraction depends critically on the *contraction order*—the sequence in which pairwise tensor multiplications are performed. This order can be represented as a binary tree where leaves correspond to input tensors and internal nodes represent intermediate results. The optimization objective balances multiple complexity measures through the cost function:
 
 $$
-\mathcal{L} = w_t \times \text{tc} + w_s \times \max(0, \text{sc} - \text{sc}_{\rm target}) + w_{\text{rw}} \times \text{rwc},
+\mathcal{L} = w_\text{t} \cdot \text{tc} + w_\text{s} \cdot \max(0, \text{sc} - \text{sc}_{\rm target}) + w_\text{rw} \cdot \text{rwc},
 $$
-where $w_t$, $w_s$ and $w_{\text{rw}}$ are weights for time complexity (tc), space complexity (sc), and read-write complexity (rwc), respectively. In practice, memory access costs typically dominate arithmetic costs, motivating $w_{\text{rw}} > w_t$. The space complexity penalty activates only when $\text{sc} > \text{sc}_{\rm target}$, allowing unconstrained optimization below the target.
+where $w_\text{t}$, $w_\text{s}$, and $w_\text{rw}$ represent weights for time complexity (tc), space complexity (sc), and read-write complexity (rwc), respectively. Typically, the memory access costs outweigh the computational costs, hence $w_\text{rw} > w_\text{t}$. The penalty for space complexity is triggered only when $\text{sc} > \text{sc}_{\rm target}$, as memory does not impact performance if it fits into the available device capacity.
 
 Finding the optimal contraction order—even when minimizing only time complexity—is NP-complete [@Markov2008]. This optimization problem has a deep mathematical connection to _tree decomposition_ [@Markov2008] of the tensor network's line graph, where finding the optimal order corresponds to finding a weighted minimal-width tree decomposition. The logarithmic time complexity of the bottleneck contraction step equals the largest bag size in the tree decomposition, while the logarithmic space complexity equals the largest separator size (vertices shared between adjacent bags).
 
@@ -86,15 +86,15 @@ OMECO implements several optimization algorithms with complementary performance 
 | `ExactTreewidth` | Exact algorithm with exponential runtime [@Bouchitte2001], based on `TreeWidthSolver` |
 | `Treewidth` | Clique tree elimination methods from `CliqueTrees` package |
 
-The algorithms `HyperND`, `Treewidth`, and `ExactTreewidth` are applied to the tensor network’s line graph and utilize the `CliqueTrees` and `TreeWidthSolver` packages, as illustrated in \autoref{fig:structure}. We also implement the `PathSA` optimizer for path decomposition, which is a variant of the `TreeSA` optimizer by constraining the contraction order to be a path.
+The algorithms `HyperND`, `Treewidth`, and `ExactTreewidth` are applied to the tensor network’s line graph and utilize the `CliqueTrees` and `TreeWidthSolver` packages, as illustrated in \autoref{fig:structure}. We also implement the `PathSA` optimizer for path decomposition, which is a variant of the `TreeSA` optimizer by constraining the contraction order to be a path graph.
 
 These methods balance optimization time against solution quality. \autoref{fig:sycamore} displays benchmark results for the Sycamore quantum supremacy circuit, highlighting the Pareto front where contraction order quality is balanced with optimization runtime.
 
-![Benchmark results on the Sycamore quantum circuit (Apple M2 CPU). The x-axis shows contraction cost, y-axis shows optimization time. Each point represents a different optimizer configuration. \label{fig:sycamore}](figures/sycamore.pdf){ width=80% }
+![Benchmark results on finding the optimal contraction order for the tensor network mapped from the Sycamore quantum circuit. The device is an Apple M2 CPU. The $x$-axis shows contraction cost, the $y$-axis shows optimization time. Each point represents a different optimizer configuration. `TreeSA` and `HyperND` are the best in terms of the contraction cost, while `GreedyMethod` is the fastest in terms of the optimization time. \label{fig:sycamore}](figures/sycamore.pdf){ width=80% }
 
 [JG: TODO: We need a benchmark with CoTengra optimizer, maybe just benchmark two algorithms: TreeSA and HyperND (Richard fill in), please also cite CliqueTree paper, and the benchmark result could be stored in json format, I can handle the visualization to make the plots consistent.]
 
-OMECO is already integrated into the `OMEinsum` package, and as used in `Yao`[@Luo2020] for quantum circuit simulation, `GenericTensorNetworks`[@Liu2023] and `TensorBranching` (TODO: add citation) for solving combinatorial optimization problems, `TensorInference` [@Roa2023] for exact probabilistic inference, and `TensorQEC` (TODO: add citation) for quantum error correction. We expect this infrastructure to be useful for other applications that needs tree decomposition or path decomposition, e.g. the polynomial optimization [@Magron2021].
+OMECO has been integrated into the `OMEinsum` package, and is used in `Yao`[@Luo2020] for quantum circuit simulation, `GenericTensorNetworks`[@Liu2023] and `TensorBranching` (TODO: add citation) for solving combinatorial optimization problems, `TensorInference` [@Roa2023] for exact probabilistic inference, and `TensorQEC` (TODO: add citation) for quantum error correction. We expect this infrastructure to be useful for other applications that needs tree decomposition or path decomposition as well, e.g. the polynomial optimization [@Magron2021].
 
 # Usage Example
 
@@ -171,7 +171,7 @@ Real-world examples demonstrating applications to quantum circuit simulation, co
 
 # Acknowledgments
 
-This work was partially funded by Google Summer of Code 2024.
+This work was partially funded by Google Summer of Code 2024, and open source promotion plan (OSPP 2023).
 We thank Feng Pan for insightful discussions and code contributions on the slicing technique.
 
 # References

@@ -4,10 +4,10 @@
 #canvas({
   import draw: *
   let dy = 1.5
-  let boxed(it, width: 100pt) = box(width: width, radius: 3pt, stroke: black, inset: 5pt, align(center)[#it])
+  let boxed(it, width: 100pt, fill: none) = box(width: width, radius: 3pt, stroke: black, fill:fill, inset: 5pt, align(center)[#it])
   content((-2, -0.5 * dy), boxed([CliqueTrees]))
   content((2, -0.5 * dy), boxed([TreeWidthSolver]))
-  content((0, 0), boxed([OMEinsumContractionOrders], width: 214pt), name: "OMEinsumContractionOrders")
+  content((0, 0), boxed([OMEinsumContractionOrders], width: 214pt, fill: yellow), name: "OMEinsumContractionOrders")
   content((0, dy), boxed([OMEinsum]), name: "OMEinsum")
   content((4, dy), boxed([NCTSSoS]), name: "NCTSSoS")
   content((0, 3*dy), boxed([GenericTensorNetworks], width: 150pt))
