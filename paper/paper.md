@@ -54,20 +54,20 @@ bibliography: paper.bib
 
 # Statement of need
 
-`OMEinsumContractionOrders` (One More Einsum Contraction Orders, or OMECO) is a Julia package[@bezanson2012julia] that implements state-of-the-art algorithms for optimizing tensor network contraction orders. This paper presents its key features, integration with the Julia ecosystem, and performance benchmarks.
+`OMEinsumContractionOrders` (One More Einsum Contraction Orders, or OMECO) is a Julia package [@bezanson2012julia] that implements state-of-the-art algorithms for optimizing tensor network contraction orders. This paper presents its key features, integration with the Julia ecosystem, and performance benchmarks.
 
-![The ecosystem built on top of the `OMEinsumContractionOrders` and its dependencies. It is a key component of tensor network contractor `OMEinsum`. Applications include quantum simulator `Yao`, quantum decoder `TensorQEC`, probabilistic inference model `TensorInference`, combinatorial optimization `GenericTensorNetworks` and `TensorBranching`.\label{fig:structure}](figures/structure.pdf){ width=80% }
+![The ecosystem built around `OMEinsumContractionOrders` and its dependencies. OMECO serves as a core component of the tensor network contractor `OMEinsum`, which powers applications including `Yao` (quantum simulation), `TensorQEC` (quantum error correction), `TensorInference` (probabilistic inference), `GenericTensorNetworks` and `TensorBranching` (combinatorial optimization).\label{fig:structure}](figures/structure.pdf){ width=80% }
 
 A _tensor network_ is a mathematical framework that represents multilinear algebra operations as graphical structures, where tensors are nodes and shared indices are edges. This diagrammatic approach transforms complex high-dimensional contractions into visual networks that expose underlying computational structure.
 
-The framework has remarkable universality across diverse domains: _einsum_ notation [@Harris2020] in numerical computing, _factor graphs_ [@Bishop2006] in probabilistic inference, _sum-product networks_ in machine learning, and _junction trees_ [@Villescas2023] in graphical models. Tensor networks have enabled breakthroughs in quantum circuit simulation [@Markov2008], quantum error correction [@Piveteau2024], neural network compression [@Qing2024], strongly correlated quantum materials [@Haegeman2016], and combinatorial optimization problems [@Liu2023]. These are refleced in the ecosystem built on top of the `OMEinsumContractionOrders` package, as shown in \autoref{fig:structure}.
+The framework has remarkable universality across diverse domains: _einsum_ notation [@Harris2020] in numerical computing, _factor graphs_ [@Bishop2006] in probabilistic inference, _sum-product networks_ in machine learning, and _junction trees_ [@Villescas2023] in graphical models. Tensor networks have enabled breakthroughs in quantum circuit simulation [@Markov2008], quantum error correction [@Piveteau2024], neural network compression [@Qing2024], strongly correlated quantum materials [@Haegeman2016], and combinatorial optimization problems [@Liu2023]. These applications are reflected in the ecosystem built around OMECO, as illustrated in \autoref{fig:structure}.
 
 The computational cost of tensor network contraction depends critically on the *contraction order*—the sequence in which pairwise tensor multiplications are performed. This order can be represented as a binary tree where leaves correspond to input tensors and internal nodes represent intermediate results. The optimization objective balances multiple complexity measures through the cost function:
 
 $$
 \mathcal{L} = w_\text{t} \cdot \text{tc} + w_\text{s} \cdot \max(0, \text{sc} - \text{sc}_{\rm target}) + w_\text{rw} \cdot \text{rwc},
 $$
-where $w_\text{t}$, $w_\text{s}$, and $w_\text{rw}$ represent weights for time complexity (tc), space complexity (sc), and read-write complexity (rwc), respectively. Typically, the memory access costs outweigh the computational costs, hence $w_\text{rw} > w_\text{t}$. The penalty for space complexity is triggered only when $\text{sc} > \text{sc}_{\rm target}$, as memory does not impact performance if it fits into the available device capacity.
+where $w_\text{t}$, $w_\text{s}$, and $w_\text{rw}$ represent weights for time complexity (tc), space complexity (sc), and read-write complexity (rwc), respectively. In practice, memory access costs typically dominate computational costs, motivating $w_\text{rw} > w_\text{t}$. The space complexity penalty activates only when $\text{sc} > \text{sc}_{\rm target}$, allowing unconstrained optimization when memory fits within available device capacity.
 
 Finding the optimal contraction order—even when minimizing only time complexity—is NP-complete [@Markov2008]. This optimization problem has a deep mathematical connection to _tree decomposition_ [@Markov2008] of the tensor network's line graph, where finding the optimal order corresponds to finding a weighted minimal-width tree decomposition. The logarithmic time complexity of the bottleneck contraction step equals the largest bag size in the tree decomposition, while the logarithmic space complexity equals the largest separator size (vertices shared between adjacent bags).
 
@@ -86,15 +86,15 @@ OMECO implements several optimization algorithms with complementary performance 
 | `ExactTreewidth` | Exact algorithm with exponential runtime [@Bouchitte2001], based on `TreeWidthSolver` |
 | `Treewidth` | Clique tree elimination methods from `CliqueTrees` package |
 
-The algorithms `HyperND`, `Treewidth`, and `ExactTreewidth` are applied to the tensor network’s line graph and utilize the `CliqueTrees` and `TreeWidthSolver` packages, as illustrated in \autoref{fig:structure}. We also implement the `PathSA` optimizer for path decomposition, which is a variant of the `TreeSA` optimizer by constraining the contraction order to be a path graph.
+The algorithms `HyperND`, `Treewidth`, and `ExactTreewidth` operate on the tensor network's line graph and utilize the `CliqueTrees` and `TreeWidthSolver` packages, as illustrated in \autoref{fig:structure}. Additionally, the `PathSA` optimizer implements path decomposition by constraining contraction orders to path graphs, serving as a variant of `TreeSA`.
 
 These methods balance optimization time against solution quality. \autoref{fig:sycamore} displays benchmark results for the Sycamore quantum supremacy circuit, highlighting the Pareto front where contraction order quality is balanced with optimization runtime.
 
-![Benchmark results on finding the optimal contraction order for the tensor network mapped from the Sycamore quantum circuit. The device is an Apple M2 CPU. The $x$-axis shows contraction cost, the $y$-axis shows optimization time. Each point represents a different optimizer configuration. `TreeSA` and `HyperND` are the best in terms of the contraction cost, while `GreedyMethod` is the fastest in terms of the optimization time. \label{fig:sycamore}](figures/sycamore.pdf){ width=80% }
+![Benchmark results for contraction order optimization on the Sycamore quantum circuit tensor network (Apple M2 CPU). The $x$-axis shows contraction cost, $y$-axis shows optimization time. Each point represents a different optimizer configuration. `TreeSA` and `HyperND` achieve the lowest contraction costs, while `GreedyMethod` offers the fastest optimization time. \label{fig:sycamore}](figures/sycamore.pdf){ width=80% }
 
 [JG: TODO: We need a benchmark with CoTengra optimizer, maybe just benchmark two algorithms: TreeSA and HyperND (Richard fill in), please also cite CliqueTree paper, and the benchmark result could be stored in json format, I can handle the visualization to make the plots consistent.]
 
-OMECO has been integrated into the `OMEinsum` package, and is used in `Yao`[@Luo2020] for quantum circuit simulation, `GenericTensorNetworks`[@Liu2023] and `TensorBranching` (TODO: add citation) for solving combinatorial optimization problems, `TensorInference` [@Roa2023] for exact probabilistic inference, and `TensorQEC` (TODO: add citation) for quantum error correction. We expect this infrastructure to be useful for other applications that needs tree decomposition or path decomposition as well, e.g. the polynomial optimization [@Magron2021].
+OMECO has been integrated into the `OMEinsum` package and powers several downstream applications: `Yao` [@Luo2020] for quantum circuit simulation, `GenericTensorNetworks` [@Liu2023] and `TensorBranching` (TODO: add citation) for combinatorial optimization, `TensorInference` [@Roa2023] for probabilistic inference, and `TensorQEC` (TODO: add citation) for quantum error correction. This infrastructure is expected to benefit other applications requiring tree or path decomposition, such as polynomial optimization [@Magron2021].
 
 # Usage Example
 
@@ -139,7 +139,7 @@ Time complexity: 2^17.241796993093228
 Space complexity: 2^13.0
 Read-write complexity: 2^16.360864226366807
 ```
-The `optimize_code` function takes three arguments: the `EinCode` object, tensor size dictionary, and optimizer configuration. It returns a `NestedEinsum` object with time complexity $\approx 2^{17.2}$, dramatically improved from the original $2^{100}$. This result aligns with theory, as the treewidth of a 3-regular graph is approximately upper bounded by $1/6$ of the number of vertices [@Fomin2006]. The `score` keyword argument configures the cost function weights; here we set the read-write weight to 10× the time weight, reflecting the higher cost of memory access.
+The `optimize_code` function takes three arguments: the `EinCode` object, tensor size dictionary, and optimizer configuration. It returns a `NestedEinsum` object specifying the contraction tree with three fields: `args` (child nodes), `tensorindex` (input tensor index for leaf nodes), and `eins` (einsum notation for the node). The time complexity $\approx 2^{17.2}$ is dramatically improved from the original $2^{100}$. This result aligns with theory, as the treewidth of a 3-regular graph is approximately upper bounded by $1/6$ of the number of vertices [@Fomin2006]. The `score` keyword argument configures the cost function weights; here we set the read-write weight to 10× the time weight, reflecting the higher cost of memory access.
 
 Space complexity can be further reduced using `slice_code`, which implements the slicing technique to trade time for space.
 ```julia
@@ -156,7 +156,7 @@ Time complexity: 2^17.800899899920303
 Space complexity: 2^10.0
 Read-write complexity: 2^17.199595668955244
 ```
-The `slice_code` function takes the `NestedEinsum` object, tensor sizes, and slicing strategy. Using `TreeSASlicer`, we reduce space complexity by $2^3$ (from $2^{13}$ to $2^{10}$) with only a modest increase in time complexity. The resulting `SlicedEinsum` object maintains the same interface as `NestedEinsum` for contraction evaluation.
+The `slice_code` function takes the `NestedEinsum` object, tensor sizes, and slicing strategy, returning a `SlicedEinsum` object with two fields: `slicing` (sliced indices) and `eins` (a `NestedEinsum` object). Using `TreeSASlicer`, we reduce space complexity by $2^3$ (from $2^{13}$ to $2^{10}$) with only a modest increase in time complexity. The resulting `SlicedEinsum` object maintains the same interface as `NestedEinsum` for contraction evaluation.
 
 ```julia
 julia> @assert sliced_code(tensors...) ≈ optcode(tensors...)
@@ -171,7 +171,7 @@ Real-world examples demonstrating applications to quantum circuit simulation, co
 
 # Acknowledgments
 
-This work was partially funded by Google Summer of Code 2024, and open source promotion plan (OSPP 2023).
+This work was partially funded by Google Summer of Code 2024 and the Open Source Promotion Plan (OSPP 2023).
 We thank Feng Pan for insightful discussions and code contributions on the slicing technique.
 
 # References
