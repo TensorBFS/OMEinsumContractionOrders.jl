@@ -9,7 +9,7 @@ authors:
     orcid: 0000-0003-1635-2679
     equal-contrib: true
     affiliation: 1
-  - name: Xuan-Zhao Gao
+  - name: Xuanzhao Gao
     orcid: 
     equal-contrib: true
     affiliation: 2
@@ -20,7 +20,7 @@ authors:
 affiliations:
  - name: Hong Kong University of Science and Technology (Guangzhou)
    index: 1
- - name: <Xuan-Zhao fill in>
+ - name: Center of Computational Mathematics, Flatiron Institute
    index: 2
  - name: <Richard fill in>
    index: 3
