@@ -94,7 +94,7 @@ function merge_greedy(code::EinCode{LT}, size_dict; threshhold=-1e-12) where LT
         if isempty(cost_values)
             return _buildsimplifier(tree, incidence_list)
         end
-        pair, v = peek(cost_values)
+        pair, v = first(cost_values)
         if v <= threshhold
             _, _, c = contract_pair!(incidence_list, pair..., log2_edge_sizes)
             tree[pair[1]] = NestedEinsum([tree[pair[1]], tree[pair[2]]], EinCode([c.first...], c.second))

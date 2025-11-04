@@ -8,7 +8,7 @@ using Base.Threads
 using AbstractTrees
 using TreeWidthSolver
 using TreeWidthSolver.Graphs
-using DataStructures: PriorityQueue, enqueue!, dequeue!, peek, dequeue_pair!
+using DataStructures: PriorityQueue
 import CliqueTrees
 using CliqueTrees: cliquetree, cliquetree!, separator, residual, CliqueTree, EliminationAlgorithm, MMW, BFS, MCS, LexBFS, RCMMD, RCMGL, MCSM, LexM, AMF, MF, MMD, MF, BT, SafeRules, KaHyParND, METISND, ND, BestWidth, ConnectedComponents
 
