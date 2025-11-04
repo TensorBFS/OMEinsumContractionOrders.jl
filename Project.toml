@@ -1,6 +1,6 @@
 name = "OMEinsumContractionOrders"
 uuid = "6f22d1fd-8eed-4bb7-9776-e7d684900715"
-version = "1.2.2"
+version = "1.2.3"
 
 [deps]
 AbstractTrees = "1520ce14-60c1-5f80-bbc7-55ef81b5835c"
@@ -27,7 +27,7 @@ CliqueTrees = "1.12.1"
 DataStructures = "0.18"
 Documenter = "1.10.1"
 Graphs = "1"
-JSON = "0.21"
+JSON = "0.21, 1"
 KaHyPar = "0.3"
 LuxorGraphPlot = "0.5"
 OMEinsum = "0.9"

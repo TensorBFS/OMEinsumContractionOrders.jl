@@ -73,7 +73,7 @@ function einstodict(eins::EinCode)
     return Dict("ixs"=>ixs, "iy"=>iy)
 end
 
-function fromdict(::Type{LT}, dict::Dict) where LT
+function fromdict(::Type{LT}, dict::AbstractDict) where LT
     if dict["isleaf"]
         return NestedEinsum{LT}(dict["tensorindex"])
     end
@@ -81,7 +81,7 @@ function fromdict(::Type{LT}, dict::Dict) where LT
     return NestedEinsum(fromdict.(LT, dict["args"]), eins)
 end
 
-function einsfromdict(::Type{LT}, dict::Dict) where LT
+function einsfromdict(::Type{LT}, dict::AbstractDict) where LT
     return EinCode([collect(LT, _convert.(LT, ix)) for ix in dict["ixs"]], collect(LT, _convert.(LT, dict["iy"])))
 end
 
