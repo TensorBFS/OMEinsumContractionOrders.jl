@@ -90,9 +90,11 @@ The algorithms `HyperND`, `Treewidth`, and `ExactTreewidth` operate on the tenso
 
 These methods balance optimization time against solution quality. \autoref{fig:sycamore} displays benchmark results for the Sycamore quantum supremacy circuit, highlighting the Pareto front where contraction order quality is balanced with optimization runtime.
 
-![Benchmark results for contraction order optimization on the Sycamore quantum circuit tensor network (Apple M2 CPU). The $x$-axis shows contraction cost, $y$-axis shows optimization time. Each point represents a different optimizer configuration. `TreeSA` and `HyperND` achieve the lowest contraction costs, while `GreedyMethod` offers the fastest optimization time. \label{fig:sycamore}](figures/sycamore.pdf){ width=80% }
+![Benchmark results for contraction order optimization on the Sycamore quantum circuit tensor network (Intel Xeon Gold 6226R CPU @ 2.90GHz, single-threaded). The $x$-axis shows contraction cost, $y$-axis shows optimization time. Each point represents a different optimizer configuration tested with varying parameters. `TreeSA` and `HyperND` achieve the lowest contraction costs, while `GreedyMethod` offers the fastest optimization time. Detailed parameter configurations are documented in `benchmark-details.md`. \label{fig:sycamore}](figures/sycamore.pdf){ width=80% }
 
-[JG: TODO: We need a benchmark with CoTengra optimizer, maybe just benchmark two algorithms: TreeSA and HyperND (Richard fill in), please also cite CliqueTree paper, and the benchmark result could be stored in json format, I can handle the visualization to make the plots consistent.]
+
+[JG: TODO: Please also cite CliqueTree paper.]
+
 
 OMECO has been integrated into the `OMEinsum` package and powers several downstream applications: `Yao` [@Luo2020] for quantum circuit simulation, `GenericTensorNetworks` [@Liu2023] and `TensorBranching` (TODO: add citation) for combinatorial optimization, `TensorInference` [@Roa2023] for probabilistic inference, and `TensorQEC` (TODO: add citation) for quantum error correction. This infrastructure is expected to benefit other applications requiring tree or path decomposition, such as polynomial optimization [@Magron2021].
 
@@ -163,7 +165,7 @@ julia> @assert sliced_code(tensors...) ≈ optcode(tensors...)
 ```
 
 
-[JG: TODO: Mention the API to convert between contraction graph and treewidth. (Xuan-Zhao fill in)]
+[JG: TODO: Mention the API to convert between contraction graph and treewidth. (Xuan-Zhao fill in), Remove?]
 
 [JG: TODO: Show a plot about using slicing to reduce the space complexity (based on the above example). (Xuan-Zhao fill in)]
 
@@ -175,30 +177,3 @@ This work was partially funded by Google Summer of Code 2024 and the Open Source
 We thank Feng Pan for insightful discussions and code contributions on the slicing technique.
 
 # References
-
-# Supporting
-[JG: we will clean up this part in the future]
-
-**Definition (Tree decomposition and treewidth):** A _tree decomposition_ of a (hyper)graph $G=(V,E)$ is a tree $T=(B,F)$ where each node $B_i \in B$ contains a subset of vertices in $V$ (called a "bag"), satisfying:
-
-1. Every vertex $v \in V$ appears in at least one bag.
-2. For each (hyper)edge $e \in E$, there exists a bag containing all vertices in $e$.
-3. For each vertex $v \in V$, the bags containing $v$ form a connected subtree of $T$.
-
-The _width_ of a tree decomposition is the size of its largest bag minus one. The _treewidth_ of a graph is the minimum width among all possible tree decompositions.
-
-
-The line graph of a tensor network is a graph where vertices represent indices and edges represent tensors sharing those indices. The relationship between a tensor network's contraction order and the tree decomposition of its line graph can be understood through several key correspondences:
-
-- Each leg (index) in the tensor network becomes a vertex in the line graph, while each tensor becomes a hyperedge connecting multiple vertices.
-- The tree decomposition's first two requirements ensure that all tensors are accounted for in the contraction sequence - each tensor must appear in at least one bag, with each bag representing a contraction step.
-- The third requirement of the tree decomposition maps to an important constraint in tensor contraction: an index can only be eliminated after considering all tensors connected to it.
-- For tensor networks with varying index dimensions, we can extend this relationship to weighted tree decompositions, where vertex weights correspond to the logarithm of the index dimensions.
-
-The figure below illustrates these concepts with (a) a tensor network containing four tensors $T_1$, $T_2$, $T_3$ and $T_4$ and eight indices labeled $A$ through $H$, (b) its corresponding line graph, and (c) a tree decomposition of that line graph.
-
-![(a) A tensor network. (b) A line graph for the tensor network. Labels are connected if and only if they appear in the same tensor. (c) A tree decomposition (T. D.) of the line graph. \label{fig:mainfig}](figures/mainfig.pdf)
-
-The tree decomposition in \autoref{fig:mainfig}(c) consists of 6 bags, each containing at most 3 indices, indicating that the treewidth of the tensor network is 2. The tensors $T_1$, $T_2$, $T_3$ and $T_4$ are contained in bags $B_1$, $B_5$, $B_6$ and $B_2$ respectively. Following the tree structure, we perform the contraction from the leaves. First, we contract bags $B_1$ and $B_2$ into $B_3$, yielding an intermediate tensor $I_{14} = T_1 * T_4$ (where "$*$" denotes tensor contraction) with indices $B$ and $E$. Next, we contract bags $B_5$ and $B_6$ into $B_4$, producing another intermediate tensor $I_{23} = T_2 * T_3$ also with indices $B$ and $E$. Finally, contracting $B_3$ and $B_4$ yields the desired scalar result.
-
-
