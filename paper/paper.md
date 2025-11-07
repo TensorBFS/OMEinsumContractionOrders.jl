@@ -115,85 +115,11 @@ Optimizers prefixed with `cotengra_` are from the Python package cotengra [@Gray
 
 OMECO has been integrated into the `OMEinsum` package and powers several downstream applications: `Yao` [@Luo2020] for quantum circuit simulation, `GenericTensorNetworks` [@Liu2023] and `TensorBranching` (TODO: add citation) for combinatorial optimization, `TensorInference` [@Roa2023] for probabilistic inference, and [`TensorQEC`](https://github.com/TensorBFS/TensorQEC.jl) for quantum error correction. This infrastructure is expected to benefit other applications requiring tree or path decomposition, such as polynomial optimization [@Magron2021].
 
-![Illustration of index slicing. Looping over an index, such as $n$ in the figure, decomposes a large tensor network contraction into a series of smaller ones. \label{fig:slicing}](figures/slicing.pdf){ width=80% }
-
-The second feature of OMECO is index slicing, which is a technique to trade time complexity for reduced space complexity by looping over a subset of indices directly, as shown in \autoref{fig:slicing}.
+The second feature of OMECO is index slicing, which is a technique to trade time complexity for reduced space complexity by looping over a subset of indices directly.
 In OMECO, the interface to perform index slicing is `slice_code`, and currently we only support one Slicer, `TreeSASlicer`, which is implemented the dynamic slicing algorithm based on `TreeSA`.
+An example is shown in \autoref{fig:slicing}, where the network of the Sycamore quantum circuit is sliced to reduce the space complexity from 52 to 31.
 
-<!-- # Usage Example
-
-OMECO provides two main functions: `optimize_code` for finding optimal contraction orders, and `slice_code` for trading time complexity for reduced space complexity through the slicing technique.
-
-To demonstrate basic usage, we generate a random 3-regular graph with 100 vertices using the `Graphs` package, associating each vertex with a binary variable and each edge with a $2 \times 2$ tensor.
-
-```julia
-julia> using Graphs: random_regular_graph, edges, vertices
-
-julia> using OMEinsumContractionOrders: EinCode, uniquelabels, contraction_complexity, optimize_code, TreeSA, slice_code, TreeSASlicer, ScoreFunction
-
-julia> function demo_network(n::Int)
-           g = random_regular_graph(n, 3)
-           code = EinCode([[e.src, e.dst] for e in edges(g)], Int[])
-           sizes = Dict(i=>2 for i in uniquelabels(code))
-           tensors = [randn([sizes[index] for index in ix]...) for ix in code.ixs]
-           return code, tensors, sizes
-       end
-demo_network (generic function with 1 method)
-
-julia> code, tensors, sizes = demo_network(100);
-```
-The tensor network topology is represented by an `EinCode` object with two fields: `ixs` (a vector of index vectors for each input tensor) and `iy` (output indices). This structure defines a hypergraph with potentially open edges. Combining this hypergraph with tensor sizes determines the contraction complexity.
-
-```julia
-julia> contraction_complexity(code, sizes)
-Time complexity: 2^100.0
-Space complexity: 2^0.0
-Read-write complexity: 2^9.231221180711184
-```
-
-The return type contains three fields (`tc`, `sc`, `rwc`) for time, space, and read-write complexity. Without optimization, the time complexity is $2^{100}$, equivalent to brute-force enumeration.
-
-We now use the `TreeSA` optimizer to find an improved contraction order.
-
-```julia
-julia> optcode = optimize_code(code, sizes, TreeSA(; score=ScoreFunction(tc_weight=1.0, sc_weight=1.0, rw_weight=10.0)));
-
-julia> cc = contraction_complexity(optcode, sizes)
-Time complexity: 2^17.241796993093228
-Space complexity: 2^13.0
-Read-write complexity: 2^16.360864226366807
-```
-The `optimize_code` function takes three arguments: the `EinCode` object, tensor size dictionary, and optimizer configuration. It returns a `NestedEinsum` object specifying the contraction tree with three fields: `args` (child nodes), `tensorindex` (input tensor index for leaf nodes), and `eins` (einsum notation for the node). The time complexity $\approx 2^{17.2}$ is dramatically improved from the original $2^{100}$. This result aligns with theory, as the treewidth of a 3-regular graph is approximately upper bounded by $1/6$ of the number of vertices [@Fomin2006]. The `score` keyword argument configures the cost function weights; here we set the read-write weight to 10× the time weight, reflecting the higher cost of memory access.
-
-Space complexity can be further reduced using `slice_code`, which implements the slicing technique to trade time for space.
-```julia
-julia> sliced_code = slice_code(optcode, sizes, TreeSASlicer(score=ScoreFunction(sc_target=cc.sc-3)));
-
-julia> sliced_code.slicing
-3-element Vector{Int64}:
- 14
- 76
- 60
-
-julia> contraction_complexity(sliced_code, sizes)
-Time complexity: 2^17.800899899920303
-Space complexity: 2^10.0
-Read-write complexity: 2^17.199595668955244
-```
-The `slice_code` function takes the `NestedEinsum` object, tensor sizes, and slicing strategy, returning a `SlicedEinsum` object with two fields: `slicing` (sliced indices) and `eins` (a `NestedEinsum` object). Using `TreeSASlicer`, we reduce space complexity by $2^3$ (from $2^{13}$ to $2^{10}$) with only a modest increase in time complexity. The resulting `SlicedEinsum` object maintains the same interface as `NestedEinsum` for contraction evaluation.
-
-```julia
-julia> @assert sliced_code(tensors...) ≈ optcode(tensors...)
-```
-
-
-[JG: TODO: Show a plot about using slicing to reduce the space complexity (based on the above example). (Xuan-Zhao fill in)] -->
-
-
-# Acknowledgments
-
-This work was partially funded by Google Summer of Code 2024 and the Open Source Promotion Plan (OSPP 2023).
-We thank Feng Pan for insightful discussions and code contributions on the slicing technique.
+![Relation between the time complexity and the target space complexity for the `TreeSASlicer`. The original network is the Sycamore quantum circuit with an original space complexity of 52. \label{fig:slicing}](figures/sycamore_slicing.pdf){ width=40% }
 
 # References
 
