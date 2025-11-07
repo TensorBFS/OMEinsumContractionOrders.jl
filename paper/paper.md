@@ -187,8 +187,6 @@ julia> @assert sliced_code(tensors...) ≈ optcode(tensors...)
 ```
 
 
-[JG: TODO: Mention the API to convert between contraction graph and treewidth. (Xuan-Zhao fill in), Remove?]
-
 [JG: TODO: Show a plot about using slicing to reduce the space complexity (based on the above example). (Xuan-Zhao fill in)] -->
 
 
