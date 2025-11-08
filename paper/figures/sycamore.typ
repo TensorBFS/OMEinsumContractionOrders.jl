@@ -79,7 +79,7 @@
   canvas(length: 1cm, {
     import draw: bezier, content
     plot-compare(filtered_data, a: 0, b: 1, c: 0, y-min: -2, y-max: 4, x-label: "Log2 FLOPs (Time Complexity)")
-    bezier((0, 4.0), (3, 0.2), (1.5, 2), (1.8, 0.9), stroke: (dash: "dashed"))
+    bezier((0, 4.3), (2.6, 0.4), (1.2, 1.1), (2.5, 0.9), stroke: (dash: "dashed"))
     content((1.3, 1.6), "Pareto Front", align: center, fill:white.transparentize(50%), frame:"rect", padding:0.1, stroke: none)
   }),
   canvas(length: 1cm, {
