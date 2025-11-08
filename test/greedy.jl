@@ -6,17 +6,6 @@ using Graphs
 
 using Test, Random
 
-@testset "analyze contraction" begin
-    incidence_list = IncidenceList(Dict(1 => [1, 2, 11, 15, 6], 2=>[1, 3, 4, 13, 6], 3=>[2, 3, 5, 6], 4=>[5], 5=>[4, 6]), openedges=[3, 6, 15])
-    info = analyze_contraction(incidence_list, 1, 2)
-    @test Set(info.l1) == Set([11])
-    @test Set(info.l2) == Set([13])
-    @test Set(info.l12) == Set([1])
-    @test Set(info.l01) == Set([2,15])
-    @test Set(info.l02) == Set([3, 4])
-    @test Set(info.l012) == Set([6])
-end
-
 @testset "parse eincode" begin
     incidence_list = IncidenceList(Dict(1 => [1, 2], 2=>[1, 3, 4], 3=>[2, 3, 5, 6], 4=>[5], 5=>[4, 6]))
     tree = OMEinsumContractionOrders.ContractionTree(OMEinsumContractionOrders.ContractionTree(1, 2), OMEinsumContractionOrders.ContractionTree(3, 4))
@@ -210,6 +199,48 @@ end
 end
 
 @testset "greedy_loss optimization" begin
+    function analyze_contraction(incidence_list::IncidenceList{Int,ET}, vi::Int, vj::Int) where {ET}
+        ei = OMEinsumContractionOrders.edges(incidence_list, vi)
+        ej = OMEinsumContractionOrders.edges(incidence_list, vj)
+        leg012,leg12,leg1,leg2,leg01,leg02 = ET[], ET[], ET[], ET[], ET[], ET[]
+        # external legs
+        for leg in ei ∪ ej
+            isext = leg ∈ incidence_list.openedges || !all(x->x==vi || x==vj, OMEinsumContractionOrders.vertices(incidence_list, leg))
+            if isext
+                if leg ∈ ei
+                    if leg ∈ ej
+                        push!(leg012, leg)
+                    else
+                        push!(leg01, leg)
+                    end
+                else
+                    push!(leg02, leg)
+                end
+            else
+                if leg ∈ ei
+                    if leg ∈ ej
+                        push!(leg12, leg)
+                    else
+                        push!(leg1, leg)
+                    end
+                else
+                    push!(leg2, leg)
+                end
+            end
+        end
+        return LegInfo(leg1, leg2, leg12, leg01, leg02, leg012)
+    end
+    @testset "analyze contraction" begin
+        incidence_list = IncidenceList(Dict(1 => [1, 2, 11, 15, 6], 2=>[1, 3, 4, 13, 6], 3=>[2, 3, 5, 6], 4=>[5], 5=>[4, 6]), openedges=[3, 6, 15])
+        info = analyze_contraction(incidence_list, 1, 2)
+        @test Set(info.l1) == Set([11])
+        @test Set(info.l2) == Set([13])
+        @test Set(info.l12) == Set([1])
+        @test Set(info.l01) == Set([2,15])
+        @test Set(info.l02) == Set([3, 4])
+        @test Set(info.l012) == Set([6])
+    end
+
     # Original implementation using analyze_contraction (for comparison)
     function greedy_loss_with_vectors(α, incidence_list, log2_edge_sizes, vi, vj)
         log2dim(legs) = isempty(legs) ? 0 : sum(l->log2_edge_sizes[l], legs)

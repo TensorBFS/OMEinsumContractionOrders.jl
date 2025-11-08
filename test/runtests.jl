@@ -12,6 +12,10 @@ end
     include("Core.jl")
 end
 
+@testset "utils" begin
+    include("utils.jl")
+end
+
 @testset "greedy" begin
     include("greedy.jl")
 end

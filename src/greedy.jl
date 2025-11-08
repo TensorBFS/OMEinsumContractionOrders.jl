@@ -127,38 +127,6 @@ function find_best_cost!(temperature::TT, cost_values::PriorityQueue{PT}, cost_g
     end
 end
 
-function analyze_contraction(incidence_list::IncidenceList{Int,ET}, vi::Int, vj::Int) where {ET}
-    ei = edges(incidence_list, vi)
-    ej = edges(incidence_list, vj)
-    leg012,leg12,leg1,leg2,leg01,leg02 = ET[], ET[], ET[], ET[], ET[], ET[]
-    # external legs
-    for leg in ei ∪ ej
-        isext = leg ∈ incidence_list.openedges || !all(x->x==vi || x==vj, vertices(incidence_list, leg))
-        if isext
-            if leg ∈ ei
-                if leg ∈ ej
-                    push!(leg012, leg)
-                else
-                    push!(leg01, leg)
-                end
-            else
-                push!(leg02, leg)
-            end
-        else
-            if leg ∈ ei
-                if leg ∈ ej
-                    push!(leg12, leg)
-                else
-                    push!(leg1, leg)
-                end
-            else
-                push!(leg2, leg)
-            end
-        end
-    end
-    return LegInfo(leg1, leg2, leg12, leg01, leg02, leg012)
-end
-
 """
     compute_contraction_dims(incidence_list, log2_edge_sizes, vi, vj, eout, eremove) -> (D1, D2, D12, D01, D02, D012)
 
@@ -279,12 +247,6 @@ function parse_tree(ein, vertices)
         left, right = parse_tree.(ein.args, Ref(vertices))
         ContractionTree(left, right)
     end
-end
-
-function convert_label(ne::NestedEinsum, labelmap::Dict{T1,T2}) where {T1,T2}
-    isleaf(ne) && return NestedEinsum{T2}(ne.tensorindex)
-    eins = EinCode([getindex.(Ref(labelmap), ix) for ix in ne.eins.ixs], getindex.(Ref(labelmap), ne.eins.iy))
-    NestedEinsum([convert_label(arg, labelmap) for arg in ne.args], eins)
 end
 
 """
