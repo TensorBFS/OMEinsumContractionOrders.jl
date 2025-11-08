@@ -3,7 +3,7 @@
 ## Data structures and interfaces
 ```@autodocs
 Modules = [OMEinsumContractionOrders]
-Pages = ["Core.jl"]
+Pages = ["Core.jl", "utils.jl"]
 ```
 
 ## Time and space complexity
