@@ -115,7 +115,7 @@ function find_best_cost!(temperature::TT, cost_values::PriorityQueue{PT}, cost_g
         rem_edge!(cost_graph, pair...)
         return pair
     else
-        pair2, cost2 = dequeue_pair!(cost_values)
+        pair2, cost2 = popfirst!(cost_values)
         if rand() < exp(-(cost2 - cost) / temperature)   # pick 2
             push!(cost_values, pair => cost)
             rem_edge!(cost_graph, pair2...)
