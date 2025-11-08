@@ -1,6 +1,7 @@
 using OMEinsumContractionOrders
 using OMEinsumContractionOrders: analyze_contraction, contract_pair!, evaluate_costs, contract_tree!, log2sumexp2, parse_tree
 using OMEinsumContractionOrders: IncidenceList, analyze_contraction, LegInfo, tree_greedy, parse_eincode, optimize_greedy
+using OMEinsumContractionOrders: compute_contraction_dims
 using Graphs
 
 using Test, Random
@@ -160,7 +161,6 @@ end
 
 @testset "compute_contraction_dims" begin
     # Test that compute_contraction_dims matches analyze_contraction
-    using OMEinsumContractionOrders: compute_contraction_dims
     
     # Create test incidence list
     incidence_list = IncidenceList(
@@ -173,7 +173,15 @@ end
     for (vi, vj) in [(1, 2), (2, 3), (1, 3)]
         if vi in keys(incidence_list.v2e) && vj in keys(incidence_list.v2e)
             # Get dimensions using the new function
-            D1, D2, D12, D01, D02, D012 = compute_contraction_dims(incidence_list, log2_edge_sizes, vi, vj)
+            D1, D2, D12, D01, D02, D012 = compute_contraction_dims(incidence_list, log2_edge_sizes, vi, vj, nothing, nothing)
+            eout, eremove = Int[], Int[]
+            D1_, D2_, D12_, D01_, D02_, D012_ = compute_contraction_dims(incidence_list, log2_edge_sizes, vi, vj, eout, eremove)
+            @test D1_ == D1
+            @test D2_ == D2
+            @test D12_ == D12
+            @test D01_ == D01
+            @test D02_ == D02
+            @test D012_ == D012
             
             # Compare with analyze_contraction
             legs = analyze_contraction(incidence_list, vi, vj)
@@ -191,6 +199,12 @@ end
             @test D01 ≈ D01_ref
             @test D02 ≈ D02_ref
             @test D012 ≈ D012_ref
+            
+            # Verify edge lists
+            eout_ref = legs.l01 ∪ legs.l02 ∪ legs.l012
+            eremove_ref = legs.l1 ∪ legs.l2 ∪ legs.l12
+            @test Set(eout) == Set(eout_ref)
+            @test Set(eremove) == Set(eremove_ref)
         end
     end
 end
