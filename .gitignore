@@ -4,3 +4,4 @@ _local/
 docs/build/
 docs/Manifest.toml
 .DS_Store
+paper/jats/
