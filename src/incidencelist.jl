@@ -18,7 +18,7 @@ function IncidenceList(v2e::Dict{VT,Vector{ET}}; openedges=ET[]) where {VT,ET}
     IncidenceList(v2e, e2v, openedges)
 end
 
-Base.copy(il::IncidenceList) = IncidenceList(deepcopy(il.v2e), deepcopy(il.e2v), copy(il.openedges))
+Base.copy(il::IncidenceList) = IncidenceList(Dict([k=>copy(v) for (k,v) in il.v2e]), Dict([k=>copy(v) for (k,v) in il.e2v]), copy(il.openedges))
 
 function neighbors(il::IncidenceList{VT}, v) where VT
     res = VT[]

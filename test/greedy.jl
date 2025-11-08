@@ -1,20 +1,10 @@
 using OMEinsumContractionOrders
-using OMEinsumContractionOrders: analyze_contraction, contract_pair!, evaluate_costs, contract_tree!, log2sumexp2, parse_tree
-using OMEinsumContractionOrders: IncidenceList, analyze_contraction, LegInfo, tree_greedy, parse_eincode, optimize_greedy
+using OMEinsumContractionOrders: contract_pair!, evaluate_costs, contract_tree!, log2sumexp2, parse_tree
+using OMEinsumContractionOrders: IncidenceList, LegInfo, tree_greedy, parse_eincode, optimize_greedy
+using OMEinsumContractionOrders: compute_contraction_dims
 using Graphs
 
 using Test, Random
-
-@testset "analyze contraction" begin
-    incidence_list = IncidenceList(Dict(1 => [1, 2, 11, 15, 6], 2=>[1, 3, 4, 13, 6], 3=>[2, 3, 5, 6], 4=>[5], 5=>[4, 6]), openedges=[3, 6, 15])
-    info = analyze_contraction(incidence_list, 1, 2)
-    @test Set(info.l1) == Set([11])
-    @test Set(info.l2) == Set([13])
-    @test Set(info.l12) == Set([1])
-    @test Set(info.l01) == Set([2,15])
-    @test Set(info.l02) == Set([3, 4])
-    @test Set(info.l012) == Set([6])
-end
 
 @testset "parse eincode" begin
     incidence_list = IncidenceList(Dict(1 => [1, 2], 2=>[1, 3, 4], 3=>[2, 3, 5, 6], 4=>[5], 5=>[4, 6]))
@@ -155,5 +145,126 @@ end
         cc = contraction_complexity(optcode, size_dict)
         push!(sc_list, cc.sc)
     end
-    @test length(unique!(sc_list)) > 1
+    @test minimum(sc_list) == 5
+end
+
+@testset "greedy_loss optimization" begin
+    function analyze_contraction(incidence_list::IncidenceList{Int,ET}, vi::Int, vj::Int) where {ET}
+        ei = OMEinsumContractionOrders.edges(incidence_list, vi)
+        ej = OMEinsumContractionOrders.edges(incidence_list, vj)
+        leg012,leg12,leg1,leg2,leg01,leg02 = ET[], ET[], ET[], ET[], ET[], ET[]
+        # external legs
+        for leg in ei ∪ ej
+            isext = leg ∈ incidence_list.openedges || !all(x->x==vi || x==vj, OMEinsumContractionOrders.vertices(incidence_list, leg))
+            if isext
+                if leg ∈ ei
+                    if leg ∈ ej
+                        push!(leg012, leg)
+                    else
+                        push!(leg01, leg)
+                    end
+                else
+                    push!(leg02, leg)
+                end
+            else
+                if leg ∈ ei
+                    if leg ∈ ej
+                        push!(leg12, leg)
+                    else
+                        push!(leg1, leg)
+                    end
+                else
+                    push!(leg2, leg)
+                end
+            end
+        end
+        return LegInfo(leg1, leg2, leg12, leg01, leg02, leg012)
+    end
+    @testset "analyze contraction" begin
+        incidence_list = IncidenceList(Dict(1 => [1, 2, 11, 15, 6], 2=>[1, 3, 4, 13, 6], 3=>[2, 3, 5, 6], 4=>[5], 5=>[4, 6]), openedges=[3, 6, 15])
+        info = analyze_contraction(incidence_list, 1, 2)
+        @test Set(info.l1) == Set([11])
+        @test Set(info.l2) == Set([13])
+        @test Set(info.l12) == Set([1])
+        @test Set(info.l01) == Set([2,15])
+        @test Set(info.l02) == Set([3, 4])
+        @test Set(info.l012) == Set([6])
+    end
+
+    @testset "compute_contraction_dims" begin
+        # Test that compute_contraction_dims matches analyze_contraction
+        
+        # Create test incidence list
+        incidence_list = IncidenceList(
+            Dict(1 => [1, 2, 11, 15, 6], 2 => [1, 3, 4, 13, 6], 3 => [2, 3, 5, 6], 4 => [5], 5 => [4, 6]), 
+            openedges=[3, 6, 15]
+        )
+        log2_edge_sizes = Dict(i => Float64(i % 3 + 1) for i in [1,2,3,4,5,6,11,13,15])
+        
+        # Test various vertex pairs
+        for (vi, vj) in [(1, 2), (2, 3), (1, 3)]
+            if vi in keys(incidence_list.v2e) && vj in keys(incidence_list.v2e)
+                # Get dimensions using the new function
+                D1, D2, D12, D01, D02, D012 = compute_contraction_dims(incidence_list, log2_edge_sizes, vi, vj, nothing, nothing)
+                eout, eremove = Int[], Int[]
+                D1_, D2_, D12_, D01_, D02_, D012_ = compute_contraction_dims(incidence_list, log2_edge_sizes, vi, vj, eout, eremove)
+                @test D1_ == D1
+                @test D2_ == D2
+                @test D12_ == D12
+                @test D01_ == D01
+                @test D02_ == D02
+                @test D012_ == D012
+                
+                # Compare with analyze_contraction
+                legs = analyze_contraction(incidence_list, vi, vj)
+                log2dim(legs_list) = isempty(legs_list) ? 0.0 : sum(l->log2_edge_sizes[l], legs_list)
+                D1_ref = log2dim(legs.l1)
+                D2_ref = log2dim(legs.l2)
+                D12_ref = log2dim(legs.l12)
+                D01_ref = log2dim(legs.l01)
+                D02_ref = log2dim(legs.l02)
+                D012_ref = log2dim(legs.l012)
+                
+                @test D1 ≈ D1_ref
+                @test D2 ≈ D2_ref
+                @test D12 ≈ D12_ref
+                @test D01 ≈ D01_ref
+                @test D02 ≈ D02_ref
+                @test D012 ≈ D012_ref
+                
+                # Verify edge lists
+                eout_ref = legs.l01 ∪ legs.l02 ∪ legs.l012
+                eremove_ref = legs.l1 ∪ legs.l2 ∪ legs.l12
+                @test Set(eout) == Set(eout_ref)
+                @test Set(eremove) == Set(eremove_ref)
+            end
+        end
+    end
+
+    # Original implementation using analyze_contraction (for comparison)
+    function greedy_loss_with_vectors(α, incidence_list, log2_edge_sizes, vi, vj)
+        log2dim(legs) = isempty(legs) ? 0 : sum(l->log2_edge_sizes[l], legs)
+        legs = analyze_contraction(incidence_list, vi, vj)
+        D1, D2, D12, D01, D02, D012 = log2dim.(getfield.(Ref(legs), 1:6))
+        return exp2(D01+D02+D012) - α * (exp2(D01+D12+D012) + exp2(D02+D12+D012))
+    end
+    
+    # Create a simple tensor network
+    code = OMEinsumContractionOrders.EinCode([[1,2], [2,3], [3,4], [4,5], [5,1]], Int[])
+    ixs = OMEinsumContractionOrders.getixsv(code)
+    iy = OMEinsumContractionOrders.getiyv(code)
+    size_dict = Dict([i=>2 for i in 1:5])
+    log2_edge_sizes = Dict([i=>log2(size_dict[i]) for i in keys(size_dict)])
+    incidence_list = IncidenceList(Dict([i=>ixs[i] for i=1:length(ixs)]); openedges=iy)
+    
+    # Compare optimized vs original implementation
+    for α in [0.0, 0.5, 1.0]
+        for vi in keys(incidence_list.v2e), vj in keys(incidence_list.v2e)
+            if vi < vj
+                loss_new = OMEinsumContractionOrders.greedy_loss(α, incidence_list, log2_edge_sizes, vi, vj)
+                loss_old = greedy_loss_with_vectors(α, incidence_list, log2_edge_sizes, vi, vj)
+                @test loss_new ≈ loss_old
+            end
+        end
+    end
 end
