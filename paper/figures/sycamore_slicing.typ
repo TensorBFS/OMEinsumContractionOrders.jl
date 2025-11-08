@@ -4,15 +4,15 @@
 #set page(width: auto, height: auto, margin: 5pt)
 
 // the cost function is a * sc + b * tc + c * rwc
-#let plot-slicing(points, a: 1, b: 0, c: 0, x-label: "Log2 Space Complexity", y-label: "Log10 Time Complexity") = {
+#let plot-slicing(points, a: 1, b: 0, c: 0, x-label: "Space Complexity", y-label: "Time Complexity") = {
  plot.plot(
-  size: (12, 8),
+  size: (8, 6),
   x-label: x-label,
   y-label: y-label,
   x-min: 30.0,
   x-max: 52.0,
-  y-min: 18.0,
-  y-max: 24.0,
+  y-min: 18.0 * 3.322,   // convert from Log10 to Log2
+  y-max: 24.0 * 3.322,
   legend: "inner-north-east",
     { 
       plot.add(points, style: (stroke: none, fill: red), mark: "o", mark-size: 0.15, mark-style: (fill: red, stroke: red), label: "TreeSA Slicer")
@@ -30,5 +30,5 @@
 
 #canvas(length: 1cm, {
   import draw: bezier, content
-  plot-slicing(points, a: 0, b: 1, c: 0)
+  plot-slicing(points.map(p => (p.at(0), p.at(1)*3.322)), a: 0, b: 1, c: 0)
 })

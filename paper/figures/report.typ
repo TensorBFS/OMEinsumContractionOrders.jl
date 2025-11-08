@@ -17,7 +17,7 @@
  plot.plot(
   size: (10, 7),
   x-label: "Log2 Contraction Cost",
-  y-label: "Log10 Computing Time (seconds)",
+  y-label: "Log10 Wall Clock Time (seconds)",
   x-min: auto,
   y-min: y-min,
   y-max: y-max,
