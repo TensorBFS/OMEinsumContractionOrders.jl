@@ -53,34 +53,10 @@ function tree_greedy(incidence_list::IncidenceList{Int, ET}, log2_edge_sizes; α
     end
 end
 
-function contract_pair!(incidence_list, vi, vj, log2_edge_sizes)
-    ei = edges(incidence_list, vi)
-    ej = edges(incidence_list, vj)
-    
-    # Compute dimensions
-    D1, D2, D12, D01, D02, D012 = compute_contraction_dims(incidence_list, log2_edge_sizes, vi, vj)
-    
-    # Collect external edges for output and internal edges to remove (avoid union allocation)
-    eout = empty(ei)
-    eremove = empty(ei)
-    for leg in ei
-        isext = leg ∈ incidence_list.openedges || !all(x->x==vi || x==vj, vertices(incidence_list, leg))
-        if isext
-            push!(eout, leg)
-        else
-            push!(eremove, leg)
-        end
-    end
-    for leg in ej
-        if leg ∉ ei
-            isext = leg ∈ incidence_list.openedges || !all(x->x==vi || x==vj, vertices(incidence_list, leg))
-            if isext
-                push!(eout, leg)
-            else
-                push!(eremove, leg)
-            end
-        end
-    end
+function contract_pair!(incidence_list::IncidenceList{Int,ET}, vi::Int, vj::Int, log2_edge_sizes) where {ET}
+    # Compute dimensions and edge lists in one pass
+    eout, eremove = ET[], ET[]
+    D1, D2, D12, D01, D02, D012 = compute_contraction_dims(incidence_list, log2_edge_sizes, vi, vj, eout, eremove)
     
     tc = D12 + D01 + D02 + D012  # dangling legs D1 and D2 do not contribute
     sc = D01 + D02 + D012  # space complexity is the output tensor size
@@ -184,10 +160,10 @@ function analyze_contraction(incidence_list::IncidenceList{Int,ET}, vi::Int, vj:
 end
 
 """
-    compute_contraction_dims(incidence_list, log2_edge_sizes, vi, vj) -> (D1, D2, D12, D01, D02, D012)
+    compute_contraction_dims(incidence_list, log2_edge_sizes, vi, vj, eout, eremove) -> (D1, D2, D12, D01, D02, D012)
 
-Compute the log2 dimensions for different edge categories when contracting vertices `vi` and `vj`.
-Returns a tuple of six Float64 values:
+Compute the log2 dimensions and edge lists for contracting vertices `vi` and `vj`.
+Returns a tuple of six Float64 dimension values:
 - D1: edges only in vi and internal
 - D2: edges only in vj and internal
 - D12: edges in both vi and vj and internal
@@ -195,7 +171,7 @@ Returns a tuple of six Float64 values:
 - D02: edges only in vj and external
 - D012: edges in both vi and vj and external
 """
-function compute_contraction_dims(incidence_list, log2_edge_sizes, vi, vj)
+function compute_contraction_dims(incidence_list, log2_edge_sizes, vi, vj, eout, eremove)
     ei = edges(incidence_list, vi)
     ej = edges(incidence_list, vj)
     
@@ -209,12 +185,14 @@ function compute_contraction_dims(incidence_list, log2_edge_sizes, vi, vj)
         leg_size = log2_edge_sizes[leg]
         
         if isext
+            eout !== nothing && push!(eout, leg)
             if in_ej
                 D012 += leg_size
             else
                 D01 += leg_size
             end
         else
+            eremove !== nothing && push!(eremove, leg)
             if in_ej
                 D12 += leg_size
             else
@@ -230,8 +208,10 @@ function compute_contraction_dims(incidence_list, log2_edge_sizes, vi, vj)
             leg_size = log2_edge_sizes[leg]
             
             if isext
+                eout !== nothing && push!(eout, leg)
                 D02 += leg_size
             else
+                eremove !== nothing && push!(eremove, leg)
                 D2 += leg_size
             end
         end
@@ -241,7 +221,7 @@ function compute_contraction_dims(incidence_list, log2_edge_sizes, vi, vj)
 end
 
 function greedy_loss(α, incidence_list, log2_edge_sizes, vi, vj)
-    D1, D2, D12, D01, D02, D012 = compute_contraction_dims(incidence_list, log2_edge_sizes, vi, vj)
+    D1, D2, D12, D01, D02, D012 = compute_contraction_dims(incidence_list, log2_edge_sizes, vi, vj, nothing, nothing)
     loss = exp2(D01+D02+D012) - α * (exp2(D01+D12+D012) + exp2(D02+D12+D012))  # out - in
     return loss
 end
