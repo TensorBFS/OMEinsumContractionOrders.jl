@@ -68,6 +68,7 @@ function optimize_treewidth(optimizer::Treewidth, code::AbstractEinsum, size_dic
 end
 
 function optimize_treewidth(optimizer::Treewidth, ixs::AbstractVector{<:AbstractVector}, iy::AbstractVector, size_dict::Dict{L, Int}; binary::Bool=true) where {L}
+    log2_size_dict = _log2_size_dict(size_dict)
     marker = zeros(Int, max(length(ixs) + 1, length(size_dict)))
 
     # construct incidence matrix `ve`
@@ -86,7 +87,7 @@ function optimize_treewidth(optimizer::Treewidth, ixs::AbstractVector{<:Abstract
 
     if binary
         # binarize contraction tree
-        code = _optimize_code(code, size_dict, GreedyMethod())
+        code = optimize_greedy_log2size(code, log2_size_dict; α = 0.0, temperature = 0.0)
     end
 
     return code
