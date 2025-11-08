@@ -78,7 +78,7 @@ Algorithms for finding near-optimal contraction orders have been developed and a
 However, an efficient and reliable implementation of these methods in Julia is still missing.
 
 OMECO addresses this gap by offering a unified and extensible interface to a comprehensive suite of optimization algorithms for tensor network contraction orders, including greedy heuristics, simulated annealing, and tree-width-based solvers.
-OMECO has been integrated into the `OMEinsum` package and powers several downstream applications: `Yao` [@Luo2020] for quantum circuit simulation, `GenericTensorNetworks` [@Liu2023] and `TensorBranching` (TODO: add citation) for combinatorial optimization, `TensorInference` [@Roa2023] for probabilistic inference, and `TensorQEC` (TODO: add citation) for quantum error correction. 
+OMECO has been integrated into the `OMEinsum` package and powers several downstream applications: `Yao` [@Luo2020] for quantum circuit simulation, `GenericTensorNetworks` [@Liu2023] and [`TensorBranching`](https://github.com/ArrogantGao/TensorBranching.jl) for combinatorial optimization, `TensorInference` [@Roa2023] for probabilistic inference, and [`TensorQEC`](https://github.com/TensorBFS/TensorQEC.jl) for quantum error correction. 
 These applications are reflected in the ecosystem built around OMECO, as illustrated in \autoref{fig:structure}.
 This infrastructure is expected to benefit other applications requiring tree or path decomposition, such as polynomial optimization [@Magron2021].
 
@@ -97,8 +97,8 @@ OMECO provides several algorithms with complementary performance characteristics
 | `HyperND` | Nested dissection algorithm for hypergraphs, requires `KaHyPar` or `Metis` |
 | `KaHyParBipartite` | Graph bipartition method for large tensor networks [@Gray2021], requires `KaHyPar` |
 | `SABipartite` | Simulated annealing bipartition method, pure Julia implementation |
-| `ExactTreewidth` | Exact algorithm with exponential runtime [@Bouchitte2001], based on `TreeWidthSolver` |
-| `Treewidth` | Clique tree elimination methods from `CliqueTrees` package |
+| `ExactTreewidth` | Exact algorithm with exponential runtime [@Bouchitte2001], based on [`TreeWidthSolver`](https://github.com/ArrogantGao/TreeWidthSolver.jl) |
+| `Treewidth` | Clique tree elimination methods from `CliqueTrees` package [@CliqueTrees2025] |
 
 The algorithms `HyperND`, `Treewidth`, and `ExactTreewidth` operate on the tensor network's line graph and utilize the `CliqueTrees` and `TreeWidthSolver` packages, as illustrated in \autoref{fig:structure}. Additionally, the `PathSA` optimizer implements path decomposition by constraining contraction orders to path graphs, serving as a variant of `TreeSA`.
 
@@ -107,13 +107,10 @@ Real-world examples demonstrating applications to quantum circuit simulation, co
 
 ![Time complexity (left) and space complexity (right) benchmark results for contraction order optimization on the Sycamore quantum circuit tensor network (Intel Xeon Gold 6226R CPU @ 2.90GHz, single-threaded). The $x$-axis shows contraction cost, $y$-axis shows optimization time. Each point represents a different optimizer configuration tested with varying parameters. `TreeSA` and `HyperND` achieve the lowest contraction costs, while `GreedyMethod` offers the fastest optimization time.\label{fig:sycamore}](figures/sycamore.pdf){ width=95% }
 
-
-[JG: TODO: Please also cite CliqueTree paper.]
-
 Optimizers prefixed with `cotengra_` are from the Python package cotengra [@Gray2021]; all others are OMECO implementations. For both optimization objectives (minimizing time and space complexity), OMECO optimizers dominate the Pareto front. Given sufficient optimization time, `TreeSA` consistently achieves the lowest time and space complexity. `GreedyMethod` provides the fastest optimization but yields suboptimal contraction orders, while `HyperND` offers a favorable balance between optimization time and solution quality.
 
 
-OMECO has been integrated into the `OMEinsum` package and powers several downstream applications: `Yao` [@Luo2020] for quantum circuit simulation, `GenericTensorNetworks` [@Liu2023] and `TensorBranching` (TODO: add citation) for combinatorial optimization, `TensorInference` [@Roa2023] for probabilistic inference, and [`TensorQEC`](https://github.com/TensorBFS/TensorQEC.jl) for quantum error correction. This infrastructure is expected to benefit other applications requiring tree or path decomposition, such as polynomial optimization [@Magron2021].
+OMECO has been integrated into the `OMEinsum` package and powers several downstream applications: `Yao` [@Luo2020] for quantum circuit simulation, `GenericTensorNetworks` [@Liu2023] and [`TensorBranching`](https://github.com/ArrogantGao/TensorBranching.jl) for combinatorial optimization, `TensorInference` [@Roa2023] for probabilistic inference, and [`TensorQEC`](https://github.com/TensorBFS/TensorQEC.jl) for quantum error correction. This infrastructure is expected to benefit other applications requiring tree or path decomposition, such as polynomial optimization [@Magron2021].
 
 The second feature of OMECO is index slicing, which is a technique to trade time complexity for reduced space complexity by looping over a subset of indices directly.
 In OMECO, the interface to perform index slicing is `slice_code`, and currently we only support one Slicer, `TreeSASlicer`, which is implemented the dynamic slicing algorithm based on `TreeSA`.
