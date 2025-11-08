@@ -155,7 +155,7 @@ end
         cc = contraction_complexity(optcode, size_dict)
         push!(sc_list, cc.sc)
     end
-    @test length(unique!(sc_list)) > 1
+    @test minimum(sc_list) == 5
 end
 
 @testset "compute_contraction_dims" begin
