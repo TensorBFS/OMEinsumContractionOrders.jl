@@ -79,13 +79,13 @@
   canvas(length: 1cm, {
     import draw: bezier, content
     plot-compare(filtered_data, a: 0, b: 1, c: 0, y-min: -2, y-max: 4, x-label: "Log10 FLOPs")
-    bezier((0, 5), (5, 0.7), (2, 3.2), stroke: (dash: "dashed"))
+    bezier((0, 5), (4, 0.7), (2, 1.2), stroke: (dash: "dashed"))
     content((1.8, 2), "Pareto Front", align: center, fill:white, frame:"rect", padding:0.1, stroke: none)
   }),
   canvas(length: 1cm, {
     import draw: bezier, content
     plot-compare(filtered_data, a: 1, b: 0, c: 0, y-min: -2, y-max: 4, y-label: "Log10 Max Tensor Size")
-    bezier((0, 3.3), (2, 0.7), (2, 3.2), stroke: (dash: "dashed"))
-    content((3, 2.3), "Pareto Front", align: center, fill:white, frame:"rect", padding:0.1, stroke: none)
+    bezier((0, 2.3), (2, 0.7), (1, 0.9), stroke: (dash: "dashed"))
+    content((1.2, 0.7), "Pareto Front", align: center, fill:white, frame:"rect", padding:0.1, stroke: none)
   })
 )
