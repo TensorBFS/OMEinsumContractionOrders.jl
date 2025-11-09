@@ -81,7 +81,7 @@ function evaluate_costs(α::TA, incidence_list::IncidenceList{Int,ET}, log2_edge
     for vi in vertices(incidence_list)
         for vj in neighbors(incidence_list, vi)
             if vj > vi
-                enqueue!(cost_values, (vi,vj), greedy_loss(α, incidence_list, log2_edge_sizes, vi, vj))
+                push!(cost_values, (vi,vj) => greedy_loss(α, incidence_list, log2_edge_sizes, vi, vj))
                 add_edge!(cost_graph, vi, vj)
             end
         end
@@ -94,9 +94,9 @@ function update_costs!(cost_values, cost_graph, va, vb, α::TA, incidence_list::
         vx, vy = minmax(vj, va)
         if has_edge(cost_graph, vx, vy)
             delete!(cost_values, (vx,vy))
-            enqueue!(cost_values, (vx,vy), greedy_loss(α, incidence_list, log2_edge_sizes, vx, vy))
+            push!(cost_values, (vx,vy) => greedy_loss(α, incidence_list, log2_edge_sizes, vx, vy))
         else
-            enqueue!(cost_values, (vx,vy), greedy_loss(α, incidence_list, log2_edge_sizes, vx, vy))
+            push!(cost_values, (vx,vy) => greedy_loss(α, incidence_list, log2_edge_sizes, vx, vy))
             add_edge!(cost_graph, vx, vy)
         end
     end
@@ -109,18 +109,18 @@ end
 
 function find_best_cost!(temperature::TT, cost_values::PriorityQueue{PT}, cost_graph) where {PT,TT}
     length(cost_values) < 1 && error("cost value information missing")
-    pair, cost = dequeue_pair!(cost_values)
+    pair, cost = popfirst!(cost_values)
     if iszero(temperature) || isempty(cost_values)
         rem_edge!(cost_graph, pair...)
         return pair
     else
-        pair2, cost2 = dequeue_pair!(cost_values)
+        pair2, cost2 = popfirst!(cost_values)
         if rand() < exp(-(cost2 - cost) / temperature)   # pick 2
-            enqueue!(cost_values, pair, cost)
+            push!(cost_values, pair => cost)
             rem_edge!(cost_graph, pair2...)
             return pair2
         else
-            enqueue!(cost_values, pair2, cost2)
+            push!(cost_values, pair2 => cost2)
             rem_edge!(cost_graph, pair...)
             return pair
         end
