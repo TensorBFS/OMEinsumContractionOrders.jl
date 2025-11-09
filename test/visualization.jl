@@ -77,34 +77,32 @@ end
 @testset "visualize contraction" begin
     eincode = OMEinsumContractionOrders.EinCode([['a', 'b'], ['a', 'c', 'd'], ['b', 'c', 'e', 'f'], ['e'], ['d', 'f']], Vector{Char}())
     nested_code = optimize_code(eincode, uniformsize(eincode, 2), GreedyMethod())
-    @test_broken begin
-        t_mp4 = viz_contraction(nested_code)
-        tempmp4 = tempname() * ".mp4"
-        tempgif = tempname() * ".gif"
-        t_mp4_2 = viz_contraction(nested_code, filename = tempmp4)
-        @test t_mp4 isa String
-        @test t_mp4_2 isa String
-        t_gif = viz_contraction(nested_code, filename = tempgif)
-        @test t_gif isa String
+    t_mp4 = viz_contraction(nested_code)
+    tempmp4 = tempname() * ".mp4"
+    tempgif = tempname() * ".gif"
+    t_mp4_2 = viz_contraction(nested_code, filename = tempmp4)
+    @test t_mp4 isa String
+    @test t_mp4_2 isa String
+    t_gif = viz_contraction(nested_code, filename = tempgif)
+    @test t_gif isa String
 
-        @test_throws AssertionError begin
-            viz_contraction(nested_code, filename = "test.avi")
-        end
-
-        sliced_code = optimize_code(eincode, uniformsize(eincode, 2), TreeSA())
-        t_mp4 = viz_contraction(sliced_code)
-        t_mp4_2 = viz_contraction(sliced_code, filename = tempmp4)
-        @test t_mp4 isa String
-        @test t_mp4_2 isa String
-        t_gif = viz_contraction(sliced_code, filename = tempgif)
-        @test t_gif isa String
-
-        sliced_code2 = slice_code(nested_code, uniformsize(eincode, 2), TreeSASlicer(score=ScoreFunction(sc_target=2)))
-        t_mp4 = viz_contraction(sliced_code2)
-        t_mp4_2 = viz_contraction(sliced_code2, filename = tempmp4)
-        @test t_mp4 isa String
-        @test t_mp4_2 isa String
-        t_gif = viz_contraction(sliced_code2, filename = tempgif)
-        @test t_gif isa String
+    @test_throws AssertionError begin
+        viz_contraction(nested_code, filename = "test.avi")
     end
+
+    sliced_code = optimize_code(eincode, uniformsize(eincode, 2), TreeSA())
+    t_mp4 = viz_contraction(sliced_code)
+    t_mp4_2 = viz_contraction(sliced_code, filename = tempmp4)
+    @test t_mp4 isa String
+    @test t_mp4_2 isa String
+    t_gif = viz_contraction(sliced_code, filename = tempgif)
+    @test t_gif isa String
+
+    sliced_code2 = slice_code(nested_code, uniformsize(eincode, 2), TreeSASlicer(score=ScoreFunction(sc_target=2)))
+    t_mp4 = viz_contraction(sliced_code2)
+    t_mp4_2 = viz_contraction(sliced_code2, filename = tempmp4)
+    @test t_mp4 isa String
+    @test t_mp4_2 isa String
+    t_gif = viz_contraction(sliced_code2, filename = tempgif)
+    @test t_gif isa String
 end
