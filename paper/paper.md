@@ -74,13 +74,12 @@ where $w_\text{t}$, $w_\text{s}$, and $w_\text{rw}$ represent weights for time c
 
 Finding the optimal contraction order—even when minimizing only time complexity—is NP-complete [@Markov2008]. 
 <!-- This optimization problem has a deep mathematical connection to _tree decomposition_ [@Markov2008] of the tensor network's line graph, where finding the optimal order corresponds to finding a weighted minimal-width tree decomposition. The logarithmic time complexity of the bottleneck contraction step equals the largest bag size in the tree decomposition, while the logarithmic space complexity equals the largest separator size (vertices shared between adjacent bags). -->
-Algorithms for finding near-optimal contraction orders have been developed and achieve impressive scalability [@Gray2021; @Roa2024], handling tensor networks with over $10^4$ tensors.
-However, an efficient and reliable implementation of these methods in Julia is missing for a long time.
+Algorithms for finding near-optimal contraction orders have been developed and achieve impressive scalability [@Gray2021; @Roa2024], handling tensor networks with over $10^3$ tensors.
+While the Python package `cotengra` [@Gray2021] has been widely adopted in the community, achieving optimal performance across diverse problem instances—particularly when balancing solution quality against optimization time constraints—remains an open challenge.
 
-OMECO addresses this gap by offering a unified and extensible interface to a comprehensive suite of optimization algorithms for tensor network contraction orders, including greedy heuristics, simulated annealing, and tree-width-based solvers.
+OMECO addresses this challenge through a unified and extensible framework that integrates multiple complementary optimization strategies, including greedy heuristics, simulated annealing, and tree-width-based solvers. This comprehensive approach enables more systematic exploration of the optimization time-solution quality trade-off space.
 OMECO has been integrated into the `OMEinsum` package and powers several downstream applications: `Yao` [@Luo2020] for quantum circuit simulation, `GenericTensorNetworks` [@Liu2023] and [`TensorBranching`](https://github.com/ArrogantGao/TensorBranching.jl) for combinatorial optimization, `TensorInference` [@Roa2023] for probabilistic inference, and [`TensorQEC`](https://github.com/TensorBFS/TensorQEC.jl) for quantum error correction. This infrastructure is expected to benefit other applications requiring tree or path decomposition, such as polynomial optimization [@Magron2021].
 These applications are reflected in the ecosystem built around OMECO, as illustrated in \autoref{fig:structure}.
-This infrastructure is expected to benefit other applications requiring tree or path decomposition, such as polynomial optimization [@Magron2021].
 
 ![The ecosystem built around `OMEinsumContractionOrders` and its dependencies. OMECO serves as a core component of the tensor network contractor `OMEinsum`, which powers applications including `Yao` (quantum simulation), `TensorQEC` (quantum error correction), `TensorInference` (probabilistic inference), `GenericTensorNetworks` and `TensorBranching` (combinatorial optimization).\label{fig:structure}](figures/structure.pdf){ width=80% }
 
@@ -102,7 +101,7 @@ OMECO provides several algorithms with complementary performance characteristics
 | `ExactTreewidth` | Exact algorithm with exponential runtime [@Bouchitte2001], based on [`TreeWidthSolver`](https://github.com/ArrogantGao/TreeWidthSolver.jl) |
 | `Treewidth` | Clique tree elimination methods from `CliqueTrees` package [@CliqueTrees2025] |
 
-The algorithms `HyperND`, `Treewidth`, and `ExactTreewidth` operate on the tensor network's line graph and utilize the `CliqueTrees` and `TreeWidthSolver` packages, as illustrated in \autoref{fig:structure}. Additionally, the `PathSA` optimizer implements path decomposition by constraining contraction orders to path graphs, serving as a variant of `TreeSA`.
+The algorithms `HyperND`, `Treewidth`, and `ExactTreewidth` are tree-width based solvers that operate on graphs. They first convert tensor networks to their line graph representation[@Markov2008] and then find an optimized tree decomposition of the line graph using the `CliqueTrees` and `TreeWidthSolver` packages, as illustrated in \autoref{fig:structure}. Additionally, the `PathSA` optimizer optimizes path decomposition instead of tree decomposition. It is a variant of `TreeSA` by constraining contraction orders to path graphs, which is useful for applications requiring a linear contraction order.
 
 These methods balance optimization time against solution quality. \autoref{fig:sycamore} displays benchmark results for the tensor network of the Sycamore quantum circuit[@Pan2021; @Arute2019] that widely used as a benchmark for quantum supremacy, which is believed to have an optimal space complexity of 52. The Pareto front highlights the optimal trade-off between optimization time and solution quality.
 
@@ -119,7 +118,11 @@ OMECO provides the `slice_code` interface for this purpose, currently supporting
 ![Trade-off between time complexity and target space complexity using `TreeSASlicer` on the Sycamore quantum circuit. The original network has a space complexity of $2^{52}$. \label{fig:slicing}](figures/sycamore_slicing.pdf){ width=40% }
 
 The numerical experiments show that moderate slicing increases time complexity only slightly, while aggressive slicing can induce significant overhead.
-There seems to be a critical point at around $42$ where the time complexity starts to increase significantly.
+There is a critical transition point around $42$ where the time complexity begins to increase significantly.
+
+# Acknowledgements
+
+We thank the Julia community and all contributors to the `OMEinsum` and `OMEinsumContractionOrders` packages. We are grateful to Xiwei Pan for valuable writing suggestions that improved this manuscript.
 
 # References
 
