@@ -22,7 +22,7 @@ affiliations:
    index: 1
  - name: Center of Computational Mathematics, Flatiron Institute
    index: 2
- - name: <Richard fill in>
+ - name: University of Florida
    index: 3
 date: 19 October 2025
 bibliography: paper.bib
@@ -60,6 +60,16 @@ In this paper, we present the key features of OMECO, its integration with the Ju
 
 
 # Statement of need
+
+<!--
+Consider putting first paragraph something like this, so that all the relevant terms are introduced. Maybe mention something about fixed-parameter tractability? i.e. tensor contraction is NP-Hard, but linear for all networks of a fixed weighted tree-width.
+
+A tensor network is a mathematical structure that represents multi-linear transformations as hypergraphs. Arrays---called tensors---correspond to nodes, and shared indices correspond to hyperedges. To contract a tensor network is to evaluate the transformation on a collection of tensors. This is done by performing a sequence of bilinear transformations; the running time of this process, as well as the memory use, is highly dependent on the order in which these transformations are performed. A specific choice of ordering is called a contraction order, and the problem of finding a good schedule is called contraction order optimization.
+
+Formally, I think that the contraction tree is called a carving decomposition of the tensor network. This may be too esoteric for the audience.
+
+My experience talking to people who do not work with tensor networks is that it is very easy to confuse the time complexity of the computed contraction schedule with the running time of the scheduler. It may help to use a metaphor like compilation? i.e. a scheduler is compiling a tensor network into something which can be evaluated quickly. Another could be matrix factorization: the scheduler factorizes a tensor network, yielding an efficient "triangular solve" (contraction).
+-->
 
 A _tensor network_ is a mathematical framework that represents multilinear algebra operations as graphical structures, where tensors are nodes and shared indices are edges. 
 This diagrammatic approach transforms complex high-dimensional contractions into visual networks that expose underlying computational structure.
