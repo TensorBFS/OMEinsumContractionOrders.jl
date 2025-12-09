@@ -22,7 +22,7 @@ affiliations:
    index: 1
  - name: Center of Computational Mathematics, Flatiron Institute
    index: 2
- - name: <Richard fill in>
+ - name: University of Florida
    index: 3
 date: 19 October 2025
 bibliography: paper.bib
@@ -61,19 +61,20 @@ In this paper, we present the key features of OMECO, its integration with the Ju
 
 # Statement of need
 
-A _tensor network_ is a mathematical framework that represents multilinear algebra operations as graphical structures, where tensors are nodes and shared indices are edges. 
-This diagrammatic approach transforms complex high-dimensional contractions into visual networks that expose underlying computational structure.
+A _tensor network_ is a mathematical structure that represents multilinear transformations as hypergraphs. Arrays—called _tensors_—correspond to nodes, and shared indices correspond to hyperedges. To _contract_ a tensor network is to evaluate the transformation on a collection of tensors by performing a sequence of pairwise bilinear operations. The computational cost—both running time and memory usage—depends critically on the order in which these operations are performed. A specific choice of ordering is called a _contraction order_, and the problem of finding an efficient ordering is called _contraction order optimization_.
 
-The framework has remarkable universality across diverse domains: _einsum_ notation [@Harris2020] in numerical computing, _factor graphs_ [@Bishop2006] in probabilistic inference, _sum-product networks_ in machine learning, and _junction trees_ [@Villescas2023] in graphical models. Tensor networks have enabled breakthroughs in quantum circuit simulation [@Markov2008], quantum error correction [@Piveteau2024], neural network compression [@Qing2024], strongly correlated quantum materials [@Haegeman2016], and combinatorial optimization problems [@Liu2023]. 
+Notably, this optimization task is analogous to compilation: a scheduler compiles a tensor network specification into an executable plan that can be evaluated efficiently. It is important to distinguish the _optimization time_ (how long the scheduler runs) from the _contraction complexity_ (the time and memory required to execute the resulting plan). An effective scheduler must balance these competing objectives—spending sufficient time to find a high-quality contraction order while remaining computationally tractable itself.
 
-The computational cost of tensor network contraction depends critically on the *contraction order*—the sequence in which pairwise tensor multiplications are performed. This order can be represented as a binary tree where leaves correspond to input tensors and internal nodes represent intermediate results. The optimization objective balances multiple complexity measures through the cost function:
+The tensor network framework has remarkable universality across diverse domains: _einsum_ notation [@Harris2020] in numerical computing, _factor graphs_ [@Bishop2006] in probabilistic inference, _sum-product networks_ in machine learning, and _junction trees_ [@Villescas2023] in graphical models. Applications span quantum circuit simulation [@Markov2008], quantum error correction [@Piveteau2024], neural network compression [@Qing2024], strongly correlated quantum materials [@Haegeman2016], and combinatorial optimization [@Liu2023]. 
+
+A contraction order can be represented as a binary tree where leaves correspond to input tensors and internal nodes represent intermediate results. The optimization objective balances multiple complexity measures through the cost function:
 $$
 \mathcal{L} = w_\text{t} \cdot \text{tc} + w_\text{s} \cdot \max(0, \text{sc} - \text{sc}_{\rm target}) + w_\text{rw} \cdot \text{rwc},
 $$
 where $w_\text{t}$, $w_\text{s}$, and $w_\text{rw}$ represent weights for time complexity (tc), space complexity (sc), and read-write complexity (rwc), respectively. In practice, memory access costs typically dominate computational costs, motivating $w_\text{rw} > w_\text{t}$. The space complexity penalty activates only when $\text{sc} > \text{sc}_{\rm target}$, allowing unconstrained optimization when memory fits within available device capacity.
 
-Finding the optimal contraction order—even when minimizing only time complexity—is NP-complete [@Markov2008]. 
-<!-- This optimization problem has a deep mathematical connection to _tree decomposition_ [@Markov2008] of the tensor network's line graph, where finding the optimal order corresponds to finding a weighted minimal-width tree decomposition. The logarithmic time complexity of the bottleneck contraction step equals the largest bag size in the tree decomposition, while the logarithmic space complexity equals the largest separator size (vertices shared between adjacent bags). -->
+Finding the optimal contraction order—even when minimizing only time complexity—is NP-complete [@Markov2008]. However, the problem exhibits fixed-parameter tractability: for tensor networks with bounded tree-width, optimal contraction orders can be found—and the resulting contractions executed—in polynomial time. This connection to tree decomposition motivates several of OMECO's optimization strategies, which leverage graph-theoretic techniques to exploit this structure.
+
 Algorithms for finding near-optimal contraction orders have been developed and achieve impressive scalability [@Gray2021; @Roa2024], handling tensor networks with over $10^3$ tensors.
 While the Python package `cotengra` [@Gray2021] has been widely adopted in the community, achieving optimal performance across diverse problem instances—particularly when balancing solution quality against optimization time constraints—remains an open challenge.
 
@@ -101,13 +102,13 @@ OMECO provides several algorithms with complementary performance characteristics
 | `ExactTreewidth` | Exact algorithm with exponential runtime [@Bouchitte2001], based on [`TreeWidthSolver`](https://github.com/ArrogantGao/TreeWidthSolver.jl) |
 | `Treewidth` | Clique tree elimination methods from `CliqueTrees` package [@CliqueTrees2025] |
 
-The algorithms `HyperND`, `Treewidth`, and `ExactTreewidth` are tree-width based solvers that operate on graphs. They first convert tensor networks to their line graph representation[@Markov2008] and then find an optimized tree decomposition of the line graph using the `CliqueTrees` and `TreeWidthSolver` packages, as illustrated in \autoref{fig:structure}. Additionally, the `PathSA` optimizer optimizes path decomposition instead of tree decomposition. It is a variant of `TreeSA` by constraining contraction orders to path graphs, which is useful for applications requiring a linear contraction order.
+The algorithms `HyperND`, `Treewidth`, and `ExactTreewidth` are tree-width based solvers that operate on graphs. They first convert tensor networks to their line graph representation [@Markov2008] and then find an optimized tree decomposition of the line graph using the `CliqueTrees` and `TreeWidthSolver` packages, as illustrated in \autoref{fig:structure}. Additionally, the `PathSA` optimizer optimizes path decomposition instead of tree decomposition. It is a variant of `TreeSA` by constraining contraction orders to path graphs, which is useful for applications requiring a linear contraction order.
 
-These methods balance optimization time against solution quality. \autoref{fig:sycamore} displays benchmark results for the tensor network of the Sycamore quantum circuit[@Pan2021; @Arute2019] that widely used as a benchmark for quantum supremacy, which is believed to have an optimal space complexity of 52. The Pareto front highlights the optimal trade-off between optimization time and solution quality.
+These methods balance optimization time against solution quality. \autoref{fig:sycamore} displays benchmark results for the tensor network of the Sycamore quantum circuit [@Pan2021; @Arute2019], which is widely used as a benchmark for quantum supremacy and is believed to have an optimal space complexity of 52. The Pareto front highlights the optimal trade-off between optimization time and solution quality.
 
 ![Time complexity (left) and space complexity (right) benchmark results for contraction order optimization on the Sycamore quantum circuit tensor network (Intel Xeon Gold 6226R CPU @ 2.90GHz, single-threaded). The $x$-axis shows contraction cost, $y$-axis shows optimization time. Each point represents a different optimizer configuration tested with varying parameters. `TreeSA` and `HyperND` achieve the lowest contraction costs, while `GreedyMethod` offers the fastest optimization time. The parameter setup for each optimizer is detailed in our benchmark repository [`OMEinsumContractionOrdersBenchmark`](https://github.com/TensorBFS/OMEinsumContractionOrdersBenchmark).\label{fig:sycamore}](figures/sycamore.pdf){ width=95% }
 
-Optimizers prefixed with `cotengra_` are from the Python package cotengra [@Gray2021]; all others are OMECO implementations. For both optimization objectives (minimizing time and space complexity), OMECO optimizers dominate the Pareto front. Given sufficient optimization time, `TreeSA` consistently achieves the lowest time and space complexity. `GreedyMethod` and `Treewidth` (backed by minimum fill (MF) [@Ng2014], multiple minimum degree (MMD) [@Liu1985], and approximate minimum fill (AMF) [@Rothberg1998]) provides the fastest optimization but yields suboptimal contraction orders, while `HyperND` offers a favorable balance between optimization time and solution quality.
+Optimizers prefixed with `cotengra_` are from the Python package cotengra [@Gray2021]; all others are OMECO implementations. For both optimization objectives (minimizing time and space complexity), OMECO optimizers dominate the Pareto front. Given sufficient optimization time, `TreeSA` consistently achieves the lowest time and space complexity. `GreedyMethod` and `Treewidth` (backed by minimum fill (MF) [@Ng2014], multiple minimum degree (MMD) [@Liu1985], and approximate minimum fill (AMF) [@Rothberg1998]) provide the fastest optimization but yield suboptimal contraction orders, while `HyperND` offers a favorable balance between optimization time and solution quality.
 
 More real-world examples demonstrating applications to quantum circuit simulation, combinatorial optimization, and probabilistic inference are available in the [OMEinsumContractionOrdersBenchmark](https://github.com/TensorBFS/OMEinsumContractionOrdersBenchmark) repository. We find that optimizer performance is highly problem-dependent, with no single algorithm dominating across all metrics and graph topologies.
 
@@ -122,7 +123,7 @@ There is a critical transition point around $42$ where the time complexity begin
 
 # Acknowledgements
 
-We thank the Julia community and all contributors to the `OMEinsum` and `OMEinsumContractionOrders` packages. We are grateful to Xiwei Pan for valuable writing suggestions that improved this manuscript.
+We thank the Julia community and all contributors to the `OMEinsum` and `OMEinsumContractionOrders` packages. We are grateful to Feng Pan for his effort in improving the slicing algorithm, and Xiwei Pan for valuable writing suggestions that improved this manuscript.
 
 # References
 
