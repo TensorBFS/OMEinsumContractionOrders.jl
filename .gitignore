@@ -4,3 +4,8 @@ _local/
 docs/build/
 docs/Manifest.toml
 .DS_Store
+
+# Python / uv
+mcp_server/.venv/
+mcp_server/__pycache__/
+*.pyc
