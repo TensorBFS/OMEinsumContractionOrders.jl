@@ -85,6 +85,21 @@ These applications are reflected in the ecosystem built around OMECO, as illustr
 ![The ecosystem built around `OMEinsumContractionOrders` and its dependencies. OMECO serves as a core component of the tensor network contractor `OMEinsum`, which powers applications including `Yao` (quantum simulation), `TensorQEC` (quantum error correction), `TensorInference` (probabilistic inference), `GenericTensorNetworks` and `TensorBranching` (combinatorial optimization).\label{fig:structure}](figures/structure.pdf){ width=80% }
 
 
+# Software Design
+
+OMECO provides the first open-source implementation of the TreeSA algorithm [@Kalachev2021], a powerful simulated annealing approach that operates directly on contraction tree structures. Beyond TreeSA, OMECO implements a comprehensive suite of optimization algorithms from the literature, including nested dissection methods for hypergraphs, bipartition-based approaches, and exact tree decomposition solvers. While the Python package `cotengra` [@Gray2021] exists in this space, we chose to build OMECO as a native Julia implementation to provide these capabilities to the Julia scientific computing ecosystem without language barriers, enabling new applications in quantum computing and combinatorial optimization that require tight integration with Julia's tensor network infrastructure.
+
+OMECO's architecture emphasizes modularity and extensibility. The core abstraction separates the contraction order representation (as trees or paths) from the optimization algorithms, enabling users to compose different strategies and implement custom optimizers. The `optimize_code` function provides a unified interface across eight different optimization methods, from fast greedy heuristics to high-quality tree decomposition solvers. Integration with graph partitioning libraries (`KaHyPar`, `Metis`) and tree decomposition packages (`CliqueTrees` [@CliqueTrees2025]) demonstrates OMECO's interoperability within the Julia ecosystem. The native Julia implementation enables tight coupling between optimization and execution phases in `OMEinsum`, supporting diverse numeric types through multiple dispatch. This design has proven successful: OMECO serves as the optimization backend for multiple packages across quantum simulation, probabilistic inference, and combinatorial optimization domains.
+
+
+# Research Impact Statement
+
+OMECO has demonstrated significant research impact through both technical performance and ecosystem adoption. Benchmarking against the widely-used `cotengra` package on standard tensor network problems—including the Sycamore quantum circuit and problems from quantum simulation, probabilistic inference, and combinatorial optimization—shows that OMECO optimizers consistently dominate the Pareto front for the trade-off between optimization time and solution quality. The `TreeSA` algorithm achieves lower time and space complexity than existing methods when given sufficient optimization time, while `HyperND` provides superior balance for time-constrained scenarios.
+
+Beyond performance benchmarks, OMECO has achieved substantial ecosystem adoption within the Julia scientific computing community. It powers the tensor contraction backend for `Yao` (a quantum computing framework with over 1000 GitHub stars), `GenericTensorNetworks` and `TensorBranching` (combinatorial optimization libraries used for solving constraint satisfaction and graph problems), `TensorInference` (probabilistic inference on graphical models), and `TensorQEC` (quantum error correction code analysis). These packages collectively support research across quantum computing, statistical physics, and discrete optimization, with impactful publications [@Ebadi2022; @Roa2024; @Gao2024crossentropy; @Liu2023].
+
+The software exhibits strong community-readiness signals: comprehensive documentation with examples, extensive test coverage (>90%), active maintenance with regular releases, MIT open-source license, and well-defined contribution processes. The modular architecture has enabled external contributors to implement new optimization algorithms and extend functionality to emerging application domains.
+
 
 # Features and benchmarks
 
@@ -124,6 +139,10 @@ There is a critical transition point around $42$ where the time complexity begin
 # Acknowledgements
 
 We thank the Julia community and all contributors to the `OMEinsum` and `OMEinsumContractionOrders` packages. We are grateful to Feng Pan for his effort in improving the slicing algorithm, and Xiwei Pan for valuable writing suggestions that improved this manuscript.
+
+# AI Usage Disclosure
+
+Generative AI tools were used to assist with paper writing and documentation. The software implementation, algorithmic design, benchmarking, and core technical contributions were developed without AI assistance. All AI-assisted content has been reviewed and validated by the authors for technical accuracy and scholarly integrity.
 
 # References
 
