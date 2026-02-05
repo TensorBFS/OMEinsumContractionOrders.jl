@@ -84,6 +84,9 @@ These applications are reflected in the ecosystem built around OMECO, as illustr
 
 ![The ecosystem built around `OMEinsumContractionOrders` and its dependencies. OMECO serves as a core component of the tensor network contractor `OMEinsum`, which powers applications including `Yao` (quantum simulation), `TensorQEC` (quantum error correction), `TensorInference` (probabilistic inference), `GenericTensorNetworks` and `TensorBranching` (combinatorial optimization).\label{fig:structure}](figures/structure.pdf){ width=80% }
 
+# State of the field
+
+Several software packages support contraction order optimization. The Python package `cotengra` [@Gray2021] provides a hyper-optimization framework that combines greedy methods, simulated annealing, and graph partitioning to find high-quality contraction orders. However, integrating Python packages into Julia workflows introduces challenges in dependency version control and environment reproducibility. The `opt_einsum` package [@Smith2018] provides contraction optimization for einsum-style expressions using dynamic programming and greedy-based heuristics, while `quimb` [@Gray2018] offers tensor network capabilities using `cotengra` as its optimization backend. In the Julia ecosystem, `TensorOperations.jl` [@TensorOperations] implements exact contraction order optimization, but is limited to tensor networks without hyperedges (where each index appears in at most two tensors) and lacks scalability to large networks. `ITensors.jl` [@ITensor] primarily focuses on physics applications such as MPS and DMRG algorithms, rather than general-purpose contraction order optimization.
 
 # Software Design
 
