@@ -16,6 +16,10 @@ To install OMEinsumContractionOrders, please follow these steps:
 
 For using, please check the [documentation](https://tensorbfs.github.io/OMEinsumContractionOrders.jl/dev/).
 
+## Contributing
+
+For a contributor guide, please refer to [CLAUDE.md](CLAUDE.md) for details.
+
 ## References
 
 If you find this package useful in your research, please cite the *relevant* papers in [CITATION.bib](CITATION.bib).
