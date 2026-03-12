@@ -59,7 +59,7 @@ OMECO is designed to search for near-optimal contraction orders for exact tensor
 In this paper, we present the key features of OMECO, its integration with the Julia ecosystem, and performance benchmarks.
 
 
-# Statement of need
+# Statement of Need
 
 A _tensor network_ is a mathematical structure that represents multilinear transformations as hypergraphs. Arrays—called _tensors_—correspond to nodes, and shared indices correspond to hyperedges. To _contract_ a tensor network is to evaluate the transformation on a collection of tensors by performing a sequence of pairwise bilinear operations. The computational cost—both running time and memory usage—depends critically on the order in which these operations are performed. A specific choice of ordering is called a _contraction order_, and the problem of finding an efficient ordering is called _contraction order optimization_.
 
@@ -84,15 +84,19 @@ These applications are reflected in the ecosystem built around OMECO, as illustr
 
 ![The ecosystem built around `OMEinsumContractionOrders` and its dependencies. OMECO serves as a core component of the tensor network contractor `OMEinsum`, which powers applications including `Yao` (quantum simulation), `TensorQEC` (quantum error correction), `TensorInference` (probabilistic inference), `GenericTensorNetworks` and `TensorBranching` (combinatorial optimization).\label{fig:structure}](figures/structure.pdf){ width=80% }
 
-# State of the field
+# State of the Field
 
 Several software packages support contraction order optimization. The Python package `cotengra` [@Gray2021] provides a hyper-optimization framework that combines greedy methods, simulated annealing, and graph partitioning to find high-quality contraction orders. However, integrating Python packages into Julia workflows introduces challenges in dependency version control and environment reproducibility. The `opt_einsum` package [@Smith2018] provides contraction optimization for einsum-style expressions using dynamic programming and greedy-based heuristics, while `quimb` [@Gray2018] offers tensor network capabilities using `cotengra` as its optimization backend. In the Julia ecosystem, `TensorOperations.jl` [@TensorOperations] implements exact contraction order optimization, but is limited to tensor networks without hyperedges (where each index appears in at most two tensors) and lacks scalability to large networks. `ITensors.jl` [@ITensor] primarily focuses on physics applications such as MPS and DMRG algorithms, rather than general-purpose contraction order optimization.
 
+Unlike most of these existing packages, OMECO focuses on optimizing arbitrary tensor networks with hyperedges, and provides the first open-source implementation of the TreeSA algorithm [@Kalachev2021], a powerful simulated annealing approach that operates directly on contraction tree structures. Beyond TreeSA, OMECO implements a comprehensive suite of optimization algorithms from the literature, including nested dissection methods for hypergraphs, bipartition-based approaches, and exact tree decomposition solvers. While the Python package `cotengra` [@Gray2021] exists in this space, we chose to build OMECO as a native Julia implementation to provide these capabilities to the Julia scientific computing ecosystem without language barriers, enabling new applications in quantum computing and combinatorial optimization that require tight integration with Julia's tensor network infrastructure.
+
 # Software Design
 
-OMECO provides the first open-source implementation of the TreeSA algorithm [@Kalachev2021], a powerful simulated annealing approach that operates directly on contraction tree structures. Beyond TreeSA, OMECO implements a comprehensive suite of optimization algorithms from the literature, including nested dissection methods for hypergraphs, bipartition-based approaches, and exact tree decomposition solvers. While the Python package `cotengra` [@Gray2021] exists in this space, we chose to build OMECO as a native Julia implementation to provide these capabilities to the Julia scientific computing ecosystem without language barriers, enabling new applications in quantum computing and combinatorial optimization that require tight integration with Julia's tensor network infrastructure.
+To achieve modularity and extensibility, OMECO adopts a two-layer architecture. The lower layer defines contraction orders through contraction trees, while the upper layer implements optimization algorithms that operate on this shared representation. This separation cleanly decouples the representation of contraction orders from the algorithms used to optimize them, allowing users to combine different strategies, implement custom optimizers, and transfer the resulting orders across packages and application domains.
 
-OMECO's architecture emphasizes modularity and extensibility. The core abstraction separates the contraction order representation (as trees or paths) from the optimization algorithms, enabling users to compose different strategies and implement custom optimizers. The `optimize_code` function provides a unified interface across eight different optimization methods, from fast greedy heuristics to high-quality tree decomposition solvers. Integration with graph partitioning libraries (`KaHyPar`, `Metis`) and tree decomposition packages (`CliqueTrees` [@CliqueTrees2025]) demonstrates OMECO's interoperability within the Julia ecosystem. The native Julia implementation enables tight coupling between optimization and execution phases in `OMEinsum`, supporting diverse numeric types through multiple dispatch. This design has proven successful: OMECO serves as the optimization backend for multiple packages across quantum simulation, probabilistic inference, and combinatorial optimization domains.
+At the representation layer, OMECO stores contraction orders as binary trees using `NestedEinsum`, a natural structure for encoding sequences of pairwise contractions. Each leaf node corresponds to an input tensor, each internal node represents an intermediate tensor produced by contracting its child nodes, and the root node represents the final output tensor. This representation makes it straightforward to evaluate the time and space complexity of a contraction order and to apply transformations such as index slicing. It can also be converted into alternative representations, such as line graphs of the tensor network, when required by particular optimization algorithms.
+
+At the optimization layer, the `optimize_code` function provides a unified interface to eight optimization methods, ranging from fast greedy heuristics to high-quality tree decomposition solvers. OMECO interoperates with graph partitioning libraries such as `KaHyPar` and `Metis`, as well as tree decomposition packages such as `CliqueTrees` [@CliqueTrees2025], highlighting its integration within the Julia ecosystem. Because OMECO is implemented natively in Julia, it couples naturally with execution in `OMEinsum` and supports diverse numeric types through multiple dispatch. This design has proven effective in practice: OMECO now serves as the optimization backend for packages spanning quantum simulation, probabilistic inference, and combinatorial optimization.
 
 
 # Research Impact Statement
@@ -104,7 +108,7 @@ Beyond performance benchmarks, OMECO has achieved substantial ecosystem adoption
 The software exhibits strong community-readiness signals: comprehensive documentation with examples, extensive test coverage (>90%), active maintenance with regular releases, MIT open-source license, and well-defined contribution processes. The modular architecture has enabled external contributors to implement new optimization algorithms and extend functionality to emerging application domains.
 
 
-# Features and benchmarks
+# Features and Benchmarks
 
 The major feature of OMECO is contraction order optimization.
 OMECO provides several algorithms with complementary performance characteristics that can be simply called by the `optimize_code` function:
