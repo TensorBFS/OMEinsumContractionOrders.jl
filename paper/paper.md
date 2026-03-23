@@ -110,7 +110,7 @@ The software exhibits strong community-readiness signals: comprehensive document
 
 # Features and Benchmarks
 
-The major feature of OMECO is contraction order optimization.
+A major feature of OMECO is contraction order optimization.
 OMECO provides several algorithms with complementary performance characteristics that can be simply called by the `optimize_code` function:
 
 | Optimizer | Description |
