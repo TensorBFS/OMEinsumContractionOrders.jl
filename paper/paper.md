@@ -138,7 +138,7 @@ Another key feature of OMECO is index slicing, a technique that trades time comp
 OMECO provides the `slice_code` interface for this purpose, currently supporting the `TreeSASlicer` algorithm, which implements dynamic slicing based on the `TreeSA` optimizer.
 \autoref{fig:slicing} demonstrates this capability using the Sycamore quantum circuit, where slicing reduces the space complexity from $2^{52}$ to $2^{31}$.
 
-![Trade-off between time complexity and target space complexity using `TreeSASlicer` on the Sycamore quantum circuit. The original network has a space complexity of $2^{52}$. \label{fig:slicing}](figures/sycamore_slicing.pdf){ width=40% }
+![Trade-off between time complexity and target space complexity using `TreeSASlicer` on the Sycamore quantum circuit. The original network has a space complexity of $2^{52}$. \label{fig:slicing}](figures/sycamore_slicing.pdf){ width=60% }
 
 The numerical experiments show that moderate slicing increases time complexity only slightly, while aggressive slicing can induce significant overhead.
 There is a critical transition point around $42$ where the time complexity begins to increase significantly.
