@@ -145,7 +145,7 @@ There is a critical transition point around $42$ where the time complexity begin
 
 # Acknowledgements
 
-We thank the Julia community and all contributors to the `OMEinsum` and `OMEinsumContractionOrders` packages. We are grateful to Feng Pan for his effort in improving the slicing algorithm, and Xiwei Pan for valuable writing suggestions that improved this manuscript.
+We thank the Julia community and all contributors to the `OMEinsumContractionOrders` and `OMEinsum` packages. We are grateful to Feng Pan for his effort in improving the slicing algorithm, and Xiwei Pan for valuable writing suggestions that improved this manuscript.
 
 # AI Usage Disclosure
 
