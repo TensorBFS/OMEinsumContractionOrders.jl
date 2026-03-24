@@ -82,7 +82,7 @@ OMECO addresses this challenge through a unified and extensible framework that i
 OMECO has been integrated into the `OMEinsum` package and powers several downstream applications: `Yao` [@Luo2020] for quantum circuit simulation, `GenericTensorNetworks` [@Liu2023] and [`TensorBranching`](https://github.com/ArrogantGao/TensorBranching.jl) for combinatorial optimization, `TensorInference` [@Roa2023] for probabilistic inference, and [`TensorQEC`](https://github.com/TensorBFS/TensorQEC.jl) for quantum error correction. This infrastructure is expected to benefit other applications requiring tree or path decomposition, such as polynomial optimization [@Magron2021].
 These applications are reflected in the ecosystem built around OMECO, as illustrated in \autoref{fig:structure}.
 
-![The ecosystem built around `OMEinsumContractionOrders` and its dependencies. OMECO serves as a core component of the tensor network contractor `OMEinsum`, which powers applications including `Yao` (quantum simulation), `TensorQEC` (quantum error correction), `TensorInference` (probabilistic inference), `GenericTensorNetworks` and `TensorBranching` (combinatorial optimization).\label{fig:structure}](figures/structure.pdf){ width=80% }
+![The ecosystem built around `OMEinsumContractionOrders` and its dependencies. OMECO serves as a core component of the tensor network contractor `OMEinsum`, which powers applications including `Yao` (quantum simulation), `TensorQEC` (quantum error correction), `TensorInference` (probabilistic inference), `GenericTensorNetworks`, and `TensorBranching` (combinatorial optimization).\label{fig:structure}](figures/structure.pdf){ width=80% }
 
 # State of the Field
 
@@ -110,7 +110,7 @@ The software exhibits strong community-readiness signals: comprehensive document
 
 # Features and Benchmarks
 
-The major feature of OMECO is contraction order optimization.
+A major feature of OMECO is contraction order optimization.
 OMECO provides several algorithms with complementary performance characteristics that can be simply called by the `optimize_code` function:
 
 | Optimizer | Description |
@@ -124,11 +124,11 @@ OMECO provides several algorithms with complementary performance characteristics
 | `ExactTreewidth` | Exact algorithm with exponential runtime [@Bouchitte2001], based on [`TreeWidthSolver`](https://github.com/ArrogantGao/TreeWidthSolver.jl) |
 | `Treewidth` | Clique tree elimination methods from `CliqueTrees` package [@CliqueTrees2025] |
 
-The algorithms `HyperND`, `Treewidth`, and `ExactTreewidth` are tree-width based solvers that operate on graphs. They first convert tensor networks to their line graph representation [@Markov2008] and then find an optimized tree decomposition of the line graph using the `CliqueTrees` and `TreeWidthSolver` packages, as illustrated in \autoref{fig:structure}. Additionally, the `PathSA` optimizer optimizes path decomposition instead of tree decomposition. It is a variant of `TreeSA` by constraining contraction orders to path graphs, which is useful for applications requiring a linear contraction order.
+The algorithms `HyperND`, `Treewidth`, and `ExactTreewidth` are tree-width-based solvers that operate on graphs. They first convert tensor networks to their line graph representation [@Markov2008] and then find an optimized tree decomposition of the line graph using the `CliqueTrees` and `TreeWidthSolver` packages, as illustrated in \autoref{fig:structure}. Additionally, the `PathSA` optimizer optimizes path decomposition instead of tree decomposition. It is a variant of `TreeSA` by constraining contraction orders to path graphs, which is useful for applications requiring a linear contraction order.
 
 These methods balance optimization time against solution quality. \autoref{fig:sycamore} displays benchmark results for the tensor network of the Sycamore quantum circuit [@Pan2021; @Arute2019], which is widely used as a benchmark for quantum supremacy and is believed to have an optimal space complexity of 52. The Pareto front highlights the optimal trade-off between optimization time and solution quality.
 
-![Time complexity (left) and space complexity (right) benchmark results for contraction order optimization on the Sycamore quantum circuit tensor network (Intel Xeon Gold 6226R CPU @ 2.90GHz, single-threaded). The $x$-axis shows contraction cost, $y$-axis shows optimization time. Each point represents a different optimizer configuration tested with varying parameters. `TreeSA` and `HyperND` achieve the lowest contraction costs, while `GreedyMethod` offers the fastest optimization time. The parameter setup for each optimizer is detailed in our benchmark repository [`OMEinsumContractionOrdersBenchmark`](https://github.com/TensorBFS/OMEinsumContractionOrdersBenchmark).\label{fig:sycamore}](figures/sycamore.pdf){ width=95% }
+![Time complexity (left) and space complexity (right) benchmark results for contraction order optimization on the Sycamore quantum circuit tensor network (Intel Xeon Gold 6226R CPU @ 2.90GHz, single-threaded). The $x$-axis shows contraction cost, the $y$-axis shows optimization time. Each point represents a different optimizer configuration tested with varying parameters. `TreeSA` and `HyperND` achieve the lowest contraction costs, while `GreedyMethod` offers the fastest optimization time. The parameter setup for each optimizer is detailed in our benchmark repository [`OMEinsumContractionOrdersBenchmark`](https://github.com/TensorBFS/OMEinsumContractionOrdersBenchmark).\label{fig:sycamore}](figures/sycamore.pdf){ width=95% }
 
 Optimizers prefixed with `cotengra_` are from the Python package cotengra [@Gray2021]; all others are OMECO implementations. For both optimization objectives (minimizing time and space complexity), OMECO optimizers dominate the Pareto front. Given sufficient optimization time, `TreeSA` consistently achieves the lowest time and space complexity. `GreedyMethod` and `Treewidth` (backed by minimum fill (MF) [@Ng2014], multiple minimum degree (MMD) [@Liu1985], and approximate minimum fill (AMF) [@Rothberg1998]) provide the fastest optimization but yield suboptimal contraction orders, while `HyperND` offers a favorable balance between optimization time and solution quality.
 
@@ -138,14 +138,14 @@ Another key feature of OMECO is index slicing, a technique that trades time comp
 OMECO provides the `slice_code` interface for this purpose, currently supporting the `TreeSASlicer` algorithm, which implements dynamic slicing based on the `TreeSA` optimizer.
 \autoref{fig:slicing} demonstrates this capability using the Sycamore quantum circuit, where slicing reduces the space complexity from $2^{52}$ to $2^{31}$.
 
-![Trade-off between time complexity and target space complexity using `TreeSASlicer` on the Sycamore quantum circuit. The original network has a space complexity of $2^{52}$. \label{fig:slicing}](figures/sycamore_slicing.pdf){ width=40% }
+![Trade-off between time complexity and target space complexity using `TreeSASlicer` on the Sycamore quantum circuit. The original network has a space complexity of $2^{52}$. \label{fig:slicing}](figures/sycamore_slicing.pdf){ width=60% }
 
 The numerical experiments show that moderate slicing increases time complexity only slightly, while aggressive slicing can induce significant overhead.
 There is a critical transition point around $42$ where the time complexity begins to increase significantly.
 
 # Acknowledgements
 
-We thank the Julia community and all contributors to the `OMEinsum` and `OMEinsumContractionOrders` packages. We are grateful to Feng Pan for his effort in improving the slicing algorithm, and Xiwei Pan for valuable writing suggestions that improved this manuscript.
+We thank the Julia community and all contributors to the `OMEinsumContractionOrders` and `OMEinsum` packages. We are grateful to Feng Pan for his effort in improving the slicing algorithm, and Xiwei Pan for valuable writing suggestions that improved this manuscript.
 
 # AI Usage Disclosure
 
