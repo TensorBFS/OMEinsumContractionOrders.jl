@@ -83,7 +83,7 @@
    pages={410}
 }
 @article{Kalachev2021,
-      title={Recursive Multi-Tensor Contraction for XEB Verification of Quantum Circuits}, 
+      title={Multi-Tensor Contraction for XEB Verification of Quantum Circuits},
       author={Gleb Kalachev and Pavel Panteleev and Man-Hong Yung},
       journal={arXiv preprint arXiv:2108.05665},
       year={2021},
@@ -100,12 +100,13 @@
 }
 
 @book{Golub2013,
-  title={Matrix computations},
-  author={Golub, Gene H and Van Loan, Charles F},
-  volume={3},
+  title={Matrix Computations},
+  author={Golub, Gene H. and Van Loan, Charles F.},
+  edition={4},
   year={2013},
-  publisher={JHU press},
-  doi={10.2307/3621013}
+  publisher={Johns Hopkins University Press},
+  doi={10.56021/9781421407944},
+  isbn={9781421407944}
 }
 
 @article{Ng2001,
@@ -275,14 +276,17 @@
 }
 
 @article{Qing2024,
-  title = {Compressing Neural Network by Tensor Network with Exponentially Fewer Variational Parameters},
+  title = {Compressing Neural Networks Using Tensor Networks with Exponentially Fewer Variational Parameters},
   author = {Qing, Yong and Li, Ke and Zhou, Peng-Fei and Ran, Shi-Ju},
-  year = {2024},
+  year = {2025},
   month = may,
-  journal = {arXiv preprint arXiv:2305.06058},
+  journal = {Intelligent Computing},
+  volume = {4},
+  pages = {0123},
   eprint = {2305.06058},
-  primaryclass = {cs},
-  doi = {10.48550/arXiv.2305.06058},
+  primaryclass = {cs.LG},
+  doi = {10.34133/icomputing.0123},
+  url = {https://doi.org/10.34133/icomputing.0123},
   urldate = {2025-05-13},
   abstract = {Neural network (NN) designed for challenging machine learning tasks is in general a highly nonlinear mapping that contains massive variational parameters. High complexity of NN, if unbounded or unconstrained, might unpredictably cause severe issues including over-fitting, loss of generalization power, and unbearable cost of hardware. In this work, we propose a general compression scheme that significantly reduces the variational parameters of NN by encoding them to deep automatically-differentiable tensor network (ADTN) that contains exponentially-fewer free parameters. Superior compression performance of our scheme is demonstrated on several widely-recognized NN's (FC-2, LeNet-5, AlextNet, ZFNet and VGG-16) and datasets (MNIST, CIFAR-10 and CIFAR-100). For instance, we compress two linear layers in VGG-16 with approximately \$10{\textasciicircum}\{7\}\$ parameters to two ADTN's with just 424 parameters, where the testing accuracy on CIFAR-10 is improved from \$90.17 {\textbackslash}\%\$ to \$91.74{\textbackslash}\%\$. Our work suggests TN as an exceptionally efficient mathematical structure for representing the variational parameters of NN's, which exhibits superior compressibility over the commonly-used matrices and multi-way arrays.},
   archiveprefix = {arXiv},
