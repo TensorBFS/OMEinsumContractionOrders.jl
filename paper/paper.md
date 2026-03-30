@@ -69,9 +69,9 @@ The tensor network framework has remarkable universality across diverse domains:
 
 A contraction order can be represented as a binary tree where leaves correspond to input tensors and internal nodes represent intermediate results. The optimization objective balances multiple complexity measures through the cost function:
 $$
-\mathcal{L} = w_\text{t} \cdot \text{tc} + w_\text{s} \cdot \max(0, \text{sc} - \text{sc}_{\rm target}) + w_\text{rw} \cdot \text{rwc},
+\mathcal{L} = w_\text{t} \cdot \text{tc} + w_\text{s} \cdot \max(0, \text{sc} - \text{sc}_{\textrm{target}}) + w_\text{rw} \cdot \text{rwc},
 $$
-where $w_\text{t}$, $w_\text{s}$, and $w_\text{rw}$ represent weights for time complexity (tc), space complexity (sc), and read-write complexity (rwc), respectively. In practice, memory access costs typically dominate computational costs, motivating $w_\text{rw} > w_\text{t}$. The space complexity penalty activates only when $\text{sc} > \text{sc}_{\rm target}$, allowing unconstrained optimization when memory fits within available device capacity.
+where $w_\text{t}$, $w_\text{s}$, and $w_\text{rw}$ represent weights for time complexity (tc), space complexity (sc), and read-write complexity (rwc), respectively. In practice, memory access costs typically dominate computational costs, motivating $w_\text{rw} > w_\text{t}$. The space complexity penalty activates only when $\text{sc} > \text{sc}_{\textrm{target}}$, allowing unconstrained optimization when memory fits within available device capacity.
 
 Finding the optimal contraction order—even when minimizing only time complexity—is NP-complete [@Markov2008]. However, the problem exhibits fixed-parameter tractability: for tensor networks with bounded tree-width, optimal contraction orders can be found—and the resulting contractions executed—in polynomial time. This connection to tree decomposition motivates several of OMECO's optimization strategies, which leverage graph-theoretic techniques to exploit this structure.
 
