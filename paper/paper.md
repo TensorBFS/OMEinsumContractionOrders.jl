@@ -124,7 +124,7 @@ OMECO provides several algorithms with complementary performance characteristics
 | `ExactTreewidth` | Exact algorithm with exponential runtime [@Bouchitte2001], based on [`TreeWidthSolver`](https://github.com/ArrogantGao/TreeWidthSolver.jl) |
 | `Treewidth` | Clique tree elimination methods from `CliqueTrees` package [@CliqueTrees2025] |
 
-: Summary of the contraction order optimizers available through `optimize_code`. {#tbl:optimizers}
+: Summary of the contraction order optimizers available through `optimize_code`.\label{tbl:optimizers}
 
 The algorithms `HyperND`, `Treewidth`, and `ExactTreewidth` are tree-width-based solvers that operate on graphs. They first convert tensor networks to their line graph representation [@Markov2008] and then find an optimized tree decomposition of the line graph using the `CliqueTrees` and `TreeWidthSolver` packages, as illustrated in \autoref{fig:structure}. Additionally, the `PathSA` optimizer optimizes path decomposition instead of tree decomposition. It is a variant of `TreeSA` by constraining contraction orders to path graphs, which is useful for applications requiring a linear contraction order.
 
