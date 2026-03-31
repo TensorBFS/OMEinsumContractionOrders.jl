@@ -18,11 +18,11 @@ authors:
     equal-contrib: true
     affiliation: 3
 affiliations:
- - name: Hong Kong University of Science and Technology (Guangzhou)
+ - name: Hong Kong University of Science and Technology (Guangzhou), China
    index: 1
- - name: Center of Computational Mathematics, Flatiron Institute
+ - name: Center of Computational Mathematics, Flatiron Institute, USA
    index: 2
- - name: University of Florida
+ - name: University of Florida, USA
    index: 3
 date: 19 October 2025
 bibliography: paper.bib
