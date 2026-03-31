@@ -54,9 +54,9 @@ bibliography: paper.bib
 
 # Summary
 
-`OMEinsumContractionOrders` (One More Einsum Contraction Orders, or OMECO) is a Julia package [@bezanson2012julia] that implements state-of-the-art algorithms for optimizing tensor network contraction orders.
-OMECO is designed to search for near-optimal contraction orders for exact tensor network contraction, and provides a comprehensive suite of optimization algorithms for tensor network contraction orders, including greedy heuristics, simulated annealing, and tree width solvers.
-In this paper, we present the key features of OMECO, its integration with the Julia ecosystem, and performance benchmarks.
+`OMEinsumContractionOrders` (One More Einsum Contraction Orders, or OMECO) is a Julia [@bezanson2012julia] package that implements state-of-the-art algorithms for optimizing tensor network contraction orders.
+OMECO is designed to search for near-optimal contraction orders for exact tensor network contraction. It provides a comprehensive suite of optimization algorithms for tensor network contraction orders, including greedy heuristics, simulated annealing, and tree-width solvers.
+This paper presents the key features of OMECO, its integration with the Julia ecosystem, and performance benchmarks.
 
 
 # Statement of Need
@@ -67,7 +67,7 @@ Notably, this optimization task is analogous to compilation: a scheduler compile
 
 The tensor network framework has remarkable universality across diverse domains: _einsum_ notation [@Harris2020] in numerical computing, _factor graphs_ [@Bishop2006] in probabilistic inference, _sum-product networks_ in machine learning, and _junction trees_ [@Villescas2023] in graphical models. Applications span quantum circuit simulation [@Markov2008], quantum error correction [@Piveteau2024], neural network compression [@Qing2024], strongly correlated quantum materials [@Haegeman2016], and combinatorial optimization [@Liu2023]. 
 
-A contraction order can be represented as a binary tree where leaves correspond to input tensors and internal nodes represent intermediate results. The optimization objective balances multiple complexity measures through the cost function:
+A contraction order can be represented as a binary tree, where leaves correspond to input tensors and internal nodes represent intermediate results. The optimization objective balances multiple complexity measures through the cost function:
 $$
 \mathcal{L} = w_\text{t} \cdot \text{tc} + w_\text{s} \cdot \max(0, \text{sc} - \text{sc}_{\textrm{target}}) + w_\text{rw} \cdot \text{rwc},
 $$
@@ -126,7 +126,7 @@ OMECO provides several algorithms with complementary performance characteristics
 
 : Summary of the contraction order optimizers available through `optimize_code`.\label{tbl:optimizers}
 
-The algorithms `HyperND`, `Treewidth`, and `ExactTreewidth` are tree-width-based solvers that operate on graphs. They first convert tensor networks to their line graph representation [@Markov2008] and then find an optimized tree decomposition of the line graph using the `CliqueTrees` and `TreeWidthSolver` packages, as illustrated in \autoref{fig:structure}. Additionally, the `PathSA` optimizer optimizes path decomposition instead of tree decomposition. It is a variant of `TreeSA` by constraining contraction orders to path graphs, which is useful for applications requiring a linear contraction order.
+The `HyperND`, `Treewidth`, and `ExactTreewidth` algorithms are tree-width-based solvers that operate on graphs. They first convert tensor networks to their line graph representation [@Markov2008] and then find an optimized tree decomposition of the line graph using the `CliqueTrees` and `TreeWidthSolver` packages, as illustrated in \autoref{fig:structure}. Additionally, the `PathSA` optimizer optimizes path decomposition instead of tree decomposition. It is a variant of `TreeSA` by constraining contraction orders to path graphs, which is useful for applications requiring a linear contraction order.
 
 These methods balance optimization time against solution quality. \autoref{fig:sycamore} displays benchmark results for the tensor network of the Sycamore quantum circuit [@Pan2021; @Arute2019], which is widely used as a benchmark for quantum supremacy and is believed to have an optimal space complexity of 52. The Pareto front highlights the optimal trade-off between optimization time and solution quality.
 
@@ -178,5 +178,5 @@ The figure below illustrates these concepts with (a) a tensor network containing
 
 ![(a) A tensor network. (b) A line graph for the tensor network. Labels are connected if and only if they appear in the same tensor. (c) A tree decomposition (T. D.) of the line graph. \label{fig:mainfig}](figures/mainfig.pdf)
 
-The tree decomposition in \autoref{fig:mainfig}(c) consists of 6 bags, each containing at most 3 indices, indicating that the treewidth of the tensor network is 2. The tensors $T_1$, $T_2$, $T_3$ and $T_4$ are contained in bags $B_1$, $B_5$, $B_6$ and $B_2$ respectively. Following the tree structure, we perform the contraction from the leaves. First, we contract bags $B_1$ and $B_2$ into $B_3$, yielding an intermediate tensor $I_{14} = T_1 * T_4$ (where "$*$" denotes tensor contraction) with indices $B$ and $E$. Next, we contract bags $B_5$ and $B_6$ into $B_4$, producing another intermediate tensor $I_{23} = T_2 * T_3$ also with indices $B$ and $E$. Finally, contracting $B_3$ and $B_4$ yields the desired scalar result.
+The tree decomposition in \autoref{fig:mainfig}(c) consists of 6 bags, each containing at most 3 indices, indicating that the tree-width of the tensor network is 2. The tensors $T_1$, $T_2$, $T_3$ and $T_4$ are contained in bags $B_1$, $B_5$, $B_6$ and $B_2$ respectively. Following the tree structure, we perform the contraction from the leaves. First, we contract bags $B_1$ and $B_2$ into $B_3$, yielding an intermediate tensor $I_{14} = T_1 * T_4$ (where "$*$" denotes tensor contraction) with indices $B$ and $E$. Next, we contract bags $B_5$ and $B_6$ into $B_4$, producing another intermediate tensor $I_{23} = T_2 * T_3$ also with indices $B$ and $E$. Finally, contracting $B_3$ and $B_4$ yields the desired scalar result.
  -->
