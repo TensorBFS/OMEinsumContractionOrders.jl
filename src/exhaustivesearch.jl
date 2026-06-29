@@ -56,14 +56,14 @@ end
 # Subsets of tensors (DP keys), subsets of labels (open-index sets) and the
 # per-label occurrence sets are all stored as bit sets, using the narrowest
 # unsigned integer that fits, falling back to `BitVector`.
-function storeset(::Type{BitVector}, ints, maxint)
+function _storeset(::Type{BitVector}, ints, maxint)
     set = falses(maxint)
     for i in ints
         set[i] = true
     end
     return set
 end
-function storeset(::Type{T}, ints, maxint) where {T <: Unsigned}
+function _storeset(::Type{T}, ints, maxint) where {T <: Unsigned}
     set = zero(T)
     u = one(T)
     for i in ints
@@ -107,19 +107,17 @@ function _setcost(allcosts::Vector{Float64}, set::BitVector)
     return cost
 end
 
-# Cost of contracting two tensors == product of the dimensions of every label
-# appearing on either tensor == the FLOP count of that pairwise contraction.
-computecost(allcosts::Vector{Float64}, ind1, ind2) = _setcost(allcosts, _union(ind1, ind2))
-
 # A loose upper bound on the cost of contracting a component, used only as a
-# safe ceiling for the cost-cap loop (the real cap is seeded from greedy).
-function computemaxcost(allcosts::Vector{Float64}, indexsets)
+# safe ceiling for the cost-cap loop (the real cap is seeded from greedy). The
+# cost of contracting two tensors is the product of the dimensions of every
+# label on either tensor, i.e. the FLOP count of that pairwise contraction.
+function _maxcost(allcosts::Vector{Float64}, indexsets)
     length(indexsets) <= 1 && return 1.0
     maxcost = 0.0
     s1 = indexsets[1]
     for n in 2:length(indexsets)
         s2 = indexsets[n]
-        maxcost += computecost(allcosts, s1, s2)
+        maxcost += _setcost(allcosts, _union(s1, s2))
         s1 = _setdiff(_union(s1, s2), _intersect(s1, s2))
     end
     return maxcost
@@ -151,33 +149,6 @@ function _closedmask(allopen::BitVector, s::BitVector, tensormask::Vector{BitVec
     return closed
 end
 
-############################ connected components ############################
-# Two tensors are adjacent when they share any label; components are the
-# independent sub-networks (combined via outer products at the end).
-function _connectedcomponents(adjacency::AbstractMatrix{Bool})
-    n = size(adjacency, 1)
-    componentlist = Vector{Vector{Int}}()
-    assigned = falses(n)
-    for i in 1:n
-        assigned[i] && continue
-        assigned[i] = true
-        checklist = [i]
-        component = [i]
-        while !isempty(checklist)
-            j = pop!(checklist)
-            for k in findall(@view adjacency[j, :])
-                if !assigned[k]
-                    assigned[k] = true
-                    push!(component, k)
-                    push!(checklist, k)
-                end
-            end
-        end
-        push!(componentlist, component)
-    end
-    return componentlist
-end
-
 ############################ core dynamic program ############################
 # Find the optimal contraction tree of one connected component, returning the
 # tree as a nested `Any[left, right]` of integer tensor positions, the open
@@ -198,13 +169,13 @@ function _solve_component(
     treedict = [Dict{T, T}() for _ in 1:componentsize]
     indexdict = [Dict{T, T}() for _ in 1:componentsize]
     for i in component
-        s = storeset(T, [i], numtensors)
+        s = _storeset(T, [i], numtensors)
         costdict[1][s] = 0.0
         indexdict[1][s] = singleopen[i]
     end
 
     costfac = maximum(allcosts)
-    maxcost = max(computemaxcost(allcosts, @view(singleopen[component])), initialcost)
+    maxcost = max(_maxcost(allcosts, @view(singleopen[component])), initialcost)
     currentcost = min(initialcost, maxcost)
     previouscost = 0.0
     while currentcost <= maxcost
@@ -243,7 +214,7 @@ function _solve_component(
     if isempty(costdict[componentsize])
         error("ExhaustiveSearch: cost cap $maxcost reached without a solution") # should be impossible
     end
-    s = storeset(T, component, numtensors)
+    s = _storeset(T, component, numtensors)
     return (_reconstruct_tree(s, treedict), indexdict[componentsize][s], costdict[componentsize][s])
 end
 
@@ -341,28 +312,23 @@ function _optimize_exhaustive(::Type{T}, ixs::Vector{Vector{L}}, iy::Vector{L}, 
     allcosts = Float64[Float64(get(size_dict, l, 1)) for l in idlabels]
 
     # per-tensor open-label set (= its full leg set; scope guarantees no dangling
-    # or repeated legs) and per-label occurrence set over tensors
+    # or repeated legs), per-label occurrence set over tensors, and the
+    # tensor-label incidence matrix used to find connected components
     singleopen = Vector{T}(undef, numtensors)
-    tensormask = T[zero_set(T, numtensors) for _ in 1:numlabels]
+    tensormask = T[_zero_set(T, numtensors) for _ in 1:numlabels]
+    incidence = falses(numtensors, numlabels)
     for i in 1:numtensors
         ids = [lab2id[l] for l in ixs[i]]
-        singleopen[i] = storeset(T, ids, numlabels)
+        singleopen[i] = _storeset(T, ids, numlabels)
         for id in ids
             tensormask[id] = _addbit!(tensormask[id], i)
+            incidence[i, id] = true
         end
     end
-    iymask = storeset(T, [lab2id[l] for l in iy if haskey(lab2id, l)], numlabels)
+    iymask = _storeset(T, [lab2id[l] for l in iy if haskey(lab2id, l)], numlabels)
 
     # connected components (tensors adjacent iff they share a label)
-    adjacency = falses(numtensors, numtensors)
-    for mask in tensormask
-        ts = _members(mask, numtensors)
-        for a in 1:length(ts), b in (a + 1):length(ts)
-            adjacency[ts[a], ts[b]] = true
-            adjacency[ts[b], ts[a]] = true
-        end
-    end
-    componentlist = _connectedcomponents(adjacency)
+    componentlist = _connected_components(incidence, collect(1:numtensors))
 
     # solve each component, seeding its cost cap with a per-component greedy run
     ntrees = Vector{Any}(undef, length(componentlist))
@@ -393,7 +359,7 @@ function _optimize_exhaustive(::Type{T}, ixs::Vector{Vector{L}}, iy::Vector{L}, 
     end
 
     # build the NestedEinsum directly from the search state
-    fullset = storeset(T, 1:numtensors, numtensors)
+    fullset = _storeset(T, 1:numtensors, numtensors)
     _, ne, _ = _build_nested(tree, ixs, iy, fullset, tensormask, iymask, idlabels, numtensors, T)
     return ne
 end
@@ -406,7 +372,7 @@ end
 function _build_nested(node, ixs, iy, fullset::T, tensormask, iymask, idlabels::Vector{L}, numtensors, ::Type{T}) where {T, L}
     if node isa Integer
         i = Int(node)
-        return (storeset(T, [i], numtensors), NestedEinsum{L}(i), ixs[i])
+        return (_storeset(T, [i], numtensors), NestedEinsum{L}(i), ixs[i])
     end
     s1, ne1, legs1 = _build_nested(node[1], ixs, iy, fullset, tensormask, iymask, idlabels, numtensors, T)
     s2, ne2, legs2 = _build_nested(node[2], ixs, iy, fullset, tensormask, iymask, idlabels, numtensors, T)
@@ -423,15 +389,13 @@ function _choose_settype(nbits::Int)
     (nbits <= 128 && !(Int === Int32 && Sys.iswindows())) && return UInt128
     return BitVector
 end
-zero_set(::Type{T}, _maxint) where {T <: Unsigned} = zero(T)
-zero_set(::Type{BitVector}, maxint) = falses(maxint)
+_zero_set(::Type{T}, _maxint) where {T <: Unsigned} = zero(T)
+_zero_set(::Type{BitVector}, maxint) = falses(maxint)
 _addbit!(s::T, i) where {T <: Unsigned} = s | (one(T) << (i - 1))
 function _addbit!(s::BitVector, i)
     s[i] = true
     return s
 end
-_members(s::Unsigned, _maxint) = [i for i in 1:(8 * sizeof(s)) if _hasbit(s, i)]
-_members(s::BitVector, _maxint) = findall(s)
 _setsize(s::Unsigned) = count_ones(s)
 _setsize(s::BitVector) = count(s)
 _singleton_index(s::Unsigned) = trailing_zeros(s) + 1
