@@ -16,7 +16,7 @@ using CliqueTrees: cliquetree, cliquetree!, separator, residual, CliqueTree, Eli
 export simplify_code, optimize_code, slice_code, optimize_permute, label_elimination_order, uniformsize, ScoreFunction
 
 # optimizers
-export CodeOptimizer, KaHyParBipartite, GreedyMethod, TreeSA, SABipartite, Treewidth, ExactTreewidth, HyperND, PathSA
+export CodeOptimizer, KaHyParBipartite, GreedyMethod, TreeSA, SABipartite, Treewidth, ExactTreewidth, HyperND, PathSA, ExhaustiveSearch
 
 # slicers
 export CodeSlicer, TreeSASlicer
@@ -41,6 +41,9 @@ include("utils.jl")
 # greedy method
 include("incidencelist.jl")
 include("greedy.jl")
+
+# exact "netcon" exhaustive search (reuses ContractionTree/parse_eincode! from greedy.jl)
+include("exhaustivesearch.jl")
 
 # bipartition based methods
 include("sabipartite.jl")
