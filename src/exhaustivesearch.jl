@@ -236,7 +236,9 @@ function _solve_component(
         end
         !isempty(costdict[componentsize]) && break
         previouscost = currentcost
-        currentcost = min(maxcost, nextcost * costfac)
+        # grow the cap; guarantee progress even when costfac == 1 (all dims 1)
+        currentcost = min(maxcost, max(nextcost * costfac, nextcost))
+        currentcost <= previouscost && break
     end
     if isempty(costdict[componentsize])
         error("ExhaustiveSearch: cost cap $maxcost reached without a solution") # should be impossible

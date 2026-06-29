@@ -111,6 +111,34 @@ end
     @test flop(ocb, sd) == brute_force_min_flop(batch, sd)
 end
 
+@testset "exhaustive search: dimension-1 indices" begin
+    optimizer = ExhaustiveSearch()
+
+    # some contracted indices have dimension 1
+    sd = Dict('a' => 4, 'b' => 1, 'c' => 3, 'd' => 1, 'e' => 2)
+    mixed = EinCode([['a', 'b'], ['b', 'c'], ['c', 'd'], ['d', 'e']], ['a', 'e'])
+    tm = [rand([sd[j] for j in ix]...) for ix in getixsv(mixed)]
+    ocm = optimize_code(mixed, sd, optimizer)
+    @test decorate(mixed)(tm...) ≈ decorate(ocm)(tm...)
+    @test flop(ocm, sd) == brute_force_min_flop(mixed, sd)
+
+    # every index has dimension 1 (the costfac == 1 cost-cap edge case)
+    sd1 = Dict(c => 1 for c in ['a', 'b', 'c', 'd'])
+    allone = EinCode([['a', 'b'], ['b', 'c'], ['c', 'd'], ['a', 'd']], Char[])
+    t1 = [rand([sd1[j] for j in ix]...) for ix in getixsv(allone)]
+    oc1 = optimize_code(allone, sd1, optimizer)
+    @test decorate(allone)(t1...) ≈ decorate(oc1)(t1...)
+    @test flop(oc1, sd1) == brute_force_min_flop(allone, sd1)
+
+    # dimension-1 output indices
+    sd2 = Dict('a' => 1, 'b' => 2, 'c' => 2, 'd' => 1)
+    out1 = EinCode([['a', 'b'], ['b', 'c'], ['c', 'd']], ['a', 'd'])
+    to = [rand([sd2[j] for j in ix]...) for ix in getixsv(out1)]
+    oco = optimize_code(out1, sd2, optimizer)
+    @test sort(getiyv(oco)) == sort(getiyv(out1))
+    @test decorate(out1)(to...) ≈ decorate(oco)(to...)
+end
+
 @testset "exhaustive search: scope errors" begin
     optimizer = ExhaustiveSearch()
     sd = Dict(c => 2 for c in ['a', 'b', 'c', 'd'])
