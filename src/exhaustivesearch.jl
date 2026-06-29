@@ -85,11 +85,10 @@ _hasbit(s::Unsigned, i) = !iszero(s & (one(s) << (i - 1)))
 _hasbit(s::BitVector, i) = s[i]
 
 ############################ cost model (Float64) ############################
-# Cost of contracting two tensors == product of the dimensions of every label
-# appearing on either tensor == the FLOP count of that pairwise contraction.
-function computecost(allcosts::Vector{Float64}, ind1::T, ind2::T) where {T <: Unsigned}
+# Product of the dimensions of every label in a set.
+function _setcost(allcosts::Vector{Float64}, set::T) where {T <: Unsigned}
     cost = 1.0
-    ind = _union(ind1, ind2)
+    ind = set
     n = 1
     @inbounds while !iszero(ind)
         if isodd(ind)
@@ -100,14 +99,17 @@ function computecost(allcosts::Vector{Float64}, ind1::T, ind2::T) where {T <: Un
     end
     return cost
 end
-function computecost(allcosts::Vector{Float64}, ind1::BitVector, ind2::BitVector)
+function _setcost(allcosts::Vector{Float64}, set::BitVector)
     cost = 1.0
-    ind = _union(ind1, ind2)
-    @inbounds for n in findall(ind)
+    @inbounds for n in findall(set)
         cost *= allcosts[n]
     end
     return cost
 end
+
+# Cost of contracting two tensors == product of the dimensions of every label
+# appearing on either tensor == the FLOP count of that pairwise contraction.
+computecost(allcosts::Vector{Float64}, ind1, ind2) = _setcost(allcosts, _union(ind1, ind2))
 
 # A loose upper bound on the cost of contracting a component, used only as a
 # safe ceiling for the cost-cap loop (the real cap is seeded from greedy).
@@ -191,12 +193,13 @@ function _solve_component(
     end
 
     costdict = [Dict{T, Float64}() for _ in 1:componentsize]
-    treedict = [Dict{T, Any}() for _ in 1:componentsize]
+    # treedict stores only the bipartition (the left-child subset key); the tree
+    # is reconstructed once at the end, avoiding a nested `Any[]` alloc per merge.
+    treedict = [Dict{T, T}() for _ in 1:componentsize]
     indexdict = [Dict{T, T}() for _ in 1:componentsize]
     for i in component
         s = storeset(T, [i], numtensors)
         costdict[1][s] = 0.0
-        treedict[1][s] = i
         indexdict[1][s] = singleopen[i]
     end
 
@@ -239,25 +242,35 @@ function _solve_component(
         error("ExhaustiveSearch: cost cap $maxcost reached without a solution") # should be impossible
     end
     s = storeset(T, component, numtensors)
-    return (treedict[componentsize][s], indexdict[componentsize][s], costdict[componentsize][s])
+    return (_reconstruct_tree(s, treedict), indexdict[componentsize][s], costdict[componentsize][s])
+end
+
+# Rebuild the nested `Any[left, right]`/Int tree from the stored bipartitions.
+function _reconstruct_tree(s::T, treedict::Vector{Dict{T, T}}) where {T}
+    sz = _setsize(s)
+    sz == 1 && return _singleton_index(s)
+    s1 = treedict[sz][s]
+    s2 = _setdiff(s, s1)
+    return Any[_reconstruct_tree(s1, treedict), _reconstruct_tree(s2, treedict)]
 end
 
 # Try to record the contraction of subsets `s1` (size k) and `s2` (size n-k).
 # Returns the updated `nextcost` (the smallest over-cap cost seen this pass).
 @inline function _trymerge!(costdict, treedict, indexdict, n, k, s1::T, s2::T,
         tensormask::Vector{T}, iymask::T, allcosts, currentcost, previouscost, nextcost) where {T}
-    (_isemptyset(_intersect(s1, s2)) &&
-        get(costdict[n], _union(s1, s2), currentcost) > previouscost) || return nextcost
+    _isemptyset(_intersect(s1, s2)) || return nextcost  # subsets must be disjoint
+    s = _union(s1, s2)
+    existing = get(costdict[n], s, currentcost)
+    existing > previouscost || return nextcost
     ind1 = indexdict[k][s1]
     ind2 = indexdict[n - k][s2]
     _isemptyset(_intersect(ind1, ind2)) && return nextcost  # skip outer products within a component
-    s = _union(s1, s2)
-    cost = costdict[k][s1] + costdict[n - k][s2] + computecost(allcosts, ind1, ind2)
-    if cost <= get(costdict[n], s, currentcost)
-        allopen = _union(ind1, ind2)
+    allopen = _union(ind1, ind2)
+    cost = costdict[k][s1] + costdict[n - k][s2] + _setcost(allcosts, allopen)
+    if cost <= existing
         costdict[n][s] = cost
         indexdict[n][s] = _setdiff(allopen, _closedmask(allopen, s, tensormask, iymask))
-        treedict[n][s] = Any[treedict[k][s1], treedict[n - k][s2]]
+        treedict[n][s] = s1  # store the bipartition; partner is s ∖ s1
     elseif currentcost < cost < nextcost
         nextcost = cost
     end
@@ -312,19 +325,23 @@ function optimize_exhaustive(code::EinCode{L}, size_dict::Dict{L}; verbose::Bool
     numtensors <= 2 && return NestedEinsum(NestedEinsum{L}.(1:numtensors), EinCode(ixs, iy))
     _check_exhaustive_scope(ixs, iy)
 
-    # intern labels to 1..numlabels
+    # intern labels to 1..numlabels and pick a bit type covering both the tensor
+    # and label universes, then dispatch into a type-stable barrier on that type.
     idlabels = unique!(reduce(vcat, ixs))
+    T = _choose_settype(max(numtensors, length(idlabels)))
+    return _optimize_exhaustive(T, ixs, iy, idlabels, size_dict, verbose)
+end
+
+function _optimize_exhaustive(::Type{T}, ixs::Vector{Vector{L}}, iy::Vector{L}, idlabels::Vector{L}, size_dict, verbose::Bool) where {T, L}
+    numtensors = length(ixs)
     numlabels = length(idlabels)
     lab2id = Dict(idlabels[i] => i for i in 1:numlabels)
     allcosts = Float64[Float64(get(size_dict, l, 1)) for l in idlabels]
 
-    # bit type must cover both universes (tensor subsets and label subsets)
-    T = _choose_settype(max(numtensors, numlabels))
-
     # per-tensor open-label set (= its full leg set; scope guarantees no dangling
     # or repeated legs) and per-label occurrence set over tensors
     singleopen = Vector{T}(undef, numtensors)
-    tensormask = [zero_set(T, numtensors) for _ in 1:numlabels]
+    tensormask = T[zero_set(T, numtensors) for _ in 1:numlabels]
     for i in 1:numtensors
         ids = [lab2id[l] for l in ixs[i]]
         singleopen[i] = storeset(T, ids, numlabels)
@@ -413,3 +430,7 @@ function _addbit!(s::BitVector, i)
 end
 _members(s::Unsigned, _maxint) = [i for i in 1:(8 * sizeof(s)) if _hasbit(s, i)]
 _members(s::BitVector, _maxint) = findall(s)
+_setsize(s::Unsigned) = count_ones(s)
+_setsize(s::BitVector) = count(s)
+_singleton_index(s::Unsigned) = trailing_zeros(s) + 1
+_singleton_index(s::BitVector) = findfirst(s)::Int
