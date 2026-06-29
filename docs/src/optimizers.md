@@ -8,8 +8,9 @@ Supported solvers include:
 | [`TreeSA`](@ref Sec_TreeSA) | Reliable, local search based optimizer [^Kalachev2021], but is a bit slow |
 | [`HyperND`](@ref Sec_HyperND) | Nested dissection algorithm, similar to [`KaHyParBipartite`](@ref). Requires importing either [`KaHyPar`](https://github.com/kahypar/KaHyPar.jl) or [`Metis`](https://github.com/JuliaSparse/Metis.jl). |
 | [`KaHyParBipartite` and `SABipartite`](@ref Sec_Bipartite) | Graph bipartition based, suited for large tensor networks [^Gray2021], requires using [`KaHyPar`](https://github.com/kahypar/KaHyPar.jl) package. Alternatively, a simulated annealing bipartition method is provided in [`SABipartite`](@ref). |
-| [`ExactTreewidth`](@ref Sec_ExactTreewidth) (alias of `Treewidth{RuleReduction{BT}}`) | Exact, but takes exponential time [^Bouchitté2001], based on package [`TreeWidthSolver`](https://github.com/ArrogantGao/TreeWidthSolver.jl). |
+| [`ExactTreewidth`](@ref Sec_ExactTreewidth) (alias of `Treewidth{RuleReduction{BT}}`) | Exact, but takes exponential time [^Bouchitté2001], based on package [`TreeWidthSolver`](https://github.com/ArrogantGao/TreeWidthSolver.jl). Minimizes treewidth (space complexity). |
 | [`Treewidth`](@ref Sec_Treewidth) | Tree width solver based, based on package [`CliqueTrees`](https://github.com/AlgebraicJulia/CliqueTrees.jl), performance is elimination algorithm dependent. |
+| [`ExhaustiveSearch`](@ref Sec_ExhaustiveSearch) | Exact, but takes exponential time [^Robert2014], the "netcon" dynamic program ported from [`TensorOperations`](https://github.com/Jutho/TensorOperations.jl). Minimizes the total contraction cost (time complexity). |
 
 There is a tradeoff between the time and the quality of the contraction order. The following figure shows the Pareto front of the multi-objective optimization of the time to optimize the contraction order and the time to contract the tensor network.
 
@@ -104,7 +105,9 @@ The blog post [Finding the Optimal Tree Decomposition with Minimal Treewidth - X
 
 Implemented as [`Treewidth`](@ref) in the package.
 
-## Exhaustive Search (planned)
+## [`ExhaustiveSearch`](@id Sec_ExhaustiveSearch)
+
+Implemented as [`ExhaustiveSearch`](@ref) in the package.
 
 The exhaustive search [^Robert2014] is a method to get the exact optimal contraction complexity.
 There are three different ways to implement the exhaustive search:
@@ -112,7 +115,10 @@ There are three different ways to implement the exhaustive search:
 * **Breadth-first constructive approach**: the breadth-first method construct the set of intermediate tensors by contracting $c$ tensors ($c \in [1, n - 1]$, where $n$ is the number of tensors) in each step, and record the optimal cost for constructing each intermediate tensor. Then in the last step, the optimal cost for contracting all $n$ tensors is obtained.
 * **Dynamic programming**: in each step, consider all bipartition that split the tensor network into two parts, if the optimal cost for each part is not recorded, further split them until the cost has been already obtained or only one tensor is left. Then combine the two parts and record the optimal cost of contracting the sub-networks. In this end the optimal cost for the whole network is obtained.
 In more recent work [^Robert2014], by reordering the search process in favor of cheapest-first and excluding large numbers of outer product contractions which are shown to be unnecessary, the efficiency of the exhaustive search has been greatly improved.
-The method has been implemented in [TensorOperations.jl](https://github.com/Jutho/TensorOperations.jl).
+
+[`ExhaustiveSearch`](@ref) implements this cheapest-first breadth-first dynamic program (the "netcon" algorithm), ported from [TensorOperations.jl](https://github.com/Jutho/TensorOperations.jl). It **globally minimizes the total contraction cost** (the sum of FLOPs over all pairwise contractions, i.e. the time complexity `tc`). This is complementary to [`ExactTreewidth`](@ref), which instead minimizes the treewidth (the size of the largest intermediate tensor, i.e. the space complexity `sc`). Like `ExactTreewidth`, the search is exponential and is intended for small to moderate networks (a few tens of tensors).
+
+The current implementation supports ordinary, pairwise-contractible tensor networks: every index must appear at most twice among the inputs, indices appearing once must be exactly the output indices, and indices appearing twice must not be outputs. Hyperedges (an index shared by more than two tensors) and batch/diagonal output indices are not yet supported; use [`TreeSA`](@ref), [`HyperND`](@ref) or [`ExactTreewidth`](@ref) for those.
 
 ## Performance Benchmark
 

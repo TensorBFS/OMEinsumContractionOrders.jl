@@ -14,7 +14,7 @@ julia --project -e 'using Pkg; Pkg.test(test_args=["greedy"])'  # Run single tes
 
 Tensor network contraction order optimizer. Core flow: `EinCode` → `optimize_code()` → `NestedEinsum` (binary contraction tree).
 
-**Key types:** `EinCode`, `NestedEinsum`, `SlicedEinsum` (in `src/Core.jl`). Optimizers (`<: CodeOptimizer`): `GreedyMethod`, `TreeSA`, `Treewidth`, `SABipartite`, `KaHyParBipartite`, `HyperND`. Entry point: `optimize_code()` in `src/interfaces.jl`.
+**Key types:** `EinCode`, `NestedEinsum`, `SlicedEinsum` (in `src/Core.jl`). Optimizers (`<: CodeOptimizer`): `GreedyMethod`, `TreeSA`, `Treewidth`, `SABipartite`, `KaHyParBipartite`, `HyperND`, `ExhaustiveSearch`. Entry point: `optimize_code()` in `src/interfaces.jl`.
 
 See CLAUDE.md for detailed type hierarchy, data flow, and file-by-file descriptions.
 
