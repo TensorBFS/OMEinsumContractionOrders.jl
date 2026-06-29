@@ -42,6 +42,10 @@ end
     include("treewidth.jl")
 end
 
+@testset "exhaustivesearch" begin
+    include("exhaustivesearch.jl")
+end
+
 @testset "hypernd" begin
     include("hypernd.jl")
 end
