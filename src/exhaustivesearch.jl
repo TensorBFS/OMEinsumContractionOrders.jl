@@ -9,9 +9,9 @@
 #   Phys. Rev. E 90, 033315. https://doi.org/10.1103/PhysRevE.90.033315
 #
 # The algorithm finds the binary contraction tree that minimizes the *total*
-# contraction cost (the sum of FLOPs over all pairwise contractions), which is
-# exactly the time complexity `tc`. Costs are accumulated in `Float64` to avoid
-# integer overflow on large networks.
+# contraction cost within each connected component. Disconnected components are
+# combined cheapest-first via outer products. Costs are accumulated in `Float64`
+# to avoid integer overflow on large networks.
 #
 # Compared with the original, this version is adapted to OMEinsum's
 # representation: it tracks each label's occurrence set explicitly (so it
@@ -27,11 +27,12 @@ Exact contraction-order optimizer based on the cost-capped breadth-first dynamic
 program of Pfeifer, Haegeman and Verstraete (2014) (the "netcon" algorithm),
 ported from [TensorOperations.jl](https://github.com/Jutho/TensorOperations.jl).
 
-It returns the contraction tree that **globally minimizes the total contraction
-cost** (the sum of FLOPs over all pairwise contractions, i.e. the time complexity
-`tc`). This is complementary to [`ExactTreewidth`](@ref), which instead minimizes
-the treewidth (the size of the largest intermediate tensor, i.e. the space
-complexity `sc`).
+It returns a contraction tree that minimizes the total contraction cost within
+each connected component (the sum of FLOPs over all pairwise contractions, i.e.
+the time complexity `tc`). Disconnected components are combined cheapest-first
+via outer products. This is complementary to [`ExactTreewidth`](@ref), which
+instead minimizes the treewidth (the size of the largest intermediate tensor,
+i.e. the space complexity `sc`).
 
 The search is exponential in the number of tensors; it is intended for small to
 moderate networks (a few tens of tensors). The cost cap of each connected
@@ -40,10 +41,12 @@ optimum in a single cost-capped pass.
 
 # Scope
 Hyperedges (a label shared by more than two tensors) and batch/diagonal output
-indices are supported. Two cases are rejected with an `ArgumentError`: a label
-that appears more than once within a single tensor (a partial trace), and a
-label that appears once but is not an output (a dangling summed index). Simplify
-those away first (e.g. with a simplifier) or use another optimizer.
+indices are supported. Nontrivial inputs handled by the dynamic program reject
+two cases with an `ArgumentError`: a label that appears more than once within a
+single tensor (a partial trace), and a label that appears once but is not an
+output (a dangling summed index). Trivial one- and two-tensor inputs are returned
+directly. Simplify unsupported nontrivial cases first (e.g. with a simplifier) or
+use another optimizer.
 
 # Fields
 - `verbose::Bool`: print progress of the search. Default `false`.
