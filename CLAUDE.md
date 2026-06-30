@@ -44,6 +44,7 @@ julia --project test/runtests.jl
 | `SABipartite` | `sabipartite.jl` | SA-based recursive bipartitioning |
 | `KaHyParBipartite` | `kahypar.jl` | KaHyPar graph partitioning (extension) |
 | `HyperND` | `hypernd.jl` | Nested dissection using CliqueTrees |
+| `ExhaustiveSearch` | `exhaustivesearch.jl` | Exact "netcon" DP (ported from TensorOperations.jl); minimizes total FLOPs |
 
 **Slicers** (`<: CodeSlicer`): `TreeSASlicer` in `treesaslicer.jl`
 

@@ -62,6 +62,9 @@ end
 function _optimize_code(code, size_dict, optimizer::HyperND)
     optimize_hyper_nd(optimizer, code, size_dict)
 end
+function _optimize_code(code, size_dict, optimizer::ExhaustiveSearch)
+    optimize_exhaustive(code, size_dict; verbose = optimizer.verbose)
+end
 
 """
     slice_code(code, size_dict, slicer) -> sliced_code

@@ -84,30 +84,6 @@ function bipartition_recursive(bipartiter, adj::SparseMatrixCSC, vertices::Abstr
     end
 end
 
-function _connected_components(adj, part::AbstractVector{T}) where T
-    A = adj[part,:]
-    A = A * A'   # connectivility matrix
-    n = length(part)
-    visit_mask = zeros(Bool, n)
-    groups = Vector{T}[]
-    while !all(visit_mask)
-        newset = Int[]
-        push_connected!(newset, visit_mask, A, findfirst(==(false), visit_mask))
-        push!(groups, getindex.(Ref(part), newset))
-    end
-    return groups
-end
-
-function push_connected!(set, visit_mask, adj, i)
-    visit_mask[i] = true
-    push!(set, i)
-    for v = 1:size(adj, 2)
-        if !visit_mask[v] && !iszero(adj[i,v])
-            push_connected!(set, visit_mask, adj, v)
-        end
-    end
-end
-
 # parts are vectors of Ts
 function coarse_grained_optimize(adj, parts, log2_sizes, sub_optimizer)
     incidence_list = get_coarse_grained_graph(adj, parts)
