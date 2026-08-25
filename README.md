@@ -5,6 +5,7 @@ OMEinsumContractionOrders is a Julia package that provides an `optimize_code` fu
 [![Documentation](https://img.shields.io/badge/docs-dev-blue.svg)](https://tensorbfs.github.io/OMEinsumContractionOrders.jl/dev/)
 [![Build Status](https://github.com/TensorBFS/OMEinsumContractionOrders.jl/workflows/CI/badge.svg)](https://github.com/TensorBFS/OMEinsumContractionOrders.jl/actions)
 [![codecov](https://codecov.io/gh/TensorBFS/OMEinsumContractionOrders.jl/branch/master/graph/badge.svg?token=BwaF0cV6q1)](https://codecov.io/gh/TensorBFS/OMEinsumContractionOrders.jl)
+[![DOI](https://joss.theoj.org/papers/10.21105/joss.09886/status.svg)](https://doi.org/10.21105/joss.09886)
 
 ## Installation
 
